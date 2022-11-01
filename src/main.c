@@ -2,11 +2,21 @@
 #include "token.h"
 #include "lexer.h"
 
-#define FPATH "/home/liam/Documents/lbasic/test/test1.lb"
+void print_usage() {
+	printf("LBASIC Usage\n");
+	printf("\t./lbasic <path>\n");
+}
 
 int main(int argc, char *argv[]) {
-   t_list *token_list = lex(FPATH);
+	if (argc > 1) {
+		t_list *token_list = lex(argv[1]);
 
-   print_list(token_list);
-
+		if (token_list != NULL) {
+			print_list(token_list);
+		} else {
+			printf("ERROR: Provide valid file path.\n");
+		}
+	} else {
+		print_usage();
+	}
 }

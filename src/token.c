@@ -11,6 +11,7 @@ t_list *t_list_new(void) {
     new->prev = NULL;
     
     token *tok = (token *)malloc(sizeof(token));
+	memset(tok->literal, 0, MAX_LITERAL);
     tok->type = T_HEAD;
     strncpy(tok->literal, "HEAD", strlen("HEAD"));
     

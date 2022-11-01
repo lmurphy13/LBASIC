@@ -9,7 +9,8 @@ typedef enum {
     T_ASSIGN,           // :=
     T_COLON,            // :
     T_SEMICOLON,        // ;
-    T_QUOTE,            // "
+    T_SQUOTE,			// '
+	T_DQUOTE,           // "
     T_LT,               // <
     T_GT,               // >
     T_BANG,             // !
@@ -30,6 +31,8 @@ typedef enum {
     T_BOOL,             // bool
     T_STRING,           // string
     T_FLOAT,            // float
+	T_GOTO,				// goto
+	T_IDENT,			// identifier [a-zA-Z] [a-zA-Z0-9]
     T_HEAD,             // Head of list
     L_STR,              // string literal
     L_NUM,              // number literal
