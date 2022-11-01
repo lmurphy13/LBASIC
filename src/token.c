@@ -1,20 +1,20 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "token.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static unsigned int token_count = 0;
 
 t_list *t_list_new(void) {
     t_list *new = (t_list *)malloc(sizeof(t_list));
-    new->next = NULL;
-    new->prev = NULL;
-    
+    new->next   = NULL;
+    new->prev   = NULL;
+
     token *tok = (token *)malloc(sizeof(token));
-	memset(tok->literal, 0, MAX_LITERAL);
+    memset(tok->literal, 0, MAX_LITERAL);
     tok->type = T_HEAD;
     strncpy(tok->literal, "HEAD", strlen("HEAD"));
-    
+
     new->tok = tok;
 
     if (new != NULL) {

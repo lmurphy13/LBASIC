@@ -4,38 +4,38 @@
 #define MAX_LITERAL 1024
 
 typedef enum {
-    T_LPAREN = 0,       // (
-    T_RPAREN,           // )
-    T_ASSIGN,           // :=
-    T_COLON,            // :
-    T_SEMICOLON,        // ;
-    T_SQUOTE,			// '
-	T_DQUOTE,           // "
-    T_LT,               // <
-    T_GT,               // >
-    T_BANG,             // !
-    T_EQ,               // ==
-    T_LE,               // <=
-    T_GE,               // >=
-    T_NE,               // !=
-    T_FUNC,             // func
-    T_FOR,              // for
-    T_WHILE,            // while
-    T_TO,               // to
-    T_END,              // end
-    T_STRUCT,           // struct
-    T_TRUE,             // true
-    T_FALSE,            // false
-    T_NIL,              // nil
-    T_INT,              // int
-    T_BOOL,             // bool
-    T_STRING,           // string
-    T_FLOAT,            // float
-	T_GOTO,				// goto
-	T_IDENT,			// identifier [a-zA-Z] [a-zA-Z0-9]
-    T_HEAD,             // Head of list
-    L_STR,              // string literal
-    L_NUM,              // number literal
+    T_LPAREN = 0, // (
+    T_RPAREN,     // )
+    T_ASSIGN,     // :=
+    T_COLON,      // :
+    T_SEMICOLON,  // ;
+    T_SQUOTE,     // '
+    T_DQUOTE,     // "
+    T_LT,         // <
+    T_GT,         // >
+    T_BANG,       // !
+    T_EQ,         // ==
+    T_LE,         // <=
+    T_GE,         // >=
+    T_NE,         // !=
+    T_FUNC,       // func
+    T_FOR,        // for
+    T_WHILE,      // while
+    T_TO,         // to
+    T_END,        // end
+    T_STRUCT,     // struct
+    T_TRUE,       // true
+    T_FALSE,      // false
+    T_NIL,        // nil
+    T_INT,        // int
+    T_BOOL,       // bool
+    T_STRING,     // string
+    T_FLOAT,      // float
+    T_GOTO,       // goto
+    T_IDENT,      // identifier [a-zA-Z] [a-zA-Z0-9]
+    T_HEAD,       // Head of list
+    L_STR,        // string literal
+    L_NUM,        // number literal
     NTOKENS
 } token_type;
 

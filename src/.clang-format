@@ -1,0 +1,5 @@
+IndentWidth: 4
+Language: Cpp
+PointerAlignment: Right
+ColumnLimit: 100
+AlignConsecutiveAssignments: true
