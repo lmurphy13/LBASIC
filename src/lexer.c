@@ -14,12 +14,13 @@
 static char *input_file(const char *path);
 static void emit_token(t_list *lst, token_type type, const char *literal);
 static void tokenize(char *prog_buff);
-static bool check_singles(char c, bool *matched);
+static bool check_singles(char c);
 static bool is_keyword(char *lexeme, token_type *type);
 
 // Globals
 t_list *token_list;
 
+static int char_num = -1;
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {"func",   "for",    "while", "to",  "end",
                                                      "struct", "true",   "false", "nil", "int",
                                                      "bool",   "string", "float", "goto"};
@@ -95,28 +96,25 @@ static void emit_token(t_list *lst, token_type type, const char *literal) {
     }
 }
 
-static bool check_singles(char c, bool *matched) {
+static bool check_singles(char c) {
     bool retval = true;
 
     switch (c) {
     case '(':
         emit_token(token_list, T_LPAREN, "(");
-        *matched = true;
         printf("seen!\n");
         break;
     case ')':
         emit_token(token_list, T_RPAREN, ")");
-        *matched = true;
         break;
     case ';':
         emit_token(token_list, T_SEMICOLON, ";");
-        *matched = true;
         break;
     // Intentional fallthrough
     case '<':
     case '>':
     case '!':
-    case ':':
+	case ':':
     case '\'':
     case '"':
         return true;
@@ -141,35 +139,42 @@ static bool is_keyword(char *lexeme, token_type *type) {
 
 static bool is_digit(char c) { return (c >= '0' && c <= '9'); }
 
+// Get the next char from the buffer
+static char get_char(char *prog_buff) {
+	char_num++;
+	return *(prog_buff + char_num);
+}
+
+// Decrement buffer index
+static void unget_char() {
+	char_num--;
+}
 static void tokenize(char *prog_buff) {
     static int state = 0;
-    char *c          = prog_buff;
+    char c;
     char lexeme[MAX_LITERAL];
     token_type tmp;
-    bool matched = false;
 
     memset(lexeme, 0, sizeof(lexeme));
-
-    while (*c != '\0') {
+	
+	c = get_char(prog_buff);
+    while (c != '\0') {
         // Skip whitespace
-        if (*c == ' ' || *c == '\t' || *c == '\r' || *c == '\n') {
-            c++;
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            c = get_char(prog_buff);
+			continue;
         }
 
         // Check single character tokens
-        if (check_singles(*c, &matched)) {
-            if (matched) {
-                memset(lexeme, 0, sizeof(lexeme));
-                matched = false;
-            }
+        if (check_singles(c)) {
 
-            // Beginning of string literal
-            if (*c == '"') {
+			// Beginning of string literal
+            if (c == '"') {
                 // Read until ending quote
-                c++;
-                while (*c != '"') {
-                    sprintf(lexeme, "%s%c", lexeme, *c);
-                    c++;
+                c = get_char(prog_buff);
+                while (c != '"') {
+                    sprintf(lexeme, "%s%c", lexeme, c);
+                    c = get_char(prog_buff);
                 }
                 emit_token(token_list, L_STR, lexeme);
 
@@ -178,106 +183,90 @@ static void tokenize(char *prog_buff) {
             }
 
             // Beginning of a comment
-            else if (*c == '\'') {
+            else if (c == '\'') {
                 // Read until a new line is seen
-                while (*c != '\n') {
-                    c++;
+                while (c != '\n') {
+                    c = get_char(prog_buff);
                 }
-                c++;
+                c = get_char(prog_buff);
                 continue;
             }
 
             // Beginning of assignment token
-            if (*c == ':') {
-                c++;
-                if (*c == '=') {
-                    emit_token(token_list, T_ASSIGN, lexeme);
+			else if (c == ':') {
+                c = get_char(prog_buff);
+                if (c == '=') {
+                    emit_token(token_list, T_ASSIGN, ":=");
 
                     // Reset lexeme
                     memset(lexeme, 0, sizeof(lexeme));
-                    c++;
+                    c = get_char(prog_buff);
                     continue;
                 }
             }
 
             // Reset lexeme
-            memset(lexeme, 0, sizeof(lexeme));
-            c++;
+			// memset(lexeme, 0, sizeof(lexeme));
+            c = get_char(prog_buff);
             continue;
         }
 
-        // Check identifiers
-        /*
-                        else if (isalpha(*c)) {
-                                if (is_keyword(lexeme, &tmp)) {
-                        emit_token(token_list, tmp, lexeme);
+        // Identifier or keyword?
+        else if (isalpha(c)) {
+			char tmp_delim = 0;
 
-                                        // Reset lexeme
-                                        memset(lexeme, 0, sizeof(lexeme));
-
-                            continue;
-                        }
-
-                                else {
-                                        // Read until hitting a non alphanumeric
-                                        while (isalpha(*c) || is_digit(*c)) {
-                                                // Append c to the lexeme
-                                        sprintf(lexeme, "%s%c", lexeme, *c);
-                                                c++;
-                                        }
-                                        emit_token(token_list, T_IDENT, lexeme);
-
-                                        // Reset
-                                        memset(lexeme, 0, sizeof(lexeme));
-                                        c++;
-                                        continue;
-                                }
-                        }
-        */
-
-        else if (is_keyword(lexeme, &tmp)) {
-            emit_token(token_list, tmp, lexeme);
-
-            // Reset lexeme
-            memset(lexeme, 0, sizeof(lexeme));
-        }
-
-        // Identifier?
-        else if (isalpha(*c)) {
-            bool read_alpha = false;
-            // Read until newline, space, semicolon, or lparen
-            while ((*c != '\n') && (*c != ' ') && (*c != ';') && (*c != '(')) {
-                if (!read_alpha) {
-                    if (isalpha(*c)) {
-                        // Append to lexeme
-                        sprintf(lexeme, "%s%c", lexeme, *c);
-                        read_alpha = true;
-                    }
-                } else {
-                    if (isalpha(*c) || is_digit(*c)) {
-                        // Append to lexeme
-                        sprintf(lexeme, "%s%c", lexeme, *c);
-                    }
-                }
-                c++;
+            // Read until newline, space, colon, semicolon, or lparen
+            while ((c != '\n') && (c != ' ')) {
+				// Append to lexeme
+				sprintf(lexeme, "%s%c", lexeme, c);				
+				c = get_char(prog_buff);
+				
+				if (c == '(' || c == ':' || c == ';') {
+					tmp_delim = c;
+					break;
+				}	
             }
 
-            emit_token(token_list, T_IDENT, lexeme);
-            memset(lexeme, 0, sizeof(lexeme));
+			if (is_keyword(lexeme, &tmp)) {
+				emit_token(token_list, tmp, lexeme);
+				// Reset lexeme
+				memset(lexeme, 0, sizeof(lexeme));
+			} else {
+				// Identifier
+	            emit_token(token_list, T_IDENT, lexeme);
+				memset(lexeme, 0, sizeof(lexeme));
 
-            c++;
-            continue;
+			}
+
+			if (tmp_delim) {
+				if (check_singles(tmp_delim)) {
+					if (tmp_delim == ':') {
+						c = get_char(prog_buff);
+						if (c == '=') {
+							unget_char();
+							continue;
+						} else {
+							unget_char();
+							emit_token(token_list, T_COLON, ":");
+						}
+					}
+				}
+			}
         }
 
-        /*
-                        else {
-                    printf("unknown token: %s\n", lexeme);
-                }
-        */
-        // Append c to the lexeme
-        //        sprintf(lexeme, "%s%c", lexeme, *c);
-        //        printf("|%s|\n", lexeme);
+		// Number?
+		else if (is_digit(c)) {
+			// Read until not a digit
+			while (is_digit(c)) {
+				// Append to lexeme
+				sprintf(lexeme, "%s%c", lexeme, c);
+				c = get_char(prog_buff);
+			}
+			unget_char();
+			emit_token(token_list, L_NUM, lexeme);
+			memset(lexeme, 0, sizeof(lexeme));
+		}
 
-        c++;
+        c = get_char(prog_buff);
     }
 }
