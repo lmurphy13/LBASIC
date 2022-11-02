@@ -2,7 +2,11 @@ func main
     println("hello world");
 
     while true
-        println("Liam is cool");
+       if true
+		   println("Liam is cool");
+		   _
+		   return;
+	   end
     end
 
     struct person

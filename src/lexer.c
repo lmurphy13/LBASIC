@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "error.h"
 #include "lexer.h"
 #include "token.h"
 
@@ -20,6 +21,7 @@ static bool is_keyword(char *lexeme, token_type *type);
 // Globals
 t_list *token_list;
 static int char_num = -1;
+static int line_num = 1;
 
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {"func",   "for",    "while", "to",  "end",
                                                      "struct", "true",   "false", "nil", "int",
@@ -102,7 +104,6 @@ static bool check_singles(char c) {
     switch (c) {
     case '(':
         emit_token(token_list, T_LPAREN, "(");
-        printf("seen!\n");
         break;
     case ')':
         emit_token(token_list, T_RPAREN, ")");
@@ -160,6 +161,9 @@ static void tokenize(char *prog_buff) {
     while (c != '\0') {
         // Skip whitespace
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            if (c == '\n') {
+                line_num++;
+            }
             c = get_char(prog_buff);
             continue;
         }
@@ -186,6 +190,10 @@ static void tokenize(char *prog_buff) {
                 // Read until a new line is seen
                 while (c != '\n') {
                     c = get_char(prog_buff);
+
+                    if (c == '\n') {
+                        line_num++;
+                    }
                 }
                 c = get_char(prog_buff);
                 continue;
@@ -219,6 +227,10 @@ static void tokenize(char *prog_buff) {
                 // Append to lexeme
                 sprintf(lexeme, "%s%c", lexeme, c);
                 c = get_char(prog_buff);
+
+                if (c == '\n') {
+                    line_num++;
+                }
 
                 if (c == '(' || c == ':' || c == ';') {
                     tmp_delim = c;
@@ -263,6 +275,12 @@ static void tokenize(char *prog_buff) {
             unget_char();
             emit_token(token_list, L_NUM, lexeme);
             memset(lexeme, 0, sizeof(lexeme));
+        }
+
+        else {
+            printf("ERROR: Unknown character on line %d: \"%c\" (index: %d)\n", line_num, c,
+                   char_num);
+            exit(LEXER_ERROR_UNKNOWN_CHARACTER);
         }
 
         c = get_char(prog_buff);

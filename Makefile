@@ -2,7 +2,7 @@ CC = gcc
 
 SRCDIR = src
 SOURCES = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(SRCDIR)/lexer.o $(SRCDIR)/token.o $(SRCDIR)/main.o
+OBJECTS = $(SRCDIR)/lexer.o $(SRCDIR)/token.o $(SRCDIR)/parser.o $(SRCDIR)/main.o
 CFLAGS = -g -O0
 
 lbasic: $(SOURCES) $(OBJECTS)
