@@ -19,8 +19,8 @@ static bool is_keyword(char *lexeme, token_type *type);
 
 // Globals
 t_list *token_list;
-
 static int char_num = -1;
+
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {"func",   "for",    "while", "to",  "end",
                                                      "struct", "true",   "false", "nil", "int",
                                                      "bool",   "string", "float", "goto"};
@@ -114,7 +114,7 @@ static bool check_singles(char c) {
     case '<':
     case '>':
     case '!':
-	case ':':
+    case ':':
     case '\'':
     case '"':
         return true;
@@ -141,14 +141,13 @@ static bool is_digit(char c) { return (c >= '0' && c <= '9'); }
 
 // Get the next char from the buffer
 static char get_char(char *prog_buff) {
-	char_num++;
-	return *(prog_buff + char_num);
+    char_num++;
+    return *(prog_buff + char_num);
 }
 
 // Decrement buffer index
-static void unget_char() {
-	char_num--;
-}
+static void unget_char() { char_num--; }
+
 static void tokenize(char *prog_buff) {
     static int state = 0;
     char c;
@@ -156,19 +155,19 @@ static void tokenize(char *prog_buff) {
     token_type tmp;
 
     memset(lexeme, 0, sizeof(lexeme));
-	
-	c = get_char(prog_buff);
+
+    c = get_char(prog_buff);
     while (c != '\0') {
         // Skip whitespace
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
             c = get_char(prog_buff);
-			continue;
+            continue;
         }
 
         // Check single character tokens
         if (check_singles(c)) {
 
-			// Beginning of string literal
+            // Beginning of string literal
             if (c == '"') {
                 // Read until ending quote
                 c = get_char(prog_buff);
@@ -193,7 +192,7 @@ static void tokenize(char *prog_buff) {
             }
 
             // Beginning of assignment token
-			else if (c == ':') {
+            else if (c == ':') {
                 c = get_char(prog_buff);
                 if (c == '=') {
                     emit_token(token_list, T_ASSIGN, ":=");
@@ -206,66 +205,65 @@ static void tokenize(char *prog_buff) {
             }
 
             // Reset lexeme
-			// memset(lexeme, 0, sizeof(lexeme));
+            // memset(lexeme, 0, sizeof(lexeme));
             c = get_char(prog_buff);
             continue;
         }
 
         // Identifier or keyword?
         else if (isalpha(c)) {
-			char tmp_delim = 0;
+            char tmp_delim = 0;
 
             // Read until newline, space, colon, semicolon, or lparen
             while ((c != '\n') && (c != ' ')) {
-				// Append to lexeme
-				sprintf(lexeme, "%s%c", lexeme, c);				
-				c = get_char(prog_buff);
-				
-				if (c == '(' || c == ':' || c == ';') {
-					tmp_delim = c;
-					break;
-				}	
+                // Append to lexeme
+                sprintf(lexeme, "%s%c", lexeme, c);
+                c = get_char(prog_buff);
+
+                if (c == '(' || c == ':' || c == ';') {
+                    tmp_delim = c;
+                    break;
+                }
             }
 
-			if (is_keyword(lexeme, &tmp)) {
-				emit_token(token_list, tmp, lexeme);
-				// Reset lexeme
-				memset(lexeme, 0, sizeof(lexeme));
-			} else {
-				// Identifier
-	            emit_token(token_list, T_IDENT, lexeme);
-				memset(lexeme, 0, sizeof(lexeme));
+            if (is_keyword(lexeme, &tmp)) {
+                emit_token(token_list, tmp, lexeme);
+                // Reset lexeme
+                memset(lexeme, 0, sizeof(lexeme));
+            } else {
+                // Identifier
+                emit_token(token_list, T_IDENT, lexeme);
+                memset(lexeme, 0, sizeof(lexeme));
+            }
 
-			}
-
-			if (tmp_delim) {
-				if (check_singles(tmp_delim)) {
-					if (tmp_delim == ':') {
-						c = get_char(prog_buff);
-						if (c == '=') {
-							unget_char();
-							continue;
-						} else {
-							unget_char();
-							emit_token(token_list, T_COLON, ":");
-						}
-					}
-				}
-			}
+            if (tmp_delim) {
+                if (check_singles(tmp_delim)) {
+                    if (tmp_delim == ':') {
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            unget_char();
+                            continue;
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_COLON, ":");
+                        }
+                    }
+                }
+            }
         }
 
-		// Number?
-		else if (is_digit(c)) {
-			// Read until not a digit
-			while (is_digit(c)) {
-				// Append to lexeme
-				sprintf(lexeme, "%s%c", lexeme, c);
-				c = get_char(prog_buff);
-			}
-			unget_char();
-			emit_token(token_list, L_NUM, lexeme);
-			memset(lexeme, 0, sizeof(lexeme));
-		}
+        // Number?
+        else if (is_digit(c)) {
+            // Read until not a digit
+            while (is_digit(c)) {
+                // Append to lexeme
+                sprintf(lexeme, "%s%c", lexeme, c);
+                c = get_char(prog_buff);
+            }
+            unget_char();
+            emit_token(token_list, L_NUM, lexeme);
+            memset(lexeme, 0, sizeof(lexeme));
+        }
 
         c = get_char(prog_buff);
     }

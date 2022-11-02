@@ -11,3 +11,7 @@ lbasic: $(SOURCES) $(OBJECTS)
 clean:
 	rm -rf $(SRCDIR)/*.o
 	rm lbasic
+
+format:
+	clang-format-11 -i src/*.c
+	clang-format-11 -i src/*.h
