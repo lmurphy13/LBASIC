@@ -36,6 +36,7 @@ typedef enum {
     T_HEAD,       // Head of list
     L_STR,        // string literal
     L_NUM,        // number literal
+    T_EOF,        // End Of File
     NTOKENS
 } token_type;
 

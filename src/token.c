@@ -57,6 +57,7 @@ t_list *t_list_next(t_list *lst) {
 
 t_list *t_list_prev(t_list *lst) {
     if (lst == NULL) {
+        printf("null element\n");
         return NULL;
     } else {
         return lst->prev;

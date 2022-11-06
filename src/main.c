@@ -19,8 +19,9 @@ int main(int argc, char *argv[]) {
         t_list *token_list = lex(argv[1]);
 
         if (token_list != NULL) {
+#if defined(DEBUG)
             print_list(token_list);
-
+#endif
             // Syntactic analysis
             node *program = parse(token_list);
 

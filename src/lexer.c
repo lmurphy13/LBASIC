@@ -23,6 +23,7 @@ t_list *token_list;
 static int char_num = -1;
 static int line_num = 1;
 
+// Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {"func",   "for",    "while", "to",  "end",
                                                      "struct", "true",   "false", "nil", "int",
                                                      "bool",   "string", "float", "goto"};
@@ -32,7 +33,9 @@ t_list *lex(const char *path) {
     char *prog_buff = input_file(path);
 
     if (prog_buff != NULL) {
+#if defined(DEBUG)
         printf("%s\n\n", prog_buff);
+#endif
 
         token_list = t_list_new();
 
@@ -285,4 +288,7 @@ static void tokenize(char *prog_buff) {
 
         c = get_char(prog_buff);
     }
+
+    // Once we hit '\0', append the EOF token
+    emit_token(token_list, T_EOF, "EOF");
 }
