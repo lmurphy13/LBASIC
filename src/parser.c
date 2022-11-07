@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "error.h"
 #include "parser.h"
 #include "token.h"
 
@@ -8,9 +9,28 @@
 static token get_token(t_list *);
 static void consume(void);
 static void backup(void);
+static void syntax_error(void);
+
+// Parsing Prototypes
+node *parse_statements(void);
+node *parse_statement(void);
+node *parse_function_decl(void);
+node *parse_label_decl(void);
+node *parse_struct_decl(void);
+node *parse_var_decls(void);
+node *parse_var_decl(void);
+node *parse_expression(void);
+node *parse_bin_op_expr(void);
+node *parse_and_expr(void);
+node *parse_or_expr(void);
+node *parse_add_expr(void);
+node *parse_sub_expr(void);
+node *parse_mul_expr(void);
+node *parse_div_expr(void);
+node *parse_mod_expr(void);
+node *parse_goto_expr(void);
 
 // Globals
-
 // Current token
 static token lookahead;
 
@@ -49,7 +69,17 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
+static void syntax_error() {
+	printf("Syntax Error!\n");
+}
+
+static void func_decl() {
+	printf("func decl!\n");
+}
+
 // Recursive descent
+
+// <program> := <statements>
 node *parse(t_list *tokens) {
     node *program = mk_node(N_PROGRAM);
 
@@ -65,10 +95,27 @@ node *parse(t_list *tokens) {
         consume();
     }
 
+	node *statements = parse_statements();
+
+	program->statements = statements;
+
+	/*
+	switch (lookahead.type) {
+		case T_FUNC: func_decl(); break;
+		default: syntax_error(); break;
+
+	}
+	*/
+
+#if defined(DEBUG)
     printf("type: %d\n", lookahead.type);
     printf("literal: %s\n", lookahead.literal);
-
+#endif
     return program;
+}
+
+node *parse_statements() {
+	return NULL;
 }
 
 void print_ast(node *ast) {

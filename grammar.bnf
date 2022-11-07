@@ -1,0 +1,34 @@
+Inspiration taken from:
+https://rosettacode.org/wiki/BNF_Grammar#BASIC
+
+<program> := <statements>
+
+<statements> := <statement> <statements>
+			  | <statement>
+
+<statement> := <function-decl>
+			 | <label-decl>
+			 | <var-decl>
+			 | <struct-decl>
+			 | <expression>
+
+<function-decl> := 'func' <ident> <statements> 'end'
+
+<label-decl> := <ident> ':'
+
+<struct-decl> := 'struct' <id> <var-decls> 'end'
+
+<var-decls> := <var-decl> <var-decls>
+			 | <var-decl>
+
+<var-decl> := <type> <id> ';'
+
+<expression> := <bin-op-expr>
+			  | <goto-expr>
+
+<bin-op-expr> := <and-expr> 
+
+<add-expr> := <sub-expr> - <add-expr>
+			| <sub-expr>
+
+<goto-expr> := 'goto' <ident> ';'

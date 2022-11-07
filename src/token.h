@@ -18,6 +18,8 @@ typedef enum {
     T_LE,         // <=
     T_GE,         // >=
     T_NE,         // !=
+	T_AND,		  // and
+	T_OR,		  // or
     T_FUNC,       // func
     T_FOR,        // for
     T_WHILE,      // while

@@ -9,6 +9,7 @@ typedef enum n_type {
     N_INTEGER,
     N_BOOLEAN,
     N_STRING,
+	N_STATEMENTS,
     N_BINOP,
     N_FUNCDECL,
     N_STRUCTDECL,
@@ -16,21 +17,10 @@ typedef enum n_type {
     NUM_TYPES
 } n_type;
 
-// Root AST node
+// Program AST node (root node)
 typedef struct node {
     n_type type;
-
-    union {
-        struct {
-            int ivalue;
-            char *svalue;
-        } integer;
-
-        struct {
-            bool bvalue;
-            char *svalue;
-        } boolean;
-    };
+	struct node *statements;
 } node;
 
 // Prototypes
