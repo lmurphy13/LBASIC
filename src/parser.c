@@ -69,13 +69,9 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-static void syntax_error() {
-	printf("Syntax Error!\n");
-}
+static void syntax_error() { printf("Syntax Error!\n"); }
 
-static void func_decl() {
-	printf("func decl!\n");
-}
+static void func_decl() { printf("func decl!\n"); }
 
 // Recursive descent
 
@@ -95,17 +91,17 @@ node *parse(t_list *tokens) {
         consume();
     }
 
-	node *statements = parse_statements();
+    node *statements = parse_statements();
 
-	program->statements = statements;
+    program->statements = statements;
 
-	/*
-	switch (lookahead.type) {
-		case T_FUNC: func_decl(); break;
-		default: syntax_error(); break;
+    /*
+    switch (lookahead.type) {
+            case T_FUNC: func_decl(); break;
+            default: syntax_error(); break;
 
-	}
-	*/
+    }
+    */
 
 #if defined(DEBUG)
     printf("type: %d\n", lookahead.type);
@@ -114,9 +110,7 @@ node *parse(t_list *tokens) {
     return program;
 }
 
-node *parse_statements() {
-	return NULL;
-}
+node *parse_statements() { return NULL; }
 
 void print_ast(node *ast) {
     node *root = mk_node(N_PROGRAM);
