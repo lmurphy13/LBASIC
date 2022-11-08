@@ -4,7 +4,6 @@ func main() -> void
     while true
        if true
 		   println("Liam is cool");
-		   _
 		   return;
 	   end
     end
@@ -14,8 +13,20 @@ func main() -> void
         bool isMale;
     end
 
-    goto label1;
+	if true or false
+	    goto label1;
+	end
 end
+
+func fib(int n) -> int
+	if n <= 1
+		return n;
+	else
+		return fib(n - 1) + fib(n - 2);
+	end
+end
+
+
 
 ' This is a single line comment
 

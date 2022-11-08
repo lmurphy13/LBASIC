@@ -13,7 +13,8 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			 | <for-stmt>
 			 | <expression>
 
-<function-decl> := 'func' <ident> <statements> 'end'
+<function-decl> := 'func' <ident> '(' <expr-list> ') '->' <type> <statements> 'end'
+				 | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
 
 <label-decl> := <ident> ':'
 

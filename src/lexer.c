@@ -73,7 +73,8 @@ static char *input_file(const char *path) {
 
         fclose(fp);
     } else {
-        printf("Unable to open file for reading");
+        printf("Unable to open file for reading\n");
+		exit(LEXER_ERROR_BAD_FILE_POINTER);
     }
 
     return buffer;
@@ -114,11 +115,24 @@ static bool check_singles(char c) {
     case ';':
         emit_token(token_list, T_SEMICOLON, ";");
         break;
+	case '+':
+		emit_token(token_list, T_PLUS, "+");
+		break;
+	case '*':
+		emit_token(token_list, T_MUL, "*");
+		break;
+	case '/':
+		emit_token(token_list, T_DIV, "/");
+		break;
+	case '%':
+		emit_token(token_list, T_MOD, "%");
+		break;
     // Intentional fallthrough
     case '<':
     case '>':
     case '!':
     case ':':
+	case '-':
     case '\'':
     case '"':
         return true;
@@ -215,6 +229,23 @@ static void tokenize(char *prog_buff) {
                 }
             }
 
+			else {
+				switch (c) {
+					case '<': c = get_char(prog_buff); if (c == '=') { emit_token(token_list, T_LE, "<="); } break;
+					case '>': c = get_char(prog_buff); if (c == '=') { emit_token(token_list, T_GE, ">="); } break;
+					case '!': c = get_char(prog_buff); if (c == '=') { emit_token(token_list, T_NE, "!="); } break;
+					case '-':
+						c = get_char(prog_buff);
+						if (c == '>') {
+							emit_token(token_list, T_OFTYPE, "->");
+						} else {
+							unget_char();
+							emit_token(token_list, T_MINUS, "-");
+						}
+						break;
+				}
+			}
+
             // Reset lexeme
             // memset(lexeme, 0, sizeof(lexeme));
             c = get_char(prog_buff);
@@ -245,10 +276,12 @@ static void tokenize(char *prog_buff) {
                 emit_token(token_list, tmp, lexeme);
                 // Reset lexeme
                 memset(lexeme, 0, sizeof(lexeme));
+				tmp_delim = 0;
             } else {
                 // Identifier
                 emit_token(token_list, T_IDENT, lexeme);
                 memset(lexeme, 0, sizeof(lexeme));
+				tmp_delim = 0;
             }
 
             if (tmp_delim) {
