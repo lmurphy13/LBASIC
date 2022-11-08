@@ -11,12 +11,12 @@ typedef enum {
     T_SEMICOLON,  // ;
     T_SQUOTE,     // '
     T_DQUOTE,     // "
-	T_PLUS,		  // +
-	T_MINUS,	  // -
-	T_MUL,		  // *
-	T_DIV,		  // /
-	T_MOD,		  // %
-	T_OFTYPE,	  // ->
+    T_PLUS,       // +
+    T_MINUS,      // -
+    T_MUL,        // *
+    T_DIV,        // /
+    T_MOD,        // %
+    T_OFTYPE,     // ->
     T_LT,         // <
     T_GT,         // >
     T_BANG,       // !
