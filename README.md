@@ -6,6 +6,12 @@ A simple, compiled language with BASIC-like syntax and structs.
 - Some reasonably current version of GCC
 - clang-format-11
 
+### Progress:
+- [x] Lexer (mostly done)
+- [ ] Parser (started)
+- [ ] Type Checker
+- [ ] Code Generator
+
 ### To Build:
 Just run `make`.
 
