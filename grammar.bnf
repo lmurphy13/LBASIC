@@ -10,6 +10,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			 | <label-decl>
 			 | <var-decl>
 			 | <struct-decl>
+			 | <for-stmt>
 			 | <expression>
 
 <function-decl> := 'func' <ident> <statements> 'end'
@@ -18,17 +19,68 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <struct-decl> := 'struct' <id> <var-decls> 'end'
 
+<for-stmt> := 'for' <ident> ':=' <expression> 'to' <expression> <statements> 'end'
+
 <var-decls> := <var-decl> <var-decls>
 			 | <var-decl>
 
 <var-decl> := <type> <id> ';'
 
+<expr-list> := <expression> ',' <expr-list>
+			 | <expression>
+
 <expression> := <bin-op-expr>
 			  | <goto-expr>
+			  | <call-expr>
 
-<bin-op-expr> := <and-expr> 
+<bin-op-expr> := <and-expr> 'or' <bin-op-expr>
+			   | <and-expr>
 
-<add-expr> := <sub-expr> - <add-expr>
-			| <sub-expr>
+<and-expr> := <not-expr> 'and' <and-expr>
+		    | <not-expr>
+
+<not-expr> := '!' <compare-expr>
+			| <compare-expr>
+
+<compare-expr> := <add-expr> '==' <compare-expr>
+				| <add-expr> '!=' <compare-expr>
+				| <add-expr> '>' <compare-expr>
+				| <add-expr> '>=' <compare-expr>
+				| <add-expr> '<' <compare-expr>
+				| <add-expr> '<=' <compare-expr>
+				| <add-expr>
+
+<add-expr> := <mul-expr> '+' <add-expr>
+			| <mul-expr> '-' <add-expr>
+			| <mul-expr>
+
+<mul-expr> := <negate-expr> '*' <mul-expr>
+			| <negate-expr> '/' <mul-expr>
+			| <negate-expr> '%' <mul-expr>
+			| <negate-expr>
+
+<negate-expr> := '-' <value>
+			   | <value>
+
+<value> := '(' <expression> ')'
+		 | <ident>
+		 | <ident> '(' <expr-list> ')'
+		 | <constant>
+
+<constant> := <int-literal>
+			| <string-literal>
+			| 'true'
+			| 'false'
 
 <goto-expr> := 'goto' <ident> ';'
+
+<call-expr> := <ident> '(' <expr-list> ')
+
+<ident-list> := <ident> ',' <ident-list>
+			  | <ident>
+
+<value-list> := <value> ',' <value-list>
+			  | <value>
+
+<constant-list> := <constant> ',' <constant-list>
+				 | <constant>
