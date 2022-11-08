@@ -1,3 +1,9 @@
+/**
+ * Abstract Syntax Tree Definitions
+ * File: ast.h
+ * Author: Liam M. Murphy
+ */
+
 #ifndef AST_H
 #define AST_H
 

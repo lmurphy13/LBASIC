@@ -1,3 +1,9 @@
+/**
+ * LBASIC Lexical Analyzer
+ * File: lexer.c
+ * Author: Liam M. Murphy
+ */
+
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>

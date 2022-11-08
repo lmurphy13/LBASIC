@@ -1,3 +1,9 @@
+/**
+ * LBASIC Token Module Definitions
+ * File: token.h
+ * Author: Liam M. Murphy
+ */
+
 #ifndef TOKEN_H
 #define TOKEN_H
 

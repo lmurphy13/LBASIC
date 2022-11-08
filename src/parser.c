@@ -1,3 +1,9 @@
+/**
+ * LBASIC Syntax Analyzer (Parser)
+ * File: parser.c
+ * Author: Liam M. Murphy
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 

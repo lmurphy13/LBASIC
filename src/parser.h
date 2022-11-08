@@ -1,3 +1,9 @@
+/**
+ * LBASIC Syntax Analyzer Definitions
+ * File: parser.h
+ * Author: Liam M. Murphy
+ */
+
 #ifndef PARSER_H
 #define PARSER_H
 

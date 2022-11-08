@@ -1,3 +1,9 @@
+/**
+ * LBASIC Token Module
+ * File: token.c
+ * Author: Liam M. Murphy
+ */
+
 #include "token.h"
 #include <stdio.h>
 #include <stdlib.h>

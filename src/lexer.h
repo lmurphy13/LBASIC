@@ -1,3 +1,9 @@
+/**
+ * LBASIC Lexical Analyzer Definitions
+ * File: lexer.h
+ * Author: Liam M. Murphy
+ */
+
 #ifndef LEXER_H
 #define LEXER_H
 

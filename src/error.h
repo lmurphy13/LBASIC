@@ -1,3 +1,9 @@
+/**
+ * Error Definitions
+ * File: error.h
+ * Author: Liam M. Murphy
+ */
+
 #ifndef ERROR_H
 #define ERROR_H
 

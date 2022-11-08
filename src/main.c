@@ -1,3 +1,9 @@
+/**
+ * LBASIC Entry Point
+ * File: main.c
+ * Author: Liam M. Murphy
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 
