@@ -11,6 +11,9 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			 | <var-decl>
 			 | <struct-decl>
 			 | <for-stmt>
+			 | <while-stmt>
+			 | <if-then-stmt>
+			 | <if-then-else-stmt>
 			 | <expression>
 
 <function-decl> := 'func' <ident> '(' <expr-list> ') '->' <type> <statements> 'end'
@@ -18,21 +21,27 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <label-decl> := <ident> ':'
 
-<struct-decl> := 'struct' <id> <var-decls> 'end'
-
-<for-stmt> := 'for' <ident> ':=' <expression> 'to' <expression> <statements> 'end'
+<var-decl> := <type> <id> ';'
 
 <var-decls> := <var-decl> <var-decls>
 			 | <var-decl>
 
-<var-decl> := <type> <id> ';'
+<struct-decl> := 'struct' <id> <var-decls> 'end'
 
-<expr-list> := <expression> ',' <expr-list>
-			 | <expression>
+<for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <statements> 'end'
+
+<while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
+
+<if-then-stmt> := 'if' '(' <expr-lst> ')' 'then' <statements> 'end'
+
+<if-then-else-stmt> := 'if '(' <expr-lst> ')' 'then' <statements> 'else' <statements> 'end'
 
 <expression> := <bin-op-expr>
 			  | <goto-expr>
 			  | <call-expr>
+
+<expr-list> := <expression> ',' <expr-list>
+			 | <expression>
 
 <bin-op-expr> := <and-expr> 'or' <bin-op-expr>
 			   | <and-expr>
@@ -83,5 +92,3 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 <value-list> := <value> ',' <value-list>
 			  | <value>
 
-<constant-list> := <constant> ',' <constant-list>
-				 | <constant>

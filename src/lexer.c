@@ -14,7 +14,7 @@
 #include "lexer.h"
 #include "token.h"
 
-#define N_KEYWORDS 16
+#define N_KEYWORDS 19
 #define MAX_KEYWORD_LEN 20
 
 // Prototypes
@@ -32,7 +32,8 @@ static int line_num = 1;
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
     "and",  "or",    "func", "for", "while", "to",     "end",   "struct",
-    "true", "false", "nil",  "int", "bool",  "string", "float", "goto"};
+    "true", "false", "nil",  "int", "bool",  "string", "float", "goto", "if",
+	"then", "else" };
 
 // See lexer.h
 t_list *lex(const char *path) {
@@ -133,6 +134,12 @@ static bool check_singles(char c) {
     case '%':
         emit_token(token_list, T_MOD, "%");
         break;
+	case ',':
+		emit_token(token_list, T_COMMA, ",");
+		break;
+	case '.':
+		emit_token(token_list, T_DOT, ".");
+		break;
     // Intentional fallthrough
     case '<':
     case '>':
@@ -153,7 +160,7 @@ static bool is_keyword(char *lexeme, token_type *type) {
     int idx;
     for (idx = 0; idx < N_KEYWORDS; idx++) {
         if (strcmp(lexeme, keywords[idx]) == 0) {
-            *type = (idx + T_FUNC);
+            *type = (idx + T_AND);
             return true;
         }
     }
@@ -287,7 +294,7 @@ static void tokenize(char *prog_buff) {
                     line_num++;
                 }
 
-                if (c == '(' || c == ':' || c == ';') {
+                if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',') {
                     tmp_delim = c;
                     break;
                 }
@@ -297,12 +304,10 @@ static void tokenize(char *prog_buff) {
                 emit_token(token_list, tmp, lexeme);
                 // Reset lexeme
                 memset(lexeme, 0, sizeof(lexeme));
-                tmp_delim = 0;
             } else {
                 // Identifier
                 emit_token(token_list, T_IDENT, lexeme);
                 memset(lexeme, 0, sizeof(lexeme));
-                tmp_delim = 0;
             }
 
             if (tmp_delim) {

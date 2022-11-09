@@ -1,8 +1,8 @@
 func main() -> void
     println("hello world");
 
-    while true
-       if true
+    while (true)
+       if (true) then
 		   println("Liam is cool");
 		   return;
 	   end
@@ -13,13 +13,13 @@ func main() -> void
         bool isMale;
     end
 
-	if true or false
+	if (true or false) then
 	    goto label1;
 	end
 end
 
 func fib(int n) -> int
-	if n <= 1
+	if (n <= 1) then
 		return n;
 	else
 		return fib(n - 1) + fib(n - 2);

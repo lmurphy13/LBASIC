@@ -1,7 +1,7 @@
 func main() -> void
     println("hello world");
 
-    while true
+    while (true)
         println("Liam is cool");
     end
 

@@ -1,0 +1,18 @@
+func main() -> void
+	int x := (3 * 2) + 9;
+
+	println(x);
+
+	println(addNums(x, 5));
+
+	if (addNums(x,5) < 10) then
+		println("I am cool!");
+	else
+		println("I am not cool :(");
+	end
+
+end
+
+func addNums(int a, int b) -> int
+	return (a + b);
+end
