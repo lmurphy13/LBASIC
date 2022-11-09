@@ -1,6 +1,6 @@
 # LBASIC
 
-A simple, compiled language with BASIC-like syntax and structs.
+A simple, compiled language with syntax inspired by C and BASIC
 
 ### Dependencies:
 - Some reasonably current version of GCC
