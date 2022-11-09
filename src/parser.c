@@ -121,9 +121,8 @@ node *parse_statements() { return NULL; }
 void print_ast(node *ast) {
     node *root = mk_node(N_PROGRAM);
 
-    printf("(Program (\n");
-    printf("         )\n");
-    printf(")\n");
+    printf("Program (\n");
+    printf("        )\n");
 
     free(root);
     return;

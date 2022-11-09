@@ -31,9 +31,8 @@ static int line_num = 1;
 
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
-    "and",  "or",    "func", "for", "while", "to",     "end",   "struct",
-    "true", "false", "nil",  "int", "bool",  "string", "float", "goto", "if",
-	"then", "else" };
+    "and", "or",  "func", "for",    "while", "to",   "end", "struct", "true", "false",
+    "nil", "int", "bool", "string", "float", "goto", "if",  "then",   "else"};
 
 // See lexer.h
 t_list *lex(const char *path) {
@@ -134,12 +133,12 @@ static bool check_singles(char c) {
     case '%':
         emit_token(token_list, T_MOD, "%");
         break;
-	case ',':
-		emit_token(token_list, T_COMMA, ",");
-		break;
-	case '.':
-		emit_token(token_list, T_DOT, ".");
-		break;
+    case ',':
+        emit_token(token_list, T_COMMA, ",");
+        break;
+    case '.':
+        emit_token(token_list, T_DOT, ".");
+        break;
     // Intentional fallthrough
     case '<':
     case '>':

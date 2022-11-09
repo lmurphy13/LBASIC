@@ -15,8 +15,8 @@ typedef enum {
     T_ASSIGN,     // :=
     T_COLON,      // :
     T_SEMICOLON,  // ;
-	T_COMMA, 	  // ,
-	T_DOT,		  // .
+    T_COMMA,      // ,
+    T_DOT,        // .
     T_SQUOTE,     // '
     T_DQUOTE,     // "
     T_PLUS,       // +
@@ -48,9 +48,9 @@ typedef enum {
     T_STRING,     // string
     T_FLOAT,      // float
     T_GOTO,       // goto
-	T_IF,		  // if
-	T_THEN,		  // then
-	T_ELSE,		  // else
+    T_IF,         // if
+    T_THEN,       // then
+    T_ELSE,       // else
     T_IDENT,      // identifier [a-zA-Z] [a-zA-Z0-9]
     T_HEAD,       // Head of list
     L_STR,        // string literal
