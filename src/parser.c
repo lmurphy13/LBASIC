@@ -6,7 +6,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "ast.h"
 #include "error.h"
 #include "parser.h"
 #include "token.h"
@@ -15,7 +17,7 @@
 static token get_token(t_list *);
 static void consume(void);
 static void backup(void);
-static void syntax_error(void);
+static void syntax_error(const char *msg, const char *got);
 
 // Parsing Prototypes
 node *parse_statements(void);
@@ -49,6 +51,7 @@ node *mk_node(n_type type) {
     // Freed TBD
     if (retval != NULL) {
         retval->type = type;
+		retval->num_children = 0;
     }
 
     return retval;
@@ -75,9 +78,10 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-static void syntax_error() { printf("Syntax Error!\n"); }
-
-static void func_decl() { printf("func decl!\n"); }
+static void syntax_error(const char *exp, const char *got) { 
+	printf("Syntax Error: Expected %s but got %s.\n", exp, got);
+	exit(1);
+}
 
 // Recursive descent
 
@@ -97,17 +101,14 @@ node *parse(t_list *tokens) {
         consume();
     }
 
-    node *statements = parse_statements();
-
-    program->statements = statements;
-
-    /*
     switch (lookahead.type) {
-            case T_FUNC: func_decl(); break;
-            default: syntax_error(); break;
+    	case T_FUNC:
+			program->children[program->num_children] = parse_function_decl();
+			program->num_children++;
+			break;
+		default: printf("err\n"); break;
 
     }
-    */
 
 #if defined(DEBUG)
     printf("type: %d\n", lookahead.type);
@@ -117,13 +118,61 @@ node *parse(t_list *tokens) {
 }
 
 node *parse_statements() { return NULL; }
+node *parse_function_decl() {
+	node *retval = mk_node(N_FUNC_DECL);
+
+	consume();
+	// Add function name to node
+	if (lookahead.type == T_IDENT) {
+		memset(retval->data.function_decl.name, 0, MAX_LITERAL);
+		strncpy(retval->data.function_decl.name, lookahead.literal, strlen(retval->data.function_decl.name));
+	} else {
+		syntax_error("identifier", lookahead.literal);
+	}
+
+	consume();
+	if (lookahead.type != T_LPAREN) {
+		syntax_error("(", lookahead.literal);
+	}
+
+	consume();
+	if (lookahead.type != T_RPAREN) {
+		syntax_error(")", lookahead.literal);
+	}
+
+	consume();
+	if (lookahead.type != T_OFTYPE) {
+		syntax_error("->", lookahead.literal);
+	}
+
+	consume();
+	if (lookahead.type != T_INT) {
+		syntax_error("int", lookahead.literal);
+	}
+
+	consume();
+	if (lookahead.type != T_END) {
+		syntax_error("end", lookahead.literal);
+	}
+
+	return retval;
+}
 
 void print_ast(node *ast) {
     node *root = mk_node(N_PROGRAM);
-
     printf("Program (\n");
-    printf("        )\n");
+   
+	while (root != NULL) {
+		node *func = root->children[0];
+		printf("    FuncDecl (\n");
+		printf("        %s\n", func->data.function_decl.name);
 
+
+		printf("    )\n");
+		break;
+	}
+
+	printf(")\n");
     free(root);
     return;
 }
