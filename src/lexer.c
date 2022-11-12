@@ -14,12 +14,12 @@
 #include "lexer.h"
 #include "token.h"
 
-#define N_KEYWORDS 19
+#define N_KEYWORDS 20
 #define MAX_KEYWORD_LEN 20
 
 // Prototypes
 static char *input_file(const char *path);
-static void emit_token(t_list *lst, token_type type, const char *literal);
+static void emit_token(t_list *lst, token_type type, const char *literal, unsigned int line);
 static void tokenize(char *prog_buff);
 static bool check_singles(char c);
 static bool is_keyword(char *lexeme, token_type *type);
@@ -31,8 +31,8 @@ static int line_num = 1;
 
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
-    "and", "or",  "func", "for",    "while", "to",   "end", "struct", "true", "false",
-    "nil", "int", "bool", "string", "float", "goto", "if",  "then",   "else"};
+    "and", "or",  "func", "for",    "while", "to",   "end",  "struct", "true", "false",
+    "nil", "int", "bool", "string", "float", "void", "goto", "if",     "then", "else"};
 
 // See lexer.h
 t_list *lex(const char *path) {
@@ -87,13 +87,14 @@ static char *input_file(const char *path) {
 }
 
 // Appends a t_list struct to the doubly-linked list of tokens
-static void emit_token(t_list *lst, token_type type, const char *literal) {
+static void emit_token(t_list *lst, token_type type, const char *literal, unsigned int line) {
     t_list *new_tok = (t_list *)malloc(sizeof(t_list));
     token *tok      = (token *)malloc(sizeof(token));
 
     memset(tok->literal, 0, MAX_LITERAL);
 
     tok->type = type;
+    tok->line = line;
     strncpy(tok->literal, literal, strlen(literal));
 
     if (new_tok != NULL) {
@@ -113,31 +114,31 @@ static bool check_singles(char c) {
 
     switch (c) {
     case '(':
-        emit_token(token_list, T_LPAREN, "(");
+        emit_token(token_list, T_LPAREN, "(", line_num);
         break;
     case ')':
-        emit_token(token_list, T_RPAREN, ")");
+        emit_token(token_list, T_RPAREN, ")", line_num);
         break;
     case ';':
-        emit_token(token_list, T_SEMICOLON, ";");
+        emit_token(token_list, T_SEMICOLON, ";", line_num);
         break;
     case '+':
-        emit_token(token_list, T_PLUS, "+");
+        emit_token(token_list, T_PLUS, "+", line_num);
         break;
     case '*':
-        emit_token(token_list, T_MUL, "*");
+        emit_token(token_list, T_MUL, "*", line_num);
         break;
     case '/':
-        emit_token(token_list, T_DIV, "/");
+        emit_token(token_list, T_DIV, "/", line_num);
         break;
     case '%':
-        emit_token(token_list, T_MOD, "%");
+        emit_token(token_list, T_MOD, "%", line_num);
         break;
     case ',':
-        emit_token(token_list, T_COMMA, ",");
+        emit_token(token_list, T_COMMA, ",", line_num);
         break;
     case '.':
-        emit_token(token_list, T_DOT, ".");
+        emit_token(token_list, T_DOT, ".", line_num);
         break;
     // Intentional fallthrough
     case '<':
@@ -208,7 +209,7 @@ static void tokenize(char *prog_buff) {
                     sprintf(lexeme, "%s%c", lexeme, c);
                     c = get_char(prog_buff);
                 }
-                emit_token(token_list, L_STR, lexeme);
+                emit_token(token_list, L_STR, lexeme, line_num);
 
                 // Reset lexeme
                 memset(lexeme, 0, sizeof(lexeme));
@@ -232,7 +233,7 @@ static void tokenize(char *prog_buff) {
             else if (c == ':') {
                 c = get_char(prog_buff);
                 if (c == '=') {
-                    emit_token(token_list, T_ASSIGN, ":=");
+                    emit_token(token_list, T_ASSIGN, ":=", line_num);
 
                     // Reset lexeme
                     memset(lexeme, 0, sizeof(lexeme));
@@ -246,28 +247,28 @@ static void tokenize(char *prog_buff) {
                 case '<':
                     c = get_char(prog_buff);
                     if (c == '=') {
-                        emit_token(token_list, T_LE, "<=");
+                        emit_token(token_list, T_LE, "<=", line_num);
                     }
                     break;
                 case '>':
                     c = get_char(prog_buff);
                     if (c == '=') {
-                        emit_token(token_list, T_GE, ">=");
+                        emit_token(token_list, T_GE, ">=", line_num);
                     }
                     break;
                 case '!':
                     c = get_char(prog_buff);
                     if (c == '=') {
-                        emit_token(token_list, T_NE, "!=");
+                        emit_token(token_list, T_NE, "!=", line_num);
                     }
                     break;
                 case '-':
                     c = get_char(prog_buff);
                     if (c == '>') {
-                        emit_token(token_list, T_OFTYPE, "->");
+                        emit_token(token_list, T_OFTYPE, "->", line_num);
                     } else {
                         unget_char();
-                        emit_token(token_list, T_MINUS, "-");
+                        emit_token(token_list, T_MINUS, "-", line_num);
                     }
                     break;
                 }
@@ -282,7 +283,7 @@ static void tokenize(char *prog_buff) {
         // Identifier or keyword?
         else if (isalpha(c)) {
             char tmp_delim = 0;
-
+            bool inc_line  = false;
             // Read until newline, space, colon, semicolon, or lparen
             while ((c != '\n') && (c != ' ')) {
                 // Append to lexeme
@@ -290,7 +291,7 @@ static void tokenize(char *prog_buff) {
                 c = get_char(prog_buff);
 
                 if (c == '\n') {
-                    line_num++;
+                    inc_line = true;
                 }
 
                 if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',') {
@@ -300,12 +301,12 @@ static void tokenize(char *prog_buff) {
             }
 
             if (is_keyword(lexeme, &tmp)) {
-                emit_token(token_list, tmp, lexeme);
+                emit_token(token_list, tmp, lexeme, line_num);
                 // Reset lexeme
                 memset(lexeme, 0, sizeof(lexeme));
             } else {
                 // Identifier
-                emit_token(token_list, T_IDENT, lexeme);
+                emit_token(token_list, T_IDENT, lexeme, line_num);
                 memset(lexeme, 0, sizeof(lexeme));
             }
 
@@ -318,10 +319,19 @@ static void tokenize(char *prog_buff) {
                             continue;
                         } else {
                             unget_char();
-                            emit_token(token_list, T_COLON, ":");
+                            emit_token(token_list, T_COLON, ":", line_num);
                         }
                     }
                 }
+            }
+
+            /* In the case where we've found a token at the end of a line, we need to "delay" the
+             * line number increment until after we've
+             * emitted the token. Otherwise, our token will be assigned a line number that is below
+             * where the token's real position is. */
+            if (inc_line) {
+                line_num++;
+                inc_line = false;
             }
         }
 
@@ -334,7 +344,7 @@ static void tokenize(char *prog_buff) {
                 c = get_char(prog_buff);
             }
             unget_char();
-            emit_token(token_list, L_NUM, lexeme);
+            emit_token(token_list, L_NUM, lexeme, line_num);
             memset(lexeme, 0, sizeof(lexeme));
         }
 
@@ -348,5 +358,5 @@ static void tokenize(char *prog_buff) {
     }
 
     // Once we hit '\0', append the EOF token
-    emit_token(token_list, T_EOF, "EOF");
+    emit_token(token_list, T_EOF, "EOF", line_num);
 }

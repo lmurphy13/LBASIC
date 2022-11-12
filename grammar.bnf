@@ -16,7 +16,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			 | <if-then-else-stmt>
 			 | <expression>
 
-<function-decl> := 'func' <ident> '(' <expr-list> ') '->' <type> <statements> 'end'
+<function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <statements> 'end'
 				 | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
 
 <label-decl> := <ident> ':'
@@ -42,6 +42,11 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <expr-list> := <expression> ',' <expr-list>
 			 | <expression>
+
+<formal-list> := <formal> ',' <expr-list>
+			 | <formal>
+
+<formal> := <type> <ident>
 
 <bin-op-expr> := <and-expr> 'or' <bin-op-expr>
 			   | <and-expr>

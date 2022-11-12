@@ -10,58 +10,60 @@
 #define MAX_LITERAL 1024
 
 typedef enum {
-    T_LPAREN = 0, // (
-    T_RPAREN,     // )
-    T_ASSIGN,     // :=
-    T_COLON,      // :
-    T_SEMICOLON,  // ;
-    T_COMMA,      // ,
-    T_DOT,        // .
-    T_SQUOTE,     // '
-    T_DQUOTE,     // "
-    T_PLUS,       // +
-    T_MINUS,      // -
-    T_MUL,        // *
-    T_DIV,        // /
-    T_MOD,        // %
-    T_OFTYPE,     // ->
-    T_LT,         // <
-    T_GT,         // >
-    T_BANG,       // !
-    T_EQ,         // ==
-    T_LE,         // <=
-    T_GE,         // >=
-    T_NE,         // !=
-    T_AND,        // and
-    T_OR,         // or
-    T_FUNC,       // func
-    T_FOR,        // for
-    T_WHILE,      // while
-    T_TO,         // to
-    T_END,        // end
-    T_STRUCT,     // struct
-    T_TRUE,       // true
-    T_FALSE,      // false
-    T_NIL,        // nil
-    T_INT,        // int
-    T_BOOL,       // bool
-    T_STRING,     // string
-    T_FLOAT,      // float
-    T_GOTO,       // goto
-    T_IF,         // if
-    T_THEN,       // then
-    T_ELSE,       // else
-    T_IDENT,      // identifier [a-zA-Z] [a-zA-Z0-9]
-    T_HEAD,       // Head of list
-    L_STR,        // string literal
-    L_NUM,        // number literal
-    T_EOF,        // End Of File
+    T_LPAREN    = 0,  // (
+    T_RPAREN    = 1,  // )
+    T_ASSIGN    = 2,  // :=
+    T_COLON     = 3,  // :
+    T_SEMICOLON = 4,  // ;
+    T_COMMA     = 5,  // ,
+    T_DOT       = 6,  // .
+    T_SQUOTE    = 7,  // '
+    T_DQUOTE    = 8,  // "
+    T_PLUS      = 9,  // +
+    T_MINUS     = 10, // -
+    T_MUL       = 11, // *
+    T_DIV       = 12, // /
+    T_MOD       = 13, // %
+    T_OFTYPE    = 14, // ->
+    T_LT        = 15, // <
+    T_GT        = 16, // >
+    T_BANG      = 17, // !
+    T_EQ        = 18, // ==
+    T_LE        = 19, // <=
+    T_GE        = 20, // >=
+    T_NE        = 21, // !=
+    T_AND       = 22, // and
+    T_OR        = 23, // or
+    T_FUNC      = 24, // func
+    T_FOR       = 25, // for
+    T_WHILE     = 26, // while
+    T_TO        = 27, // to
+    T_END       = 28, // end
+    T_STRUCT    = 29, // struct
+    T_TRUE      = 30, // true
+    T_FALSE     = 31, // false
+    T_NIL       = 32, // nil
+    T_INT       = 33, // int
+    T_BOOL      = 34, // bool
+    T_STRING    = 35, // string
+    T_FLOAT     = 36, // float
+    T_VOID      = 37, // void
+    T_GOTO      = 38, // goto
+    T_IF        = 39, // if
+    T_THEN      = 40, // then
+    T_ELSE      = 41, // else
+    T_IDENT     = 42, // identifier [a-zA-Z] [a-zA-Z0-9]
+    T_HEAD      = 43, // Head of list
+    L_STR       = 44, // string literal
+    L_NUM       = 45, // number literal
+    T_EOF       = 46, // End Of File
     NTOKENS
 } token_type;
 
 typedef struct {
     token_type type;
     char literal[MAX_LITERAL];
+    unsigned int line;
 } token;
 
 typedef struct t_list {

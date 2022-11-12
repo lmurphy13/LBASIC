@@ -18,8 +18,10 @@ t_list *t_list_new(void) {
 
     token *tok = (token *)malloc(sizeof(token));
     memset(tok->literal, 0, MAX_LITERAL);
-    tok->type = T_HEAD;
     strncpy(tok->literal, "HEAD", strlen("HEAD"));
+
+    tok->type = T_HEAD;
+    tok->line = 0;
 
     new->tok = tok;
 
@@ -77,10 +79,11 @@ void print_list(t_list *lst) {
         while (lst_ptr != NULL) {
             printf("Type: %d\n", lst_ptr->tok->type);
             printf("Literal: %s\n", lst_ptr->tok->literal);
+            printf("Line: %d\n", lst_ptr->tok->line);
 
             lst_ptr = t_list_next(lst_ptr);
         }
 
-        printf("\nNum tokens: %u\n", token_count);
+        printf("\nNum tokens: %u\n\n", token_count);
     }
 }

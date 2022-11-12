@@ -15,14 +15,16 @@
 
 // Static Prototypes
 static token get_token(t_list *);
+static token *peek(void);
 static void consume(void);
 static void backup(void);
-static void syntax_error(const char *msg, const char *got);
+static void syntax_error(const char *msg, const char *got, unsigned int line);
 
 // Parsing Prototypes
 node *parse_statements(void);
 node *parse_statement(void);
 node *parse_function_decl(void);
+node *parse_formals(void);
 node *parse_label_decl(void);
 node *parse_struct_decl(void);
 node *parse_var_decls(void);
@@ -50,8 +52,12 @@ node *mk_node(n_type type) {
 
     // Freed TBD
     if (retval != NULL) {
+        // Assign type
         retval->type = type;
-		retval->num_children = 0;
+
+        // Zero out list of children nodes
+        memset(retval->children, 0, sizeof(retval->children));
+        retval->num_children = 0;
     }
 
     return retval;
@@ -62,6 +68,12 @@ static token get_token(t_list *t) {
     token retval;
     retval = *(t->tok);
     return retval;
+}
+
+// Looks ahead by one token, but does not consume it
+static token *peek() {
+    t_list *next = t_list_next(toks);
+    return next->tok;
 }
 
 // Advances lookahead by one token
@@ -78,9 +90,9 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-static void syntax_error(const char *exp, const char *got) { 
-	printf("Syntax Error: Expected %s but got %s.\n", exp, got);
-	exit(1);
+static void syntax_error(const char *exp, const char *got, unsigned int line) {
+    printf("Syntax Error (line %d): Expected %s but got '%s'.\n", line, exp, got);
+    exit(1);
 }
 
 // Recursive descent
@@ -102,77 +114,227 @@ node *parse(t_list *tokens) {
     }
 
     switch (lookahead.type) {
-    	case T_FUNC:
-			program->children[program->num_children] = parse_function_decl();
-			program->num_children++;
-			break;
-		default: printf("err\n"); break;
-
+    case T_FUNC:
+        program->children[program->num_children] = parse_function_decl();
+        program->num_children++;
+        break;
+    default:
+        printf("Unknown token type: %d\n", lookahead.type);
+        break;
     }
 
-#if defined(DEBUG)
-    printf("type: %d\n", lookahead.type);
-    printf("literal: %s\n", lookahead.literal);
-#endif
     return program;
 }
 
 node *parse_statements() { return NULL; }
+
 node *parse_function_decl() {
-	node *retval = mk_node(N_FUNC_DECL);
+    node *retval = mk_node(N_FUNC_DECL);
+    if (retval != NULL) {
+        consume();
+        // Add function name to node
+        if (lookahead.type == T_IDENT) {
+            memset(retval->data.function_decl.name, 0, MAX_LITERAL);
+            sprintf(retval->data.function_decl.name, "%s", lookahead.literal);
+        } else {
+            syntax_error("identifier", lookahead.literal, lookahead.line);
+        }
 
-	consume();
-	// Add function name to node
-	if (lookahead.type == T_IDENT) {
-		memset(retval->data.function_decl.name, 0, MAX_LITERAL);
-		strncpy(retval->data.function_decl.name, lookahead.literal, strlen(retval->data.function_decl.name));
-	} else {
-		syntax_error("identifier", lookahead.literal);
-	}
+        consume();
+        if (lookahead.type != T_LPAREN) {
+            syntax_error("(", lookahead.literal, lookahead.line);
+        }
 
-	consume();
-	if (lookahead.type != T_LPAREN) {
-		syntax_error("(", lookahead.literal);
-	}
+        token *tmp = peek();
 
-	consume();
-	if (lookahead.type != T_RPAREN) {
-		syntax_error(")", lookahead.literal);
-	}
+        // List of formal args
+        if (tmp->type != T_RPAREN) {
+            retval->data.function_decl.formal = parse_formals();
+        }
 
-	consume();
-	if (lookahead.type != T_OFTYPE) {
-		syntax_error("->", lookahead.literal);
-	}
+        // No formal args, expect a )
+        else if (tmp->type == T_RPAREN) {
+            consume();
+        } else {
+            syntax_error("function arguments or ')'", lookahead.literal, lookahead.line);
+        }
 
-	consume();
-	if (lookahead.type != T_INT) {
-		syntax_error("int", lookahead.literal);
-	}
+        consume();
+        if (lookahead.type != T_OFTYPE) {
+            syntax_error("->", lookahead.literal, lookahead.line);
+        }
 
-	consume();
-	if (lookahead.type != T_END) {
-		syntax_error("end", lookahead.literal);
-	}
+        consume();
+        switch (lookahead.type) {
+        case T_INT:
+            retval->data.function_decl.type = D_INTEGER;
+            break;
+        case T_BOOL:
+            retval->data.function_decl.type = D_BOOLEAN;
+            break;
+        case T_STRING:
+            retval->data.function_decl.type = D_STRING;
+            break;
+        case T_FLOAT:
+            retval->data.function_decl.type = D_FLOAT;
+            break;
+        case T_VOID:
+            retval->data.function_decl.type = D_VOID;
+            break;
+        default:
+            // Expected a type, but didn't get one
+            syntax_error("a data type", lookahead.literal, lookahead.line);
+        }
 
-	return retval;
+        consume();
+        if (lookahead.type != T_END) {
+            syntax_error("end", lookahead.literal, lookahead.line);
+        }
+    } else {
+        printf("mk_node failed for N_FUNC_DECL\n");
+    }
+
+    return retval;
+}
+
+node *parse_formals() {
+    bool repeat = true;
+    bool first  = true;
+
+    node *retval = mk_node(N_FORMAL);
+    node *new    = {0};
+
+    do {
+
+        if (!first) {
+            new = mk_node(N_FORMAL);
+        }
+
+        // Lookahead should be a type
+        consume();
+
+        // Expecting an identifier
+        token *tmp = peek();
+
+        switch (lookahead.type) {
+        case T_INT:
+        case T_BOOL:
+        case T_STRING:
+        case T_FLOAT:
+            if (tmp->type != T_IDENT) {
+                syntax_error("identifier", tmp->literal, tmp->line);
+            }
+            break;
+        default:
+            // Didn't get a type
+            syntax_error("type", lookahead.literal, lookahead.line);
+        }
+
+        if (first) {
+            retval->type = lookahead.type;
+        } else {
+            new->type = lookahead.type;
+        }
+
+        // Now should be the identifier itself
+        consume();
+
+        if (first) {
+            memset(retval->data.formal.name, 0, MAX_LITERAL);
+            sprintf(retval->data.formal.name, "%s", lookahead.literal);
+        } else {
+            memset(new->data.formal.name, 0, MAX_LITERAL);
+            sprintf(new->data.formal.name, "%s", lookahead.literal);
+        }
+
+        if (first) {
+            retval->next = NULL;
+        } else {
+            node *f = retval;
+            while (f->next != NULL) {
+                f = f->next;
+            }
+            retval->next = new;
+            new->next    = NULL;
+        }
+
+        // Look for a ',' or ')'
+        tmp = peek();
+
+        // End of formals
+        if (tmp->type == T_RPAREN) {
+            repeat = false;
+            break;
+        }
+
+        // More formals
+        else if (tmp->type == T_COMMA) {
+            consume();
+            repeat = true;
+        }
+
+    } while (repeat);
+
+    return retval;
+}
+
+static void print_indent(int indent) {
+    for (int i = 0; i < indent; i++) {
+        printf(" ");
+    }
+}
+
+static const char *type_to_str(data_type t) {
+    switch (t) {
+    case D_INTEGER:
+        return "INTEGER";
+        break;
+    case D_FLOAT:
+        return "FLOAT";
+        break;
+    case D_STRING:
+        return "STRING";
+        break;
+    case D_BOOLEAN:
+        return "BOOLEAN";
+        break;
+    case D_VOID:
+        return "VOID";
+        break;
+    default:
+        return "UNKNOWN";
+        break;
+    }
+}
+
+static void print_node(node *n, int indent) {
+    print_indent(indent);
+    switch (n->type) {
+    case N_PROGRAM:
+        printf("Program (\n");
+        break;
+    case N_FUNC_DECL:
+        printf("FuncDecl (\n");
+        print_indent(indent + 4);
+        printf("Name: %s\n", n->data.function_decl.name);
+        print_indent(indent + 4);
+        printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
+        print_indent(indent);
+        printf("),\n");
+        break;
+    }
 }
 
 void print_ast(node *ast) {
-    node *root = mk_node(N_PROGRAM);
-    printf("Program (\n");
-   
-	while (root != NULL) {
-		node *func = root->children[0];
-		printf("    FuncDecl (\n");
-		printf("        %s\n", func->data.function_decl.name);
+    int indent = 0;
+    print_node(ast, indent);
+    indent += 4;
+    while (ast != NULL) {
+        node *func = ast->children[0];
+        print_node(func, indent);
+        break;
+    }
 
-
-		printf("    )\n");
-		break;
-	}
-
-	printf(")\n");
-    free(root);
+    printf(")\n");
     return;
 }
