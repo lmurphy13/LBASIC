@@ -1,3 +1,7 @@
-func main() -> void
+func routine() -> void
+
+end
+
+func function(int a, string b, while c) -> int
 
 end

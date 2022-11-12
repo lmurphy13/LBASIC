@@ -45,7 +45,7 @@ typedef enum n_type {
     NUM_TYPES
 } n_type;
 
-typedef enum data_type { D_INTEGER = 0, D_FLOAT, D_STRING, D_BOOLEAN, D_VOID } data_type;
+typedef enum data_type { D_INTEGER = 0, D_FLOAT, D_STRING, D_BOOLEAN, D_VOID, D_UNKNOWN } data_type;
 
 // AST node
 typedef struct node {
