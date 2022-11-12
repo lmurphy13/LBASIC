@@ -143,9 +143,7 @@ node *parse_statements() { return NULL; }
 //              | <if-then-stmt>
 //              | <if-then-else-stmt>
 //              | <expression>
-node *parse_statement() {
-    
-}
+node *parse_statement() {}
 
 // <function-decl> := 'func' <ident> '(' <formal-list> ')' '->' <type> <statements> 'end'
 //                  | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
@@ -174,7 +172,7 @@ node *parse_function_decl() {
             consume();
             tmp = peek();
         }
-        
+
         // No formal args, expect a )
         else if (tmp->type == T_RPAREN) {
             consume();
@@ -292,8 +290,8 @@ node *parse_formals() {
             }
 
             // Append new formal to end of list
-            f->next = new;
-            new->next    = NULL;
+            f->next   = new;
+            new->next = NULL;
         }
 
         // Look for a ',' or ')'
@@ -309,7 +307,7 @@ node *parse_formals() {
         else if (tmp->type == T_COMMA) {
             consume();
             repeat = true;
-            first = false;
+            first  = false;
         }
 
     } while (repeat);
@@ -325,24 +323,24 @@ static void print_indent(int indent) {
 
 static data_type keyword_to_type(token_type t) {
     switch (t) {
-        case T_INT:
-            return D_INTEGER;
-            break;
-        case T_BOOL:
-            return D_BOOLEAN;
-            break;
-        case T_STRING:
-            return D_STRING;
-            break;
-        case T_FLOAT:
-            return D_FLOAT;
-            break;
-        case T_VOID:
-            return D_VOID;
-            break;
-        default:
-            return D_UNKNOWN;
-            break;
+    case T_INT:
+        return D_INTEGER;
+        break;
+    case T_BOOL:
+        return D_BOOLEAN;
+        break;
+    case T_STRING:
+        return D_STRING;
+        break;
+    case T_FLOAT:
+        return D_FLOAT;
+        break;
+    case T_VOID:
+        return D_VOID;
+        break;
+    default:
+        return D_UNKNOWN;
+        break;
     }
 }
 
