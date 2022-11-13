@@ -4,9 +4,9 @@
  * Author: Liam M. Murphy
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include "ast.h"
@@ -19,7 +19,6 @@ static token get_token(t_list *);
 static token *peek(void);
 static void consume(void);
 static void backup(void);
-//static void syntax_error(const char *msg, const char *got, unsigned int line, unsigned int col);
 static void syntax_error(const char *exp, token l);
 static void print_node(node *n, int indent);
 static data_type keyword_to_type(token_type t);
@@ -67,7 +66,7 @@ node *mk_node(n_type type) {
 
     // Freed TBD
     if (retval != NULL) {
-        //memset(retval, 0, sizeof(node));
+        // memset(retval, 0, sizeof(node));
 
         // Assign type
         retval->type = type;
@@ -109,12 +108,9 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-// static void syntax_error(const char *exp, const char *got, unsigned int line, unsigned int col) {
-//     printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", line, col, exp, got);
-// }
-
 static void syntax_error(const char *exp, token l) {
-    printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", l.line, l.col, exp, l.literal);
+    printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", l.line, l.col, exp,
+           l.literal);
     exit(PARSER_ERROR_SYNTAX_ERROR);
 }
 
@@ -140,7 +136,7 @@ node *parse(t_list *tokens) {
     parse_declarations(program);
 
     // Parse statements
-//    parse_statements(program);
+    //    parse_statements(program);
 
     // switch (lookahead.type) {
     // case T_FUNC:
@@ -162,7 +158,7 @@ void parse_declarations(node *program) {
 
     do {
         program->children[program->num_children] = parse_declaration(&more);
-        
+
         if (more) {
             program->num_children++;
         }
@@ -177,24 +173,24 @@ node *parse_declaration(bool *more) {
     node *retval;
 
     switch (lookahead.type) {
-        case T_FUNC:
-            retval = parse_function_decl();
-            break;
-        case T_IDENT:
-            retval = parse_label_decl();
-            break;
-        case T_INT:
-        case T_FLOAT:
-        case T_STRING:
-        case T_BOOL:
-            retval = parse_var_decl();
-            break;
-        case T_STRUCT:
-            retval = parse_struct_decl();
-            break;
-        default:
-            *more = false;
-            break;
+    case T_FUNC:
+        retval = parse_function_decl();
+        break;
+    case T_IDENT:
+        retval = parse_label_decl();
+        break;
+    case T_INT:
+    case T_FLOAT:
+    case T_STRING:
+    case T_BOOL:
+        retval = parse_var_decl();
+        break;
+    case T_STRUCT:
+        retval = parse_struct_decl();
+        break;
+    default:
+        *more = false;
+        break;
     }
 
     return retval;
@@ -220,25 +216,25 @@ void parse_statements(node *program) {
 //              | <expression>
 node *parse_statement(bool *more) {
     node *retval;
-    
+
     switch (lookahead.type) {
-        case T_FOR:
-            retval = parse_for_stmt();
-            break;
-        case T_WHILE:
-            retval = parse_while_stmt();
-            break;
-        case T_IF:
-            retval = parse_ifthen_stmt();
-            break;
-        case N_IFTHENELSE_STMT:
-            retval = parse_ifthenelse_stmt();
-            break;
-        case N_EXPR:
-            retval = parse_expression();
-            break;
-        default:
-            *more = false;
+    case T_FOR:
+        retval = parse_for_stmt();
+        break;
+    case T_WHILE:
+        retval = parse_while_stmt();
+        break;
+    case T_IF:
+        retval = parse_ifthen_stmt();
+        break;
+    case N_IFTHENELSE_STMT:
+        retval = parse_ifthenelse_stmt();
+        break;
+    case N_EXPR:
+        retval = parse_expression();
+        break;
+    default:
+        *more = false;
     }
 
     return retval;
@@ -248,7 +244,7 @@ node *parse_statement(bool *more) {
 //                  | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
 node *parse_function_decl() {
     node *retval = mk_node(N_FUNC_DECL);
-    bool more = true;
+    bool more    = true;
 
     if (retval != NULL) {
         consume();
@@ -435,8 +431,8 @@ node *parse_var_decl() {
         consume();
         if (lookahead.type == T_ASSIGN) {
             retval->data.var_decl.value = parse_expression();
-        } 
-        
+        }
+
         if (lookahead.type == T_SEMICOLON) {
             // Consume semicolon and we're done
             consume();
@@ -467,26 +463,26 @@ node *parse_value() {
 
     if (retval != NULL) {
         switch (lookahead.type) {
-            case T_IDENT:
-                retval = parse_identifier(); 
-                break;
-            case T_LPAREN:
-                retval = parse_expression();
+        case T_IDENT:
+            retval = parse_identifier();
+            break;
+        case T_LPAREN:
+            retval = parse_expression();
 
-                consume();
-                if (lookahead.type != T_RPAREN) {
-                    syntax_error("')'", lookahead);
-                }
-                break;
-            case L_STR:
-            case L_NUM:
-            case T_TRUE:
-            case T_FALSE:
-            case T_NIL:
-                retval = parse_constant();
-                break;
-            default:
-                syntax_error("value", lookahead);
+            consume();
+            if (lookahead.type != T_RPAREN) {
+                syntax_error("')'", lookahead);
+            }
+            break;
+        case L_STR:
+        case L_NUM:
+        case T_TRUE:
+        case T_FALSE:
+        case T_NIL:
+            retval = parse_constant();
+            break;
+        default:
+            syntax_error("value", lookahead);
         }
     }
 
@@ -504,36 +500,36 @@ node *parse_constant() {
     if (retval != NULL) {
 
         switch (lookahead.type) {
-            case L_STR:
-                retval->data.literal.type = D_STRING;
-                memset(retval->data.literal.value.stringval, 0, MAX_LITERAL);
-                sprintf(retval->data.literal.value.stringval, "%s", lookahead.literal);
-                break;
-            case L_NUM:
-                // Only doing integers for now
-                retval->data.literal.type = D_INTEGER;
-                retval->data.literal.value.intval = atoi(lookahead.literal);
-                break;
-            case T_TRUE:
-            case T_FALSE:
-                retval->data.literal.type = D_BOOLEAN;
-                if (strcmp(lookahead.literal, "true") == 0) {
-                    retval->data.literal.value.boolval = true;
-                } else if (strcmp(lookahead.literal, "false") == 0) {
-                    retval->data.literal.value.boolval = false;
-                } else {
-                    syntax_error("boolean value ('true' or 'false')", lookahead);
-                }
-                break;
-            case T_NIL:
-                retval->data.literal.type = D_NIL;
-                if (strcmp(lookahead.literal, "nil") == 0) {
-                    // Like C, we'll consider NIL (NULL) to be zero.
-                    retval->data.literal.value.intval = 0;
-                }
-                break;
-            default:
-                syntax_error("some literal value", lookahead);
+        case L_STR:
+            retval->data.literal.type = D_STRING;
+            memset(retval->data.literal.value.stringval, 0, MAX_LITERAL);
+            sprintf(retval->data.literal.value.stringval, "%s", lookahead.literal);
+            break;
+        case L_NUM:
+            // Only doing integers for now
+            retval->data.literal.type         = D_INTEGER;
+            retval->data.literal.value.intval = atoi(lookahead.literal);
+            break;
+        case T_TRUE:
+        case T_FALSE:
+            retval->data.literal.type = D_BOOLEAN;
+            if (strcmp(lookahead.literal, "true") == 0) {
+                retval->data.literal.value.boolval = true;
+            } else if (strcmp(lookahead.literal, "false") == 0) {
+                retval->data.literal.value.boolval = false;
+            } else {
+                syntax_error("boolean value ('true' or 'false')", lookahead);
+            }
+            break;
+        case T_NIL:
+            retval->data.literal.type = D_NIL;
+            if (strcmp(lookahead.literal, "nil") == 0) {
+                // Like C, we'll consider NIL (NULL) to be zero.
+                retval->data.literal.value.intval = 0;
+            }
+            break;
+        default:
+            syntax_error("some literal value", lookahead);
         }
         consume();
     }
@@ -564,39 +560,39 @@ node *parse_expression() {
     consume();
 
     switch (lookahead.type) {
-        case T_GOTO:
-            retval = parse_goto_expr();
-            break;
-        case T_IDENT:
-            token *tmp = peek();
-            
-            // Assignment to a variable
-            if (tmp->type == T_SEMICOLON) {
-                retval = parse_value();
-                break;
-            }
+    case T_GOTO:
+        retval = parse_goto_expr();
+        break;
+    case T_IDENT:
+        token *tmp = peek();
 
-            consume();
-            if (lookahead.type == T_LPAREN) {
-                retval = parse_call_expr();
-            } else if (lookahead.type == T_DOT) {
-                retval = parse_struct_access_expr();
-            } else {
-                syntax_error("'(' or '.'", lookahead);
-            }
-            break;
-        // Cheat here to parse constants
-        case L_STR:
-        case L_NUM:
-        case T_TRUE:
-        case T_FALSE:
-        case T_NIL:
+        // Assignment to a variable
+        if (tmp->type == T_SEMICOLON) {
             retval = parse_value();
             break;
-        default:
-            printf("Other expression types not yet implemented\n");
-            exit(1);
-            break;
+        }
+
+        consume();
+        if (lookahead.type == T_LPAREN) {
+            retval = parse_call_expr();
+        } else if (lookahead.type == T_DOT) {
+            retval = parse_struct_access_expr();
+        } else {
+            syntax_error("'(' or '.'", lookahead);
+        }
+        break;
+    // Cheat here to parse constants
+    case L_STR:
+    case L_NUM:
+    case T_TRUE:
+    case T_FALSE:
+    case T_NIL:
+        retval = parse_value();
+        break;
+    default:
+        printf("Other expression types not yet implemented\n");
+        exit(1);
+        break;
     }
 
     return retval;
@@ -698,7 +694,7 @@ static void print_node(node *n, int indent) {
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + 4);
         printf("Formals: ");
-        
+
         indent += 4;
         node *f = n->data.function_decl.formal;
         if (f != NULL) {
@@ -716,7 +712,7 @@ static void print_node(node *n, int indent) {
         for (int idx = 0; idx < n->num_children; idx++) {
             print_node(n->children[idx], indent + 4);
         }
-        
+
         print_indent(indent);
         printf("),\n");
         break;
@@ -735,21 +731,21 @@ static void print_node(node *n, int indent) {
         printf("Type: %s\n", type_to_str((data_type)n->data.literal.type));
         print_indent(indent + 4);
         switch (n->data.literal.type) {
-            case D_INTEGER:
-                printf("Value: %d\n", n->data.literal.value.intval);
-                break;
-            case D_STRING:
-                printf("Value: %s\n", n->data.literal.value.stringval);
-                break;
-            case D_BOOLEAN:
-                printf("Value: %s\n", (n->data.literal.value.boolval) ? "true" : "false");
-                break;
-            case D_NIL:
-                printf("Value: %d (nil)\n", (n->data.literal.value.intval));
-                break;
-            case D_FLOAT:
-                printf("Float literal not yet implemented\n");
-                break;
+        case D_INTEGER:
+            printf("Value: %d\n", n->data.literal.value.intval);
+            break;
+        case D_STRING:
+            printf("Value: %s\n", n->data.literal.value.stringval);
+            break;
+        case D_BOOLEAN:
+            printf("Value: %s\n", (n->data.literal.value.boolval) ? "true" : "false");
+            break;
+        case D_NIL:
+            printf("Value: %d (nil)\n", (n->data.literal.value.intval));
+            break;
+        case D_FLOAT:
+            printf("Float literal not yet implemented\n");
+            break;
         }
         print_indent(indent);
         printf("),\n");

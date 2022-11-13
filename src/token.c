@@ -22,7 +22,7 @@ t_list *t_list_new(void) {
 
     tok->type = T_HEAD;
     tok->line = 0;
-    tok->col = 0;
+    tok->col  = 0;
 
     new->tok = tok;
 
@@ -41,10 +41,10 @@ void t_list_free(t_list *lst) {
 
     // Walk back up the list
     while (lst->prev != NULL) {
-       lst = lst->prev;
+        lst = lst->prev;
 
-       free(lst->next->tok);
-       free(lst->next);
+        free(lst->next->tok);
+        free(lst->next);
     }
 
     if (lst != NULL) {

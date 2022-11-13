@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
             if (program != NULL) {
                 // Cleanup token_list
-//                t_list_free(token_list);
+                //                t_list_free(token_list);
 
 #if defined(DEBUG)
                 print_ast(program);

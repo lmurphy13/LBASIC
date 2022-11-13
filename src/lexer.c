@@ -28,7 +28,7 @@ static bool is_keyword(char *lexeme, token_type *type);
 t_list *token_list;
 static int char_num = -1;
 static int line_num = 1;
-static int col_num = 1;
+static int col_num  = 1;
 
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
@@ -96,7 +96,7 @@ static void emit_token(t_list *lst, token_type type, const char *literal) {
 
     tok->type = type;
     tok->line = line_num;
-    tok->col = col_num;
+    tok->col  = col_num;
     strncpy(tok->literal, literal, strlen(literal));
 
     if (new_tok != NULL) {
@@ -337,7 +337,7 @@ static void tokenize(char *prog_buff) {
              * where the token's real position is. */
             if (inc_line) {
                 line_num++;
-                col_num = 1;
+                col_num  = 1;
                 inc_line = false;
             }
         }
@@ -356,8 +356,8 @@ static void tokenize(char *prog_buff) {
         }
 
         else {
-            printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n", line_num, col_num, c,
-                   char_num);
+            printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n", line_num,
+                   col_num, c, char_num);
             exit(LEXER_ERROR_UNKNOWN_CHARACTER);
         }
 
