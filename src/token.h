@@ -64,6 +64,7 @@ typedef struct {
     token_type type;
     char literal[MAX_LITERAL];
     unsigned int line;
+    unsigned int col;
 } token;
 
 typedef struct t_list {
@@ -73,6 +74,7 @@ typedef struct t_list {
 } t_list;
 
 t_list *t_list_new(void);
+void t_list_free(t_list *lst);
 void t_list_append(t_list *lst, t_list *new_tok);
 t_list *t_list_next(t_list *lst);
 t_list *t_list_prev(t_list *lst);

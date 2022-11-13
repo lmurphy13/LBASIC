@@ -1,27 +1,33 @@
 Inspiration taken from:
 https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
-<program> := <statements>
+<program> := <declarations> <statements>
+
+<declarations> := <declaration> <declarations>
+                | <declaration>
+
+<declaration> := <function-decl>
+               | <label-decl>
+               | <var-decl>
+               | <struct-decl>
 
 <statements> := <statement> <statements>
 			  | <statement>
 
-<statement> := <function-decl>
-			 | <label-decl>
-			 | <var-decl>
-			 | <struct-decl>
-			 | <for-stmt>
+<statement> := <for-stmt>
 			 | <while-stmt>
 			 | <if-then-stmt>
 			 | <if-then-else-stmt>
+			 | <assign-stmt>
 			 | <expression>
 
-<function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <statements> 'end'
-				 | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
+<function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
+				 | 'func' <ident> '(' ')' '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
 
 <label-decl> := <ident> ':'
 
 <var-decl> := <type> <id> ';'
+			| <type> <id> ':=' <expression> ';'
 
 <var-decls> := <var-decl> <var-decls>
 			 | <var-decl>
@@ -36,9 +42,12 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <if-then-else-stmt> := 'if '(' <expr-lst> ')' 'then' <statements> 'else' <statements> 'end'
 
+<assign-stmt> := <expression> ':=' <expression> ';'
+
 <expression> := <bin-op-expr>
 			  | <goto-expr>
 			  | <call-expr>
+			  | <struct-access-expr>
 
 <expr-list> := <expression> ',' <expr-list>
 			 | <expression>
@@ -86,10 +95,13 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			| <string-literal>
 			| 'true'
 			| 'false'
+			| 'nil'
 
 <goto-expr> := 'goto' <ident> ';'
 
 <call-expr> := <ident> '(' <expr-list> ')
+
+<struct-access-expr> := <expression> '.' <ident>
 
 <ident-list> := <ident> ',' <ident-list>
 			  | <ident>

@@ -1,0 +1,8 @@
+int hello := 123;
+bool isEven := false;
+string myName := "Liam";
+float poptart := nil;
+
+func function(int a, string b, bool c) -> int
+    int copy := a;
+end

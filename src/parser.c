@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "ast.h"
@@ -18,13 +19,16 @@ static token get_token(t_list *);
 static token *peek(void);
 static void consume(void);
 static void backup(void);
-static void syntax_error(const char *msg, const char *got, unsigned int line);
+//static void syntax_error(const char *msg, const char *got, unsigned int line, unsigned int col);
+static void syntax_error(const char *exp, token l);
 static void print_node(node *n, int indent);
 static data_type keyword_to_type(token_type t);
 
 // Parsing Prototypes
-node *parse_statements(void);
-node *parse_statement(void);
+void parse_declarations(node *program);
+node *parse_declaration(bool *more);
+void parse_statements(node *program);
+node *parse_statement(bool *more);
 node *parse_function_decl(void);
 node *parse_formals(void);
 node *parse_label_decl(void);
@@ -41,6 +45,15 @@ node *parse_mul_expr(void);
 node *parse_div_expr(void);
 node *parse_mod_expr(void);
 node *parse_goto_expr(void);
+node *parse_call_expr(void);
+node *parse_struct_access_expr(void);
+node *parse_for_stmt(void);
+node *parse_while_stmt(void);
+node *parse_ifthen_stmt(void);
+node *parse_ifthenelse_stmt(void);
+node *parse_value(void);
+node *parse_constant(void);
+node *parse_identifier(void);
 
 // Globals
 // Current token
@@ -54,6 +67,8 @@ node *mk_node(n_type type) {
 
     // Freed TBD
     if (retval != NULL) {
+        //memset(retval, 0, sizeof(node));
+
         // Assign type
         retval->type = type;
 
@@ -94,14 +109,18 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-static void syntax_error(const char *exp, const char *got, unsigned int line) {
-    printf("Syntax Error (line %d): Expected %s but got '%s'.\n", line, exp, got);
-    exit(1);
+// static void syntax_error(const char *exp, const char *got, unsigned int line, unsigned int col) {
+//     printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", line, col, exp, got);
+// }
+
+static void syntax_error(const char *exp, token l) {
+    printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", l.line, l.col, exp, l.literal);
+    exit(PARSER_ERROR_SYNTAX_ERROR);
 }
 
 // Recursive descent
 
-// <program> := <statements>
+// <program> := <declarations> <statements>
 node *parse(t_list *tokens) {
     node *program = mk_node(N_PROGRAM);
 
@@ -117,38 +136,120 @@ node *parse(t_list *tokens) {
         consume();
     }
 
-    switch (lookahead.type) {
-    case T_FUNC:
-        program->children[program->num_children] = parse_function_decl();
-        program->num_children++;
-        break;
-    default:
-        printf("Unknown token type: %d\n", lookahead.type);
-        break;
-    }
+    // Parse declarations
+    parse_declarations(program);
+
+    // Parse statements
+//    parse_statements(program);
+
+    // switch (lookahead.type) {
+    // case T_FUNC:
+    //     program->children[program->num_children] = parse_function_decl();
+    //     program->num_children++;
+    //     break;
+    // default:
+    //     printf("Unknown token type: %d\n", lookahead.type);
+    //     break;
+    // }
 
     return program;
 }
 
+// <declarations> := <declaration> <declarations>
+//                 | <declaration>
+void parse_declarations(node *program) {
+    bool more = true;
+
+    do {
+        program->children[program->num_children] = parse_declaration(&more);
+        
+        if (more) {
+            program->num_children++;
+        }
+    } while (more);
+}
+
+// <declaration> := <function-decl>
+//                | <label-decl>
+//                | <var-decl>
+//                | <struct-decl>
+node *parse_declaration(bool *more) {
+    node *retval;
+
+    switch (lookahead.type) {
+        case T_FUNC:
+            retval = parse_function_decl();
+            break;
+        case T_IDENT:
+            retval = parse_label_decl();
+            break;
+        case T_INT:
+        case T_FLOAT:
+        case T_STRING:
+        case T_BOOL:
+            retval = parse_var_decl();
+            break;
+        case T_STRUCT:
+            retval = parse_struct_decl();
+            break;
+        default:
+            *more = false;
+            break;
+    }
+
+    return retval;
+}
+
 // <statements> := <statement> <statements>
 //               | <statement>
-node *parse_statements() { return NULL; }
+void parse_statements(node *program) {
+    bool more = true;
 
-// <statement> := <function-decl>
-//              | <label-decl>
-//              | <var-decl>
-//              | <struct-decl>
-//              | <for-stmt>
+    do {
+        consume();
+
+        program->children[program->num_children] = parse_statement(&more);
+        program->num_children++;
+    } while (more);
+}
+
+// <statement> := <for-stmt>
 //              | <while-stmt>
 //              | <if-then-stmt>
 //              | <if-then-else-stmt>
 //              | <expression>
-node *parse_statement() {}
+node *parse_statement(bool *more) {
+    node *retval;
+    
+    switch (lookahead.type) {
+        case T_FOR:
+            retval = parse_for_stmt();
+            break;
+        case T_WHILE:
+            retval = parse_while_stmt();
+            break;
+        case T_IF:
+            retval = parse_ifthen_stmt();
+            break;
+        case N_IFTHENELSE_STMT:
+            retval = parse_ifthenelse_stmt();
+            break;
+        case N_EXPR:
+            retval = parse_expression();
+            break;
+        default:
+            *more = false;
+    }
+
+    return retval;
+}
 
 // <function-decl> := 'func' <ident> '(' <formal-list> ')' '->' <type> <statements> 'end'
 //                  | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
 node *parse_function_decl() {
     node *retval = mk_node(N_FUNC_DECL);
+    bool more = true;
+
     if (retval != NULL) {
         consume();
         // Add function name to node
@@ -156,12 +257,12 @@ node *parse_function_decl() {
             memset(retval->data.function_decl.name, 0, MAX_LITERAL);
             sprintf(retval->data.function_decl.name, "%s", lookahead.literal);
         } else {
-            syntax_error("identifier", lookahead.literal, lookahead.line);
+            syntax_error("identifier", lookahead);
         }
 
         consume();
         if (lookahead.type != T_LPAREN) {
-            syntax_error("(", lookahead.literal, lookahead.line);
+            syntax_error("(", lookahead);
         }
 
         token *tmp = peek();
@@ -177,12 +278,12 @@ node *parse_function_decl() {
         else if (tmp->type == T_RPAREN) {
             consume();
         } else {
-            syntax_error("function arguments or ')'", lookahead.literal, lookahead.line);
+            syntax_error("function arguments or ')'", lookahead);
         }
 
         consume();
         if (lookahead.type != T_OFTYPE) {
-            syntax_error("->", lookahead.literal, lookahead.line);
+            syntax_error("->", lookahead);
         }
 
         consume();
@@ -204,17 +305,19 @@ node *parse_function_decl() {
             break;
         default:
             // Expected a type, but didn't get one
-            syntax_error("a data type", lookahead.literal, lookahead.line);
+            syntax_error("a data type", lookahead);
         }
 
-        // Begin parsing statements
         consume();
-        retval->data.function_decl.statements = parse_statements();
+        // Begin parsing declarations
+        parse_declarations(retval);
+
+        // // Begin parsing statements
+        // parse_statements(retval);
 
         // Parse the end of the function
-        consume();
         if (lookahead.type != T_END) {
-            syntax_error("end", lookahead.literal, lookahead.line);
+            syntax_error("end", lookahead);
         }
     } else {
         printf("mk_node failed for N_FUNC_DECL\n");
@@ -254,12 +357,12 @@ node *parse_formals() {
         case T_STRING:
         case T_FLOAT:
             if (tmp->type != T_IDENT) {
-                syntax_error("identifier", tmp->literal, tmp->line);
+                syntax_error("identifier", *tmp);
             }
             break;
         default:
             // Didn't get a type
-            syntax_error("type", lookahead.literal, lookahead.line);
+            syntax_error("type", lookahead);
         }
 
         if (first) {
@@ -315,6 +418,190 @@ node *parse_formals() {
     return retval;
 }
 
+node *parse_var_decl() {
+    node *retval = mk_node(N_VAR_DECL);
+
+    if (retval != NULL) {
+        retval->data.var_decl.type = keyword_to_type(lookahead.type);
+
+        consume();
+        if (lookahead.type != T_IDENT) {
+            syntax_error("type", lookahead);
+        } else {
+            memset(retval->data.var_decl.name, 0, MAX_LITERAL);
+            sprintf(retval->data.var_decl.name, "%s", lookahead.literal);
+        }
+
+        consume();
+        if (lookahead.type == T_ASSIGN) {
+            retval->data.var_decl.value = parse_expression();
+        } 
+        
+        if (lookahead.type == T_SEMICOLON) {
+            // Consume semicolon and we're done
+            consume();
+        } else {
+            syntax_error("';'", lookahead);
+        }
+    }
+
+    return retval;
+}
+
+node *parse_for_stmt() { return NULL; }
+node *parse_while_stmt() { return NULL; }
+node *parse_ifthen_stmt() { return NULL; }
+node *parse_ifthenelse_stmt() { return NULL; }
+node *parse_label_decl() { return NULL; }
+node *parse_struct_decl() { return NULL; }
+node *parse_call_expr() { return NULL; }
+node *parse_struct_access_expr() { return NULL; }
+node *parse_goto_expr() { return NULL; }
+
+// <value> := '(' <expression> ')'
+//          | <ident>
+//          | <ident> '(' <expr-list> ')'
+//          | <constant>
+node *parse_value() {
+    node *retval = mk_node(N_VALUE);
+
+    if (retval != NULL) {
+        switch (lookahead.type) {
+            case T_IDENT:
+                retval = parse_identifier(); 
+                break;
+            case T_LPAREN:
+                retval = parse_expression();
+
+                consume();
+                if (lookahead.type != T_RPAREN) {
+                    syntax_error("')'", lookahead);
+                }
+                break;
+            case L_STR:
+            case L_NUM:
+            case T_TRUE:
+            case T_FALSE:
+            case T_NIL:
+                retval = parse_constant();
+                break;
+            default:
+                syntax_error("value", lookahead);
+        }
+    }
+
+    return retval;
+}
+// <constant> := <int-literal>
+//             | <float-literal>
+//			   | <string-literal>
+//			   | 'true'
+//			   | 'false'
+//			   | 'nil'
+node *parse_constant() {
+    node *retval = mk_node(N_LITERAL);
+
+    if (retval != NULL) {
+
+        switch (lookahead.type) {
+            case L_STR:
+                retval->data.literal.type = D_STRING;
+                memset(retval->data.literal.value.stringval, 0, MAX_LITERAL);
+                sprintf(retval->data.literal.value.stringval, "%s", lookahead.literal);
+                break;
+            case L_NUM:
+                // Only doing integers for now
+                retval->data.literal.type = D_INTEGER;
+                retval->data.literal.value.intval = atoi(lookahead.literal);
+                break;
+            case T_TRUE:
+            case T_FALSE:
+                retval->data.literal.type = D_BOOLEAN;
+                if (strcmp(lookahead.literal, "true") == 0) {
+                    retval->data.literal.value.boolval = true;
+                } else if (strcmp(lookahead.literal, "false") == 0) {
+                    retval->data.literal.value.boolval = false;
+                } else {
+                    syntax_error("boolean value ('true' or 'false')", lookahead);
+                }
+                break;
+            case T_NIL:
+                retval->data.literal.type = D_NIL;
+                if (strcmp(lookahead.literal, "nil") == 0) {
+                    // Like C, we'll consider NIL (NULL) to be zero.
+                    retval->data.literal.value.intval = 0;
+                }
+                break;
+            default:
+                syntax_error("some literal value", lookahead);
+        }
+        consume();
+    }
+
+    return retval;
+}
+
+node *parse_identifier() {
+    node *retval = mk_node(N_IDENT);
+
+    if (retval != NULL) {
+        memset(retval->data.identifier.name, 0, MAX_LITERAL);
+        sprintf(retval->data.identifier.name, "%s", lookahead.literal);
+    }
+
+    consume();
+
+    return retval;
+}
+
+// <expression> := <bin-op-expr>
+//               | <goto-expr>
+//               | <call-expr>
+//               | <struct-access-expr>
+node *parse_expression() {
+    node *retval;
+
+    consume();
+
+    switch (lookahead.type) {
+        case T_GOTO:
+            retval = parse_goto_expr();
+            break;
+        case T_IDENT:
+            token *tmp = peek();
+            
+            // Assignment to a variable
+            if (tmp->type == T_SEMICOLON) {
+                retval = parse_value();
+                break;
+            }
+
+            consume();
+            if (lookahead.type == T_LPAREN) {
+                retval = parse_call_expr();
+            } else if (lookahead.type == T_DOT) {
+                retval = parse_struct_access_expr();
+            } else {
+                syntax_error("'(' or '.'", lookahead);
+            }
+            break;
+        // Cheat here to parse constants
+        case L_STR:
+        case L_NUM:
+        case T_TRUE:
+        case T_FALSE:
+        case T_NIL:
+            retval = parse_value();
+            break;
+        default:
+            printf("Other expression types not yet implemented\n");
+            exit(1);
+            break;
+    }
+
+    return retval;
+}
+
 static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) {
         printf(" ");
@@ -361,6 +648,9 @@ static const char *type_to_str(data_type t) {
     case D_VOID:
         return "VOID";
         break;
+    case D_NIL:
+        return "NIL";
+        break;
     default:
         return "UNKNOWN";
         break;
@@ -368,10 +658,37 @@ static const char *type_to_str(data_type t) {
 }
 
 static void print_node(node *n, int indent) {
+    if (n == NULL) {
+        printf("ERROR: Unable to access node for printing");
+        exit(1);
+    }
+
     print_indent(indent);
     switch (n->type) {
     case N_PROGRAM:
         printf("Program (\n");
+        break;
+    case N_VAR_DECL:
+        printf("VarDecl (\n");
+        print_indent(indent + 4);
+        printf("Name: %s\n", n->data.formal.name);
+        print_indent(indent + 4);
+        printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        print_indent(indent + 4);
+        printf("Value: ");
+
+        indent += 4;
+        node *v = n->data.var_decl.value;
+        if (v != NULL) {
+            printf("\n");
+            print_node(v, indent + 4);
+        } else {
+            printf("None\n");
+        }
+        indent -= 4;
+
+        print_indent(indent);
+        printf("),\n");
         break;
     case N_FUNC_DECL:
         printf("FuncDecl (\n");
@@ -381,6 +698,7 @@ static void print_node(node *n, int indent) {
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + 4);
         printf("Formals: ");
+        
         indent += 4;
         node *f = n->data.function_decl.formal;
         if (f != NULL) {
@@ -393,6 +711,12 @@ static void print_node(node *n, int indent) {
             printf("None\n");
         }
         indent -= 4;
+
+        // Print FuncDecl children
+        for (int idx = 0; idx < n->num_children; idx++) {
+            print_node(n->children[idx], indent + 4);
+        }
+        
         print_indent(indent);
         printf("),\n");
         break;
@@ -405,17 +729,56 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_LITERAL:
+        printf("Literal (\n");
+        print_indent(indent + 4);
+        printf("Type: %s\n", type_to_str((data_type)n->data.literal.type));
+        print_indent(indent + 4);
+        switch (n->data.literal.type) {
+            case D_INTEGER:
+                printf("Value: %d\n", n->data.literal.value.intval);
+                break;
+            case D_STRING:
+                printf("Value: %s\n", n->data.literal.value.stringval);
+                break;
+            case D_BOOLEAN:
+                printf("Value: %s\n", (n->data.literal.value.boolval) ? "true" : "false");
+                break;
+            case D_NIL:
+                printf("Value: %d (nil)\n", (n->data.literal.value.intval));
+                break;
+            case D_FLOAT:
+                printf("Float literal not yet implemented\n");
+                break;
+        }
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_IDENT:
+        printf("Identifier (\n");
+        print_indent(indent + 4);
+        printf("Name: %s\n", n->data.identifier.name);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    default:
+        printf("Unknown node type: %d\n", n->type);
     }
 }
 
 void print_ast(node *ast) {
     int indent = 0;
-    print_node(ast, indent);
-    indent += 4;
-    while (ast != NULL) {
-        node *func = ast->children[0];
-        print_node(func, indent);
-        break;
+
+    if (ast != NULL) {
+        // Print top level
+        print_node(ast, indent);
+        indent += 4;
+
+        // Print children
+        for (int idx = 0; idx < ast->num_children; idx++) {
+            node *n = ast->children[idx];
+            print_node(n, indent);
+        }
     }
 
     printf(")\n");

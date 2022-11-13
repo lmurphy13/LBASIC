@@ -42,10 +42,11 @@ typedef enum n_type {
     N_IDENT,
     N_IDENT_LIST,
     N_CONSTANT,
+    N_LITERAL,
     NUM_TYPES
 } n_type;
 
-typedef enum data_type { D_INTEGER = 0, D_FLOAT, D_STRING, D_BOOLEAN, D_VOID, D_UNKNOWN } data_type;
+typedef enum data_type { D_INTEGER = 0, D_FLOAT, D_STRING, D_BOOLEAN, D_VOID, D_NIL, D_UNKNOWN } data_type;
 
 // AST node
 typedef struct node {
@@ -59,11 +60,28 @@ typedef struct node {
             char name[MAX_LITERAL];
         } formal;
         struct {
+            data_type type;
+            char name[MAX_LITERAL];
+            struct node *value; // should be an expression node
+        } var_decl;
+        struct {
+            char name[MAX_LITERAL];
+        } identifier;
+        struct {
             char name[MAX_LITERAL];
             data_type type;
             struct node *statements;
             struct node *formal; // formal arguments
         } function_decl;
+        struct {
+            data_type type;
+            union {
+                int intval;
+                float floatval;
+                bool boolval;
+                char stringval[MAX_LITERAL];
+            } value;
+        } literal;
     } data;
     struct node *next; // Used in a limited number of cases when a linked list of a certain type of
                        // token is needed.

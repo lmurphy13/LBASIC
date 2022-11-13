@@ -1,7 +1,3 @@
-func routine() -> void
-
-end
-
-func function(int a, string b, while c) -> int
-
+func function(int a, string b, bool c) -> int
+'    int copy := a;
 end

@@ -32,7 +32,12 @@ int main(int argc, char *argv[]) {
             node *program = parse(token_list);
 
             if (program != NULL) {
+                // Cleanup token_list
+//                t_list_free(token_list);
+
+#if defined(DEBUG)
                 print_ast(program);
+#endif
             } else {
                 printf("ERROR: Invalid AST generated during parsing.\n");
                 exit(COMPILER_ERROR_BAD_AST);
