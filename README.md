@@ -7,8 +7,8 @@ A simple, compiled language with syntax inspired by C and BASIC
 - clang-format-11
 
 ### Progress:
-- [x] Lexer (mostly done)
-- [ ] Parser (started)
+- [x] Lexer
+- [ ] Parser (in-progress)
 - [ ] Type Checker
 - [ ] Code Generator
 
