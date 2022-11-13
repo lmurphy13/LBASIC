@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ast.h"
 #include "error.h"
@@ -14,12 +15,23 @@
 #include "token.h"
 
 void print_usage() {
-    printf("LBASIC Usage\n");
-    printf("\t./lbasic <path>\n");
+    printf("LBASIC Compiler Usage\n");
+    printf("    ./lbasic -v or --version\n");
+    printf("    ./lbasic <path>\n");
+}
+
+void print_version() {
+    printf("LBASIC Compiler v0.1 - November 2022\n");
+    printf("Author: Liam M. Murphy\n");
 }
 
 int main(int argc, char *argv[]) {
     if (argc > 1) {
+
+        if ((strcmp(argv[1], "-v") == 0) || (strcmp(argv[1], "--version") == 0)) {
+            print_version();
+            return 0;
+        }
 
         // Lexical analysis
         t_list *token_list = lex(argv[1]);
