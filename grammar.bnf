@@ -23,6 +23,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
 				 | 'func' <ident> '(' ')' '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
+				 | 'func' <ident> '(' ')' '->' 'void' <var-decls> <statements> ';' 'end'
 
 <label-decl> := <ident> ':'
 
@@ -32,7 +33,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 <var-decls> := <var-decl> <var-decls>
 			 | <var-decl>
 
-<struct-decl> := 'struct' <id> <var-decls> 'end'
+<struct-decl> := 'struct' <id> <member-decls> 'end'
 
 <for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <statements> 'end'
 

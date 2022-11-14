@@ -66,8 +66,6 @@ node *mk_node(n_type type) {
 
     // Freed TBD
     if (retval != NULL) {
-        // memset(retval, 0, sizeof(node));
-
         // Assign type
         retval->type = type;
 
@@ -311,9 +309,23 @@ node *parse_function_decl() {
         // // Begin parsing statements
         // parse_statements(retval);
 
+        // Parse return statement
+        // For now, we will not expect returns in void functions
+        if (retval->data.function_decl.type != D_VOID) {
+            if (lookahead.type != T_RETURN) {
+                syntax_error("'return'", lookahead);
+            } else {
+                consume();
+                retval->data.function_decl.return_expr = parse_expression();
+            }
+        }
+
         // Parse the end of the function
         if (lookahead.type != T_END) {
             syntax_error("end", lookahead);
+        } else {
+            // Consume 'end'
+            consume();
         }
     } else {
         printf("mk_node failed for N_FUNC_DECL\n");
@@ -449,10 +461,90 @@ node *parse_while_stmt() { return NULL; }
 node *parse_ifthen_stmt() { return NULL; }
 node *parse_ifthenelse_stmt() { return NULL; }
 node *parse_label_decl() { return NULL; }
-node *parse_struct_decl() { return NULL; }
 node *parse_call_expr() { return NULL; }
 node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
+
+// <struct-decl> := 'struct' <ident> <member-decls> 'end'
+node *parse_struct_decl() { 
+    node *retval = mk_node(N_STRUCT_DECL);
+
+    if (retval != NULL) {
+        retval->data.struct_decl.member = NULL;
+        if (lookahead.type != T_STRUCT) {
+            syntax_error("'struct'", lookahead);
+        } else {
+            retval->data.struct_decl.type = D_STRUCT;
+        }
+
+        consume();
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.struct_decl.name, 0, MAX_LITERAL);
+            sprintf(retval->data.struct_decl.name, "%s", lookahead.literal);
+        }
+
+        // Parse member declarations
+        consume();
+        do {
+            node *member = mk_node(N_MEMBER_DECL);
+            switch (lookahead.type) {
+                case T_INT:
+                case T_BOOL:
+                case T_STRING:
+                case T_FLOAT:
+                    member->data.member_decl.type = keyword_to_type(lookahead.type);
+                    break;
+                default:
+                    syntax_error("type", lookahead);
+            }
+
+            consume();
+            if (lookahead.type != T_IDENT) {
+                syntax_error("identifier", lookahead);
+            } else {
+                memset(member->data.member_decl.name, 0, MAX_LITERAL);
+                sprintf(member->data.member_decl.name, "%s", lookahead.literal);
+            }
+
+            consume();
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error("';'", lookahead);
+            } else {
+
+                // Seek to end of member list
+                node *m = retval->data.struct_decl.member;
+
+                // First member
+                if (m == NULL) {
+                    retval->data.struct_decl.member = member;
+                    retval->data.struct_decl.member->next = NULL;
+                } else {
+                    while (m->next != NULL) {
+                        m = m->next;
+                    }
+
+                    // Append member to decl
+                    m->next = member;
+                    member->next = NULL;
+                }
+            }
+
+            consume();
+
+        } while (lookahead.type != T_END);
+
+        if (lookahead.type != T_END) {
+            syntax_error("'end", lookahead);
+        } else {
+            // Consume 'end'
+            consume();
+        }
+    }
+
+    return retval;
+}
 
 // <value> := '(' <expression> ')'
 //          | <ident>
@@ -713,6 +805,37 @@ static void print_node(node *n, int indent) {
             print_node(n->children[idx], indent + 4);
         }
 
+        print_indent(indent + 4);
+        printf("Return: ");
+        if (n->data.function_decl.return_expr == NULL) {
+            printf("None\n");
+        } else {
+            print_node(n->data.function_decl.return_expr, indent + 4);
+        }
+
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_STRUCT_DECL:
+        printf("StructDecl (\n");
+        print_indent(indent + 4);
+        printf("Name: %s\n", n->data.struct_decl.name);
+        print_indent(indent + 4);
+        printf("Members: ");
+
+        indent += 4;
+        node *m = n->data.struct_decl.member;
+        if (m != NULL) {
+            printf("\n");
+            while (m != NULL) {
+                print_node(m, indent + 4);
+                m = m->next;
+            }
+        } else {
+            printf("None\n");
+        }
+        indent -= 4;
+
         print_indent(indent);
         printf("),\n");
         break;
@@ -722,6 +845,15 @@ static void print_node(node *n, int indent) {
         printf("Name: %s\n", n->data.formal.name);
         print_indent(indent + 4);
         printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_MEMBER_DECL:
+        printf("MemberDecl (\n");
+        print_indent(indent + 4);
+        printf("Name: %s\n", n->data.member_decl.name);
+        print_indent(indent + 4);
+        printf("Type: %s\n", type_to_str((data_type)n->data.member_decl.type));
         print_indent(indent);
         printf("),\n");
         break;

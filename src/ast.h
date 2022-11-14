@@ -20,6 +20,7 @@ typedef enum n_type {
     N_FUNC_DECL,
     N_LABEL_DECL,
     N_VAR_DECL,
+    N_MEMBER_DECL,
     N_STRUCT_DECL,
     N_FOR_STMT,
     N_WHILE_STMT,
@@ -53,6 +54,7 @@ typedef enum data_type {
     D_BOOLEAN,
     D_VOID,
     D_NIL,
+    D_STRUCT,
     D_UNKNOWN
 } data_type;
 
@@ -70,6 +72,10 @@ typedef struct node {
         struct {
             data_type type;
             char name[MAX_LITERAL];
+        } member_decl;
+        struct {
+            data_type type;
+            char name[MAX_LITERAL];
             struct node *value; // should be an expression node
         } var_decl;
         struct {
@@ -80,7 +86,13 @@ typedef struct node {
             data_type type;
             struct node *statements;
             struct node *formal; // formal arguments
+            struct node *return_expr;
         } function_decl;
+        struct {
+            char name[MAX_LITERAL];
+            data_type type; // always D_STRUCT
+            struct node *member;
+        } struct_decl;
         struct {
             data_type type;
             union {

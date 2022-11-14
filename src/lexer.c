@@ -14,7 +14,7 @@
 #include "lexer.h"
 #include "token.h"
 
-#define N_KEYWORDS 20
+#define N_KEYWORDS 21
 #define MAX_KEYWORD_LEN 20
 
 // Prototypes
@@ -33,7 +33,7 @@ static int col_num  = 1;
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
     "and", "or",  "func", "for",    "while", "to",   "end",  "struct", "true", "false",
-    "nil", "int", "bool", "string", "float", "void", "goto", "if",     "then", "else"};
+    "nil", "int", "bool", "string", "float", "void", "goto", "if",     "then", "else", "return"};
 
 // See lexer.h
 t_list *lex(const char *path) {

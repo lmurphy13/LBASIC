@@ -52,11 +52,12 @@ typedef enum {
     T_IF        = 39, // if
     T_THEN      = 40, // then
     T_ELSE      = 41, // else
-    T_IDENT     = 42, // identifier [a-zA-Z] [a-zA-Z0-9]
-    T_HEAD      = 43, // Head of list
-    L_STR       = 44, // string literal
-    L_NUM       = 45, // number literal
-    T_EOF       = 46, // End Of File
+    T_RETURN    = 42, // return
+    T_IDENT     = 43, // identifier [a-zA-Z] [a-zA-Z0-9]
+    T_HEAD      = 44, // Head of list
+    L_STR       = 45, // string literal
+    L_NUM       = 46, // number literal
+    T_EOF       = 47, // End Of File
     NTOKENS
 } token_type;
 
