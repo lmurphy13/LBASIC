@@ -32,8 +32,8 @@ static int col_num  = 1;
 
 // Elements must remain in this order
 static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
-    "and", "or",  "func", "for",    "while", "to",   "end",  "struct", "true", "false",
-    "nil", "int", "bool", "string", "float", "void", "goto", "if",     "then", "else", "return"};
+    "and", "or",   "func",   "for",   "while", "to",   "end", "struct", "true", "false", "nil",
+    "int", "bool", "string", "float", "void",  "goto", "if",  "then",   "else", "return"};
 
 // See lexer.h
 t_list *lex(const char *path) {

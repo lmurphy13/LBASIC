@@ -466,7 +466,7 @@ node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
 
 // <struct-decl> := 'struct' <ident> <member-decls> 'end'
-node *parse_struct_decl() { 
+node *parse_struct_decl() {
     node *retval = mk_node(N_STRUCT_DECL);
 
     if (retval != NULL) {
@@ -490,14 +490,14 @@ node *parse_struct_decl() {
         do {
             node *member = mk_node(N_MEMBER_DECL);
             switch (lookahead.type) {
-                case T_INT:
-                case T_BOOL:
-                case T_STRING:
-                case T_FLOAT:
-                    member->data.member_decl.type = keyword_to_type(lookahead.type);
-                    break;
-                default:
-                    syntax_error("type", lookahead);
+            case T_INT:
+            case T_BOOL:
+            case T_STRING:
+            case T_FLOAT:
+                member->data.member_decl.type = keyword_to_type(lookahead.type);
+                break;
+            default:
+                syntax_error("type", lookahead);
             }
 
             consume();
@@ -518,7 +518,7 @@ node *parse_struct_decl() {
 
                 // First member
                 if (m == NULL) {
-                    retval->data.struct_decl.member = member;
+                    retval->data.struct_decl.member       = member;
                     retval->data.struct_decl.member->next = NULL;
                 } else {
                     while (m->next != NULL) {
@@ -526,7 +526,7 @@ node *parse_struct_decl() {
                     }
 
                     // Append member to decl
-                    m->next = member;
+                    m->next      = member;
                     member->next = NULL;
                 }
             }
@@ -656,6 +656,9 @@ node *parse_expression() {
         retval = parse_goto_expr();
         break;
     case T_IDENT:
+        // On my 32 bit intel system, an empty statement must be here to avoid a compiler error.
+        // This error does not occur on my 64 bit system
+        ;
         token *tmp = peek();
 
         // Assignment to a variable
