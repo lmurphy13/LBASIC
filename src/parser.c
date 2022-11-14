@@ -14,6 +14,8 @@
 #include "parser.h"
 #include "token.h"
 
+#define INDENT_WIDTH 4
+
 // Static Prototypes
 static token get_token(t_list *);
 static token *peek(void);
@@ -135,16 +137,6 @@ node *parse(t_list *tokens) {
 
     // Parse statements
     //    parse_statements(program);
-
-    // switch (lookahead.type) {
-    // case T_FUNC:
-    //     program->children[program->num_children] = parse_function_decl();
-    //     program->num_children++;
-    //     break;
-    // default:
-    //     printf("Unknown token type: %d\n", lookahead.type);
-    //     break;
-    // }
 
     return program;
 }
@@ -348,6 +340,7 @@ node *parse_formals() {
     node *retval = mk_node(N_FORMAL);
     node *new    = {0};
 
+    // TODO: Optimize this do-while loop, like when parsing struct member decls.
     do {
         if (!first) {
             new = mk_node(N_FORMAL);
@@ -580,6 +573,7 @@ node *parse_value() {
 
     return retval;
 }
+
 // <constant> := <int-literal>
 //             | <float-literal>
 //			   | <string-literal>
@@ -761,59 +755,59 @@ static void print_node(node *n, int indent) {
         break;
     case N_VAR_DECL:
         printf("VarDecl (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.formal.name);
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Value: ");
 
-        indent += 4;
+        indent += INDENT_WIDTH;
         node *v = n->data.var_decl.value;
         if (v != NULL) {
             printf("\n");
-            print_node(v, indent + 4);
+            print_node(v, indent + INDENT_WIDTH);
         } else {
             printf("None\n");
         }
-        indent -= 4;
+        indent -= INDENT_WIDTH;
 
         print_indent(indent);
         printf("),\n");
         break;
     case N_FUNC_DECL:
         printf("FuncDecl (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.function_decl.name);
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Formals: ");
 
-        indent += 4;
+        indent += INDENT_WIDTH;
         node *f = n->data.function_decl.formal;
         if (f != NULL) {
             printf("\n");
             while (f != NULL) {
-                print_node(f, indent + 4);
+                print_node(f, indent + INDENT_WIDTH);
                 f = f->next;
             }
         } else {
             printf("None\n");
         }
-        indent -= 4;
+        indent -= INDENT_WIDTH;
 
         // Print FuncDecl children
         for (int idx = 0; idx < n->num_children; idx++) {
-            print_node(n->children[idx], indent + 4);
+            print_node(n->children[idx], indent + INDENT_WIDTH);
         }
 
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Return: ");
         if (n->data.function_decl.return_expr == NULL) {
             printf("None\n");
         } else {
-            print_node(n->data.function_decl.return_expr, indent + 4);
+            print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
         }
 
         print_indent(indent);
@@ -821,50 +815,50 @@ static void print_node(node *n, int indent) {
         break;
     case N_STRUCT_DECL:
         printf("StructDecl (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.struct_decl.name);
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Members: ");
 
-        indent += 4;
+        indent += INDENT_WIDTH;
         node *m = n->data.struct_decl.member;
         if (m != NULL) {
             printf("\n");
             while (m != NULL) {
-                print_node(m, indent + 4);
+                print_node(m, indent + INDENT_WIDTH);
                 m = m->next;
             }
         } else {
             printf("None\n");
         }
-        indent -= 4;
+        indent -= INDENT_WIDTH;
 
         print_indent(indent);
         printf("),\n");
         break;
     case N_FORMAL:
         printf("Formal (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.formal.name);
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
         print_indent(indent);
         printf("),\n");
         break;
     case N_MEMBER_DECL:
         printf("MemberDecl (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.member_decl.name);
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.member_decl.type));
         print_indent(indent);
         printf("),\n");
         break;
     case N_LITERAL:
         printf("Literal (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.literal.type));
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         switch (n->data.literal.type) {
         case D_INTEGER:
             printf("Value: %d\n", n->data.literal.value.intval);
@@ -887,7 +881,7 @@ static void print_node(node *n, int indent) {
         break;
     case N_IDENT:
         printf("Identifier (\n");
-        print_indent(indent + 4);
+        print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.identifier.name);
         print_indent(indent);
         printf("),\n");
@@ -903,7 +897,7 @@ void print_ast(node *ast) {
     if (ast != NULL) {
         // Print top level
         print_node(ast, indent);
-        indent += 4;
+        indent += INDENT_WIDTH;
 
         // Print children
         for (int idx = 0; idx < ast->num_children; idx++) {
