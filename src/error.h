@@ -1,5 +1,5 @@
 /**
- * Error Definitions
+ * Error Public Definitions
  * File: error.h
  * Author: Liam M. Murphy
  */

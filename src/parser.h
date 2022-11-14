@@ -1,5 +1,5 @@
 /**
- * LBASIC Syntax Analyzer Definitions
+ * LBASIC Syntax Analyzer Public Definitions
  * File: parser.h
  * Author: Liam M. Murphy
  */

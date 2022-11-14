@@ -1,5 +1,5 @@
 /**
- * LBASIC Token Module Definitions
+ * LBASIC Token Module Public Definitions
  * File: token.h
  * Author: Liam M. Murphy
  */

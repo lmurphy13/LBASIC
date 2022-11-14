@@ -1,5 +1,5 @@
 /**
- * LBASIC Lexical Analyzer Definitions
+ * LBASIC Lexical Analyzer Public Definitions
  * File: lexer.h
  * Author: Liam M. Murphy
  */

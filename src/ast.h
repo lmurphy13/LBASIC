@@ -1,5 +1,5 @@
 /**
- * Abstract Syntax Tree Definitions
+ * Abstract Syntax Tree Public Definitions
  * File: ast.h
  * Author: Liam M. Murphy
  */
