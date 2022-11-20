@@ -136,7 +136,7 @@ node *parse(t_list *tokens) {
     parse_declarations(program);
 
     // Parse statements
-    //    parse_statements(program);
+    parse_statements(program);
 
     return program;
 }
@@ -192,10 +192,11 @@ void parse_statements(node *program) {
     bool more = true;
 
     do {
-        consume();
-
         program->children[program->num_children] = parse_statement(&more);
-        program->num_children++;
+
+        if (more) {
+            program->num_children++;
+        }
     } while (more);
 }
 
@@ -450,13 +451,45 @@ node *parse_var_decl() {
 }
 
 node *parse_for_stmt() { return NULL; }
-node *parse_while_stmt() { return NULL; }
 node *parse_ifthen_stmt() { return NULL; }
 node *parse_ifthenelse_stmt() { return NULL; }
 node *parse_label_decl() { return NULL; }
 node *parse_call_expr() { return NULL; }
 node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
+
+// <while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
+node *parse_while_stmt() {
+    node *retval = mk_node(N_WHILE_STMT);
+
+    if (retval != NULL) {
+        printf("here\n");
+
+        consume();
+        if (lookahead.type != T_LPAREN) {
+            syntax_error("'('", lookahead);
+        } else {
+            retval->data.while_stmt.expression = parse_expression();
+        }
+
+        if (lookahead.type != T_RPAREN) {
+            syntax_error("')'", lookahead);
+        }
+
+        parse_declarations(retval);
+        parse_statements(retval);
+
+        consume();
+        if (lookahead.type != T_END) {
+            syntax_error("'end'", lookahead);
+        } else {
+            // Consume past 'end'
+            consume();
+        }
+    }
+
+    return retval;
+}
 
 // <struct-decl> := 'struct' <ident> <member-decls> 'end'
 node *parse_struct_decl() {
@@ -883,6 +916,18 @@ static void print_node(node *n, int indent) {
         printf("Identifier (\n");
         print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.identifier.name);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_WHILE_STMT:
+        printf("WhileStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expression: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.while_stmt.expression, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
         print_indent(indent);
         printf("),\n");
         break;

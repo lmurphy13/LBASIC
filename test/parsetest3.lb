@@ -1,0 +1,9 @@
+int hello := 123;
+bool isEven := false;
+string myName := "Liam";
+float poptart := nil;
+
+while (true)
+'	println("hello world!");
+	int iter := 5;
+end

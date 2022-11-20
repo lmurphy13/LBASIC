@@ -84,7 +84,6 @@ typedef struct node {
         struct {
             char name[MAX_LITERAL];
             data_type type;
-            struct node *statements;
             struct node *formal; // formal arguments
             struct node *return_expr;
         } function_decl;
@@ -102,6 +101,9 @@ typedef struct node {
                 char stringval[MAX_LITERAL];
             } value;
         } literal;
+        struct {
+            struct node *expression;
+        } while_stmt;
     } data;
     struct node *next; // Used in a limited number of cases when a linked list of a certain type of
                        // token is needed.

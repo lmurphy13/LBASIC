@@ -80,7 +80,7 @@ static char *input_file(const char *path) {
 
         fclose(fp);
     } else {
-        printf("Unable to open file for reading\n");
+        printf("ERROR: Unable to open file for reading\n");
         exit(LEXER_ERROR_BAD_FILE_POINTER);
     }
 

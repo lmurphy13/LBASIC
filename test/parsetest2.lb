@@ -11,10 +11,10 @@ end
 
 func function(int a, string b, bool c) -> void
     int copy := a;
-    ' return copy;
 end
 
-func fib(int n) -> int
-    int a := 4;
-    
-end
+
+'func fib(int n) -> int
+'    int a := 4;
+'    
+'end

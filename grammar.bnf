@@ -27,21 +27,22 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <label-decl> := <ident> ':'
 
-<var-decl> := <type> <id> ';'
-			| <type> <id> ':=' <expression> ';'
+<var-decl> := <type> <ident> ';'
+			| <type> <ident> ':=' <expression> ';'
+			| 'struct' <ident> <ident> ';'
 
 <var-decls> := <var-decl> <var-decls>
 			 | <var-decl>
 
-<struct-decl> := 'struct' <id> <member-decls> 'end'
+<struct-decl> := 'struct' <ident> <member-decls> 'end'
 
 <for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <statements> 'end'
 
-<while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
+<while-stmt> := 'while' '(' <expression> ')' <statements> 'end'
 
-<if-then-stmt> := 'if' '(' <expr-lst> ')' 'then' <statements> 'end'
+<if-then-stmt> := 'if' '(' <expression> ')' 'then' <statements> 'end'
 
-<if-then-else-stmt> := 'if '(' <expr-lst> ')' 'then' <statements> 'else' <statements> 'end'
+<if-then-else-stmt> := 'if '(' <expression> ')' 'then' <statements> 'else' <statements> 'end'
 
 <assign-stmt> := <expression> ':=' <expression> ';'
 
