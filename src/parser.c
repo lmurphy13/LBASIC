@@ -52,6 +52,7 @@ node *parse_for_stmt(void);
 node *parse_while_stmt(void);
 node *parse_ifthen_stmt(void);
 node *parse_ifthenelse_stmt(void);
+node *parse_assign_stmt(void);
 node *parse_value(void);
 node *parse_constant(void);
 node *parse_identifier(void);
@@ -204,6 +205,7 @@ void parse_statements(node *program) {
 //              | <while-stmt>
 //              | <if-then-stmt>
 //              | <if-then-else-stmt>
+//              | <assign-stmt>
 //              | <expression>
 node *parse_statement(bool *more) {
     node *retval;
@@ -458,6 +460,9 @@ node *parse_call_expr() { return NULL; }
 node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
 
+// <assign-stmt> := <expression> ':-' <expression> ';'
+node *parse_assign_stmt() { node *retval = mk_node(N_ASSIGN); }
+
 // <while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
 node *parse_while_stmt() {
     node *retval = mk_node(N_WHILE_STMT);
@@ -477,6 +482,7 @@ node *parse_while_stmt() {
         }
 
         parse_declarations(retval);
+        printf("end of decls\n");
         parse_statements(retval);
 
         consume();
@@ -699,6 +705,8 @@ node *parse_expression() {
             retval = parse_call_expr();
         } else if (lookahead.type == T_DOT) {
             retval = parse_struct_access_expr();
+        } else if (lookahead.type == T_ASSIGN) {
+            retval = parse_assign_stmt(); // is this the best place?
         } else {
             syntax_error("'(' or '.'", lookahead);
         }

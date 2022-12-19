@@ -40,9 +40,7 @@ t_list *lex(const char *path) {
     char *prog_buff = input_file(path);
 
     if (prog_buff != NULL) {
-#if defined(DEBUG)
-        printf("%s\n\n", prog_buff);
-#endif
+        debug_msg(prog_buff);
 
         token_list = t_list_new();
 
@@ -80,7 +78,7 @@ static char *input_file(const char *path) {
 
         fclose(fp);
     } else {
-        printf("ERROR: Unable to open file for reading\n");
+        log_error("Unable to open file for reading\n");
         exit(LEXER_ERROR_BAD_FILE_POINTER);
     }
 
@@ -104,10 +102,10 @@ static void emit_token(t_list *lst, token_type type, const char *literal) {
             new_tok->tok = tok;
             t_list_append(lst, new_tok);
         } else {
-            printf("ERROR: Unable to create tok\n");
+            log_error("Unable to create tok\n");
         }
     } else {
-        printf("ERROR: Unable to create new_tok\n");
+        log_error("Unable to create new_tok\n");
     }
 }
 

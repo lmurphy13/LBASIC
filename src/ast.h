@@ -26,6 +26,7 @@ typedef enum n_type {
     N_WHILE_STMT,
     N_IFTHEN_STMT,
     N_IFTHENELSE_STMT,
+    N_ASSIGN,
     N_EXPR_LIST,
     N_EXPR,
     N_FORMAL,
