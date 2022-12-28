@@ -220,7 +220,8 @@ node *parse_statement(bool *more) {
     node *retval;
     printf("type: %d\n", lookahead.type);
 
-    while (1);
+    while (1)
+        ;
 
     switch (lookahead.type) {
     case T_FOR:
@@ -242,12 +243,10 @@ node *parse_statement(bool *more) {
         if (strcmp(tmp->literal, ":=") == 0) {
             retval = parse_assign_stmt();
             break;
-        }
-        else if (strcmp(tmp->literal, ":") == 0) {
+        } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
             break;
-        }
-        else {
+        } else {
             printf("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
         }
@@ -496,27 +495,26 @@ node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
 
 // <assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
-node *parse_assign_stmt() { 
+node *parse_assign_stmt() {
     printf("inside assign\n");
     node *retval = mk_node(N_ASSIGN);
 
     if (retval != NULL) {
-        
+
         // Identifier is either a normal variable or an array access
         // NOTE: Arrays not yet supported
         if (lookahead.type == '[') {
             printf("Parser Error: Arrays not yet supported!");
-            exit(1);    
+            exit(1);
         }
 
         consume();
-       
+
         if (lookahead.type != T_ASSIGN) {
             syntax_error("':='", lookahead);
         }
 
         consume();
-    
     }
 
     return retval;
@@ -550,7 +548,8 @@ node *parse_while_stmt() {
 
         print_lookahead_debug("after decls");
 
-        while(1);
+        while (1)
+            ;
 
         // Stmts contained within while stmt children
         parse_statements(retval);
