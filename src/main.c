@@ -51,11 +51,11 @@ int main(int argc, char *argv[]) {
                 print_ast(program);
 #endif
             } else {
-                printf("ERROR: Invalid AST generated during parsing.\n");
+                log_error("Invalid AST generated during parsing.\n");
                 exit(COMPILER_ERROR_BAD_AST);
             }
         } else {
-            printf("ERROR: Provide valid file path.\n");
+            log_error("Provide valid file path.\n");
             exit(COMPILER_ERROR_UNKNOWN_PATH);
         }
     } else {

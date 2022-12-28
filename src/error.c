@@ -1,3 +1,9 @@
+/**
+ * LBASIC Error Routines
+ * File: error.c
+ * Author: Liam M. Murphy
+ */
+
 #include "error.h"
 #include <stdio.h>
 #include <stdlib.h>

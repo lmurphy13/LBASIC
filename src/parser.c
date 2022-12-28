@@ -785,7 +785,7 @@ static const char *type_to_str(data_type t) {
 
 static void print_node(node *n, int indent) {
     if (n == NULL) {
-        printf("ERROR: Unable to access node for printing");
+        log_error("Unable to access node for printing\n");
         exit(1);
     }
 
