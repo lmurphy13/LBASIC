@@ -24,6 +24,7 @@ static void backup(void);
 static void syntax_error(const char *exp, token l);
 static void print_node(node *n, int indent);
 static data_type keyword_to_type(token_type t);
+static void print_lookahead_debug(const char *msg);
 
 // Parsing Prototypes
 void parse_declarations(node *program);
@@ -167,9 +168,17 @@ node *parse_declaration(bool *more) {
     case T_FUNC:
         retval = parse_function_decl();
         break;
-    case T_IDENT:
+    case T_IDENT: {
+        token *tmp = peek();
+        // If not colon, this is not a label decl
+        if (tmp->type != 3) {
+            *more = false;
+            break;
+        }
+
         retval = parse_label_decl();
         break;
+    }
     case T_INT:
     case T_FLOAT:
     case T_STRING:
@@ -191,7 +200,7 @@ node *parse_declaration(bool *more) {
 //               | <statement>
 void parse_statements(node *program) {
     bool more = true;
-
+    printf("parsing stmts\n");
     do {
         program->children[program->num_children] = parse_statement(&more);
 
@@ -209,6 +218,9 @@ void parse_statements(node *program) {
 //              | <expression>
 node *parse_statement(bool *more) {
     node *retval;
+    printf("type: %d\n", lookahead.type);
+
+    while (1);
 
     switch (lookahead.type) {
     case T_FOR:
@@ -223,6 +235,23 @@ node *parse_statement(bool *more) {
     case N_IFTHENELSE_STMT:
         retval = parse_ifthenelse_stmt();
         break;
+    case T_IDENT: {
+        print_lookahead_debug("ident");
+        token *tmp = peek();
+        printf("tmp literal: %s\n", tmp->literal);
+        if (strcmp(tmp->literal, ":=") == 0) {
+            retval = parse_assign_stmt();
+            break;
+        }
+        else if (strcmp(tmp->literal, ":") == 0) {
+            retval = parse_label_decl();
+            break;
+        }
+        else {
+            printf("Parser Error: Unknown case when encountering N_IDENT\n");
+            break;
+        }
+    }
     case N_EXPR:
         retval = parse_expression();
         break;
@@ -318,6 +347,7 @@ node *parse_function_decl() {
         // Parse the end of the function
         if (lookahead.type != T_END) {
             syntax_error("end", lookahead);
+            printf("this one\n");
         } else {
             // Consume 'end'
             consume();
@@ -441,13 +471,18 @@ node *parse_var_decl() {
             retval->data.var_decl.value = parse_expression();
         }
 
+        printf("before semicolon\n");
         if (lookahead.type == T_SEMICOLON) {
             // Consume semicolon and we're done
+            printf("inside here\n");
+            print_lookahead_debug("inside_here");
             consume();
         } else {
             syntax_error("';'", lookahead);
         }
     }
+
+    printf("left var decl\n");
 
     return retval;
 }
@@ -460,8 +495,32 @@ node *parse_call_expr() { return NULL; }
 node *parse_struct_access_expr() { return NULL; }
 node *parse_goto_expr() { return NULL; }
 
-// <assign-stmt> := <expression> ':-' <expression> ';'
-node *parse_assign_stmt() { node *retval = mk_node(N_ASSIGN); }
+// <assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
+node *parse_assign_stmt() { 
+    printf("inside assign\n");
+    node *retval = mk_node(N_ASSIGN);
+
+    if (retval != NULL) {
+        
+        // Identifier is either a normal variable or an array access
+        // NOTE: Arrays not yet supported
+        if (lookahead.type == '[') {
+            printf("Parser Error: Arrays not yet supported!");
+            exit(1);    
+        }
+
+        consume();
+       
+        if (lookahead.type != T_ASSIGN) {
+            syntax_error("':='", lookahead);
+        }
+
+        consume();
+    
+    }
+
+    return retval;
+}
 
 // <while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
 node *parse_while_stmt() {
@@ -469,21 +528,33 @@ node *parse_while_stmt() {
 
     if (retval != NULL) {
         printf("here\n");
+        print_lookahead_debug("");
 
         consume();
         if (lookahead.type != T_LPAREN) {
             syntax_error("'('", lookahead);
         } else {
-            retval->data.while_stmt.expression = parse_expression();
+            print_lookahead_debug("");
+            retval->data.while_stmt.test = parse_expression();
+            print_lookahead_debug("after parse_expression()");
         }
 
         if (lookahead.type != T_RPAREN) {
             syntax_error("')'", lookahead);
         }
+        consume();
+        printf("i am here\n");
 
+        // Decls contained within while stmt children
         parse_declarations(retval);
-        printf("end of decls\n");
+
+        print_lookahead_debug("after decls");
+
+        while(1);
+
+        // Stmts contained within while stmt children
         parse_statements(retval);
+        printf("end of while's stmts\n");
 
         consume();
         if (lookahead.type != T_END) {
@@ -683,6 +754,7 @@ node *parse_expression() {
     node *retval;
 
     consume();
+    print_lookahead_debug("inside parse_expression()");
 
     switch (lookahead.type) {
     case T_GOTO:
@@ -696,6 +768,7 @@ node *parse_expression() {
 
         // Assignment to a variable
         if (tmp->type == T_SEMICOLON) {
+            printf("parsing value\n");
             retval = parse_value();
             break;
         }
@@ -706,6 +779,7 @@ node *parse_expression() {
         } else if (lookahead.type == T_DOT) {
             retval = parse_struct_access_expr();
         } else if (lookahead.type == T_ASSIGN) {
+            printf("parsing assignment\n");
             retval = parse_assign_stmt(); // is this the best place?
         } else {
             syntax_error("'(' or '.'", lookahead);
@@ -724,6 +798,9 @@ node *parse_expression() {
         exit(1);
         break;
     }
+
+    printf("leaving parse_expression()\n");
+    print_lookahead_debug("liam");
 
     return retval;
 }
@@ -781,6 +858,16 @@ static const char *type_to_str(data_type t) {
         return "UNKNOWN";
         break;
     }
+}
+
+static void print_lookahead_debug(const char *msg) {
+    if (strlen(msg) > 0) {
+        printf("Msg: %s\n", msg);
+    }
+    printf("Lookahead type: %d\n", lookahead.type);
+    printf("Lookahead literal: %s\n", lookahead.literal);
+    printf("Line: %d\n", lookahead.line);
+    printf("Column: %d\n", lookahead.col);
 }
 
 static void print_node(node *n, int indent) {
@@ -933,7 +1020,7 @@ static void print_node(node *n, int indent) {
         printf("Expression: \n");
 
         indent += INDENT_WIDTH;
-        print_node(n->data.while_stmt.expression, indent + INDENT_WIDTH);
+        print_node(n->data.while_stmt.test, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
         print_indent(indent);

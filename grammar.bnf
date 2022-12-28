@@ -44,7 +44,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <if-then-else-stmt> := 'if '(' <expression> ')' 'then' <statements> 'else' <statements> 'end'
 
-<assign-stmt> := <expression> ':=' <expression> ';'
+<assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
 
 <expression> := <bin-op-expr>
 			  | <goto-expr>
