@@ -103,7 +103,8 @@ typedef struct node {
             } value;
         } literal;
         struct {
-            struct node *expression;
+            struct node *test;
+            // Body of while is contained in whild_stmt node's 'children'
         } while_stmt;
     } data;
     struct node *next; // Used in a limited number of cases when a linked list of a certain type of
