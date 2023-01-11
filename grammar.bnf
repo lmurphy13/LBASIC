@@ -1,113 +1,113 @@
 Inspiration taken from:
 https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
-<program> := <declarations> <statements>
+<program> ::= <declarations> <statements>
 
-<declarations> := <declaration> <declarations>
+<declarations> ::= <declaration> <declarations>
                 | <declaration>
 
-<declaration> := <function-decl>
+<declaration> ::= <function-decl>
                | <label-decl>
                | <var-decl>
                | <struct-decl>
 
-<statements> := <statement> <statements>
+<statements> ::= <statement> <statements>
 			  | <statement>
 
-<statement> := <for-stmt>
+<statement> ::= <for-stmt>
 			 | <while-stmt>
 			 | <if-then-stmt>
 			 | <if-then-else-stmt>
 			 | <assign-stmt>
 			 | <expression>
 
-<function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
-				 | 'func' <ident> '(' ')' '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
-				 | 'func' <ident> '(' ')' '->' 'void' <var-decls> <statements> ';' 'end'
+<function-decl> ::= "func" <ident> "(" <formal-list> ") "->" <type> <var-decls> <statements> "return" <expression> ";" "end"
+				 | "func" <ident> "(" ")" "->" <type> <var-decls> <statements> "return" <expression> ";" "end"
+				 | "func" <ident> "(" ")" "->" "void" <var-decls> <statements> ";" "end"
 
-<label-decl> := <ident> ':'
+<label-decl> ::= <ident> ":"
 
-<var-decl> := <type> <ident> ';'
-			| <type> <ident> ':=' <expression> ';'
-			| 'struct' <ident> <ident> ';'
+<var-decl> ::= <type> <ident> ";"
+			| <type> <ident> "::=" <expression> ";"
+			| "struct" <ident> <ident> ";"
 
-<var-decls> := <var-decl> <var-decls>
+<var-decls> ::= <var-decl> <var-decls>
 			 | <var-decl>
 
-<struct-decl> := 'struct' <ident> <member-decls> 'end'
+<struct-decl> ::= "struct" <ident> <member-decls> "end"
 
-<for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <statements> 'end'
+<for-stmt> ::= "for" <ident> "::=" <constant> "to" <constant> <statements> "end"
 
-<while-stmt> := 'while' '(' <expression> ')' <statements> 'end'
+<while-stmt> ::= "while" "(" <expression> ")" <statements> "end"
 
-<if-then-stmt> := 'if' '(' <expression> ')' 'then' <statements> 'end'
+<if-then-stmt> ::= "if" "(" <expression> ")" "then" <statements> "end"
 
-<if-then-else-stmt> := 'if '(' <expression> ')' 'then' <statements> 'else' <statements> 'end'
+<if-then-else-stmt> ::= "if "(" <expression> ")" "then" <statements> "else" <statements> "end"
 
-<assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
+<assign-stmt> ::= <ident> ( "[" <expression> "]" )? ::=" <expression> ";"
 
-<expression> := <bin-op-expr>
+<expression> ::= <bin-op-expr>
 			  | <goto-expr>
 			  | <call-expr>
 			  | <struct-access-expr>
 
-<expr-list> := <expression> ',' <expr-list>
+<expr-list> ::= <expression> "," <expr-list>
 			 | <expression>
 
-<formal-list> := <formal> ',' <expr-list>
+<formal-list> ::= <formal> "," <expr-list>
 			 | <formal>
 
-<formal> := <type> <ident>
+<formal> ::= <type> <ident>
 
-<bin-op-expr> := <and-expr> 'or' <bin-op-expr>
+<bin-op-expr> ::= <and-expr> "or" <bin-op-expr>
 			   | <and-expr>
 
-<and-expr> := <not-expr> 'and' <and-expr>
+<and-expr> ::= <not-expr> "and" <and-expr>
 		    | <not-expr>
 
-<not-expr> := '!' <compare-expr>
+<not-expr> ::= "!" <compare-expr>
 			| <compare-expr>
 
-<compare-expr> := <add-expr> '==' <compare-expr>
-				| <add-expr> '!=' <compare-expr>
-				| <add-expr> '>' <compare-expr>
-				| <add-expr> '>=' <compare-expr>
-				| <add-expr> '<' <compare-expr>
-				| <add-expr> '<=' <compare-expr>
+<compare-expr> ::= <add-expr> "==" <compare-expr>
+				| <add-expr> "!=" <compare-expr>
+				| <add-expr> ">" <compare-expr>
+				| <add-expr> ">=" <compare-expr>
+				| <add-expr> "<" <compare-expr>
+				| <add-expr> "<=" <compare-expr>
 				| <add-expr>
 
-<add-expr> := <mul-expr> '+' <add-expr>
-			| <mul-expr> '-' <add-expr>
+<add-expr> ::= <mul-expr> "+" <add-expr>
+			| <mul-expr> "-" <add-expr>
 			| <mul-expr>
 
-<mul-expr> := <negate-expr> '*' <mul-expr>
-			| <negate-expr> '/' <mul-expr>
-			| <negate-expr> '%' <mul-expr>
+<mul-expr> ::= <negate-expr> "*" <mul-expr>
+			| <negate-expr> "/" <mul-expr>
+			| <negate-expr> "%" <mul-expr>
 			| <negate-expr>
 
-<negate-expr> := '-' <value>
+<negate-expr> ::= "-" <value>
 			   | <value>
 
-<value> := '(' <expression> ')'
+<value> ::= "(" <expression> ")"
 		 | <ident>
-		 | <ident> '(' <expr-list> ')'
+		 | <ident> "(" <expr-list> ")"
 		 | <constant>
 
-<constant> := <int-literal>
+<constant> ::= <int-literal>
 			| <string-literal>
-			| 'true'
-			| 'false'
-			| 'nil'
+			| "true"
+			| "false"
+			| "nil"
 
-<goto-expr> := 'goto' <ident> ';'
+<goto-expr> ::= "goto" <ident> ";"
 
-<call-expr> := <ident> '(' <expr-list> ')
+<call-expr> ::= <ident> "(" <expr-list> ")
 
-<struct-access-expr> := <expression> '.' <ident>
+<struct-access-expr> ::= <expression> "." <ident>
 
-<ident-list> := <ident> ',' <ident-list>
+<ident-list> ::= <ident> "," <ident-list>
 			  | <ident>
 
-<value-list> := <value> ',' <value-list>
+<value-list> ::= <value> "," <value-list>
 			  | <value>
 
