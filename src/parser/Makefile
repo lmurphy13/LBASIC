@@ -22,6 +22,5 @@ all:
 	$(CC) parser.tab.c -ll -o parsetest
 
 clean:
-	rm *.c
-	rm *.o
 	rm parsetest
+	rm *.c

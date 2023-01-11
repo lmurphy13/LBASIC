@@ -27,10 +27,15 @@ void yyerror(const char *s);
 %token T_DOT T_DQUOTE T_OFTYPE
 %token T_LT T_GT T_BANG T_EQ T_LE T_GE T_NE
 %token T_IDENT L_NUM L_STR
+
+%left T_AND T_OR
+%left T_BANG
+%nonassoc T_LT T_GT T_GE T_LE T_EQ
+
 %left T_PLUS T_MINUS
 %left T_MUL T_DIV T_MOD
-%left T_BANG
-%left UMINUS BANG
+
+%left UMINUS
 
 %nonassoc T_ELSE
 
@@ -112,7 +117,7 @@ if_then_else_stmt : T_IF T_LPAREN expression T_RPAREN T_THEN statements T_ELSE s
 assign_stmt : T_IDENT T_ASSIGN expression T_SEMICOLON
             ;
 
-expression : bin_op_expr
+expression : cond_expr
            | goto_expr
            | call_expr
            | struct_access_expr
@@ -129,41 +134,32 @@ formal_list : formal T_COMMA expr_list
 formal : type T_IDENT
        ;
 
-bin_op_expr : and_expr T_OR bin_op_expr
-            | and_expr
+/* Idea for cond_expr and bin_op_expr pattern from: https://github.com/UO-cis561/reflex-bison-ast/blob/master/src/calc.yxx */
+cond_expr : cond_expr T_AND cond_expr
+          | cond_expr T_OR cond_expr
+          | T_BANG cond_expr
+          | bin_op_expr T_LT bin_op_expr
+          | bin_op_expr T_GT bin_op_expr
+          | bin_op_expr T_LE bin_op_expr
+          | bin_op_expr T_GE bin_op_expr
+          | bin_op_expr T_EQ bin_op_expr
+          | bin_op_expr
+          ;
+
+bin_op_expr : bin_op_expr T_PLUS bin_op_expr
+            | bin_op_expr T_MINUS bin_op_expr
+            | bin_op_expr T_MUL bin_op_expr
+            | bin_op_expr T_DIV bin_op_expr
+            | value
             ;
 
-and_expr : not_expr T_AND and_expr
-         | not_expr
-         ;
-
-not_expr : T_BANG compare_expr
-         | compare_expr
-         ;
-
-compare_expr : add_expr T_EQ compare_expr
-             | add_expr T_NE compare_expr
-             | add_expr T_GT compare_expr
-             | add_expr T_GE compare_expr
-             | add_expr T_LT compare_expr
-             | add_expr T_LE compare_expr
-             | add_expr
-             ;
-
-add_expr : mul_expr T_PLUS add_expr
-         | mul_expr T_MINUS add_expr
-         | mul_expr
-         ;
-
-mul_expr : negate_expr T_MUL mul_expr
-         | negate_expr T_DIV mul_expr
-         | negate_expr T_MOD mul_expr
-         | negate_expr
-         ;
+/*
+TODO: Figure this out
 
 negate_expr : T_MINUS value %prec UMINUS
             | value
             ;
+*/
 
 value : T_IDENT { printf("ident is: %s\n", $1); }
       | constant
