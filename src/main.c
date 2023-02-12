@@ -8,11 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ast.h"
 #include "error.h"
-#include "lexer.h"
-#include "parser.h"
-#include "token.h"
+
+extern FILE *yyin;
+extern FILE *yyout;
+extern int yyparse(void);
 
 void print_usage() {
     printf("LBASIC Compiler Usage\n");
@@ -25,6 +25,21 @@ void print_version() {
     printf("Author: Liam M. Murphy\n");
 }
 
+/*
+int main(int argc, char *argv[]) {
+    yyin = fopen(argv[1], "r");
+    
+    if (!yyparse()) {
+        printf("parse success\n");
+    } else {
+        printf("parse failure\n");
+    }
+
+    fclose(yyin);
+
+}
+*/
+
 int main(int argc, char *argv[]) {
     if (argc > 1) {
 
@@ -33,27 +48,15 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        // Lexical analysis
-        t_list *token_list = lex(argv[1]);
+        yyin = fopen(argv[2], "r");
 
-        if (token_list != NULL) {
-#if defined(DEBUG)
-            print_list(token_list);
-#endif
-            // Syntactic analysis
-            node *program = parse(token_list);
-
-            if (program != NULL) {
-                // Cleanup token_list
-                // t_list_free(token_list);
-
-#if defined(DEBUG)
-                print_ast(program);
-#endif
+        if (yyin != NULL) {
+            if (!yyparse()) {
+                printf("parse success\n");
             } else {
-                log_error("Invalid AST generated during parsing.\n");
-                exit(COMPILER_ERROR_BAD_AST);
+                printf("parse failed\n");
             }
+
         } else {
             log_error("Provide valid file path.\n");
             exit(COMPILER_ERROR_UNKNOWN_PATH);

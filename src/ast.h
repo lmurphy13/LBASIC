@@ -7,11 +7,10 @@
 #ifndef AST_H
 #define AST_H
 
-#include "token.h"
 #include <stdbool.h>
 
 #define MAX_CHILDREN 1024
-
+#define MAX_LITERAL 1024
 // Node types
 typedef enum n_type {
     N_PROGRAM = 0,

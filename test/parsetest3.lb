@@ -6,6 +6,9 @@ float poptart := nil;
 while (true)
 '	println("hello world!");
 	int iter := 5;
+    bool tmp := false;
 
     iter := iter + 1;
+    tmp := tmp - 3;
+    tmp := iter;
 end
