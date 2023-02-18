@@ -78,7 +78,7 @@ static char *input_file(const char *path) {
 
         fclose(fp);
     } else {
-        log_error("Unable to open file for reading\n");
+        log_error("Unable to open file for reading");
         exit(LEXER_ERROR_BAD_FILE_POINTER);
     }
 
@@ -102,10 +102,10 @@ static void emit_token(t_list *lst, token_type type, const char *literal) {
             new_tok->tok = tok;
             t_list_append(lst, new_tok);
         } else {
-            log_error("Unable to create tok\n");
+            log_error("Unable to create tok");
         }
     } else {
-        log_error("Unable to create new_tok\n");
+        log_error("Unable to create new_tok");
     }
 }
 

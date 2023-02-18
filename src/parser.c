@@ -871,7 +871,7 @@ static void print_lookahead_debug(const char *msg) {
 
 static void print_node(node *n, int indent) {
     if (n == NULL) {
-        log_error("Unable to access node for printing\n");
+        log_error("Unable to access node for printing");
         exit(1);
     }
 

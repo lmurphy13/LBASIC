@@ -12,11 +12,13 @@
 #include "error.h"
 #include "lexer.h"
 #include "parser.h"
+#include "test.h"
 #include "token.h"
 
 void print_usage() {
     printf("LBASIC Compiler Usage\n");
     printf("    ./lbasic -v or --version\n");
+    printf("    ./lbasic -t or --test\n");
     printf("    ./lbasic <path>\n");
 }
 
@@ -30,6 +32,11 @@ int main(int argc, char *argv[]) {
 
         if ((strcmp(argv[1], "-v") == 0) || (strcmp(argv[1], "--version") == 0)) {
             print_version();
+            return 0;
+        }
+
+        if ((strcmp(argv[1], "-t") == 0) || (strcmp(argv[1], "--test") == 0)) {
+            run_tests();
             return 0;
         }
 
@@ -51,11 +58,11 @@ int main(int argc, char *argv[]) {
                 print_ast(program);
 #endif
             } else {
-                log_error("Invalid AST generated during parsing.\n");
+                log_error("Invalid AST generated during parsing.");
                 exit(COMPILER_ERROR_BAD_AST);
             }
         } else {
-            log_error("Provide valid file path.\n");
+            log_error("Provide valid file path.");
             exit(COMPILER_ERROR_UNKNOWN_PATH);
         }
     } else {

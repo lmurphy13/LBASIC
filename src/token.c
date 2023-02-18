@@ -26,11 +26,7 @@ t_list *t_list_new(void) {
 
     new->tok = tok;
 
-    if (new != NULL) {
-        return new;
-    } else {
-        return NULL;
-    }
+    return new;
 }
 
 void t_list_free(t_list *lst) {
