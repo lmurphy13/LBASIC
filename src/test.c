@@ -1,3 +1,5 @@
+#if defined(DEBUG)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,27 +16,60 @@ void run_tests(void) {
 
     vector *v = mk_vector();
 
-    int *a = (int *)malloc(sizeof(int));
-    *a = 5;
+    char *liam = "Liam";
+    char *is   = "is";
+    char *the  = "the";
+    char *best = "best";
 
-  
     if (v != NULL) {
-        vector_push(v, a);
+        vector_add(v, liam);
+        vector_add(v, is);
+        vector_add(v, the);
+        vector_add(v, best);
     } else {
         printf("mk_vector failed!\n");
     }
 
-    while (v != NULL) {
-        if (v->next != NULL) {
-            if (v->data != NULL) {
-                printf("v->data: %d\n", *(int *)v->data);
-            } else {
-                printf("v->data is null\n");
-            }
+    // Iterate over vector
+    vecnode *curr = v->head;
+    while (curr != NULL) {
+        printf("%s\n", curr->data);
+
+        curr = curr->next;
+    }
+
+    printf("\n\n");
+
+    char *blah = "blah";
+    vector_prepend(v, blah);
+
+    char *blah2 = "blahBlah";
+    vector_prepend(v, blah2);
+
+    // Iterate over vector
+    curr = v->head;
+    while (curr != NULL) {
+        printf("%s\n", curr->data);
+
+        curr = curr->next;
+    }
+
+    printf("\n\n");
+
+    v->tail->data = NULL;
+    vector_pop(v);
+
+    // Iterate over vector
+    curr = v->head;
+    while (curr != NULL) {
+        if (curr->data != NULL) {
+            printf("%s\n", curr->data);
         } else {
             printf("NULL\n");
         }
 
-        v = vector_next(v);
+        curr = curr->next;
     }
 }
+
+#endif

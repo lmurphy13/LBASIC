@@ -12,8 +12,11 @@
 #include "error.h"
 #include "lexer.h"
 #include "parser.h"
-#include "test.h"
 #include "token.h"
+
+#if defined(DEBUG)
+#include "test.h"
+#endif
 
 void print_usage() {
     printf("LBASIC Compiler Usage\n");
@@ -36,7 +39,11 @@ int main(int argc, char *argv[]) {
         }
 
         if ((strcmp(argv[1], "-t") == 0) || (strcmp(argv[1], "--test") == 0)) {
+#if defined(DEBUG)
             run_tests();
+#else
+            printf("Test suite unavailable in production builds\n");
+#endif
             return 0;
         }
 

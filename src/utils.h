@@ -7,21 +7,30 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-typedef struct vector {
+typedef struct vecnode {
     void *data;
-    struct vector *next;
+    struct vecnode *next;
+} vecnode;
+
+typedef struct vector {
+    vecnode *head;
+    vecnode *tail;
+    int count;
 } vector;
 
 // Allocate a new vector
 vector *mk_vector(void);
 
 // Add an element to the end of a vector
-void vector_push(vector *vec, void *data);
+void vector_add(vector *vec, void *data);
+
+// Add an element to the head of a vector
+void vector_prepend(vector *vec, void *data);
 
 // Remove the tail element from a vector
 void vector_pop(vector *vec);
 
-// Get the next vector element
-vector *vector_next(vector *vec);
+// Get length of vector
+int vector_length(vector *vec);
 
 #endif // UTILS_H
