@@ -9,17 +9,35 @@ vector *mk_vector() {
     vector *retval = NULL;
 
     retval = (vector *)malloc(sizeof(vector));
-    memset(retval, 0, sizeof(retval));
 
     if (retval == NULL) {
         log_error("Unable to allocate new vector");
+        return retval;
     }
 
+    memset(retval, 0, sizeof(retval));
     retval->head  = NULL;
     retval->tail  = NULL;
     retval->count = 0;
 
     return retval;
+}
+
+void vector_free(vector **vec) {
+    if (vec != NULL) {
+        if (vector_length(*vec) > 0) {
+            vecnode *curr = (*vec)->head;
+
+            while (curr != NULL) {
+                vecnode *next = curr->next;
+                free(curr);
+                curr = next;
+            }
+        }
+
+        free(*vec);
+        *vec = NULL;
+    }
 }
 
 void vector_add(vector *vec, void *data) {
@@ -29,6 +47,7 @@ void vector_add(vector *vec, void *data) {
             memset(node, 0, sizeof(node));
 
             node->data = data;
+            node->next = NULL;
 
             if (vec->head == NULL) {
                 vec->head = node;
@@ -60,7 +79,9 @@ void vector_prepend(vector *vec, void *data) {
                 vec->head = node;
                 vec->tail = node;
             } else {
-                node->next = vec->head;
+                vecnode *old_head = vec->head;
+
+                node->next = old_head;
                 vec->head  = node;
             }
 
@@ -79,26 +100,32 @@ void vector_prepend(vector *vec, void *data) {
  */
 void vector_pop(vector *vec) {
     if (vec != NULL) {
-
-        if (vector_length(vec) <= 0) {
+        if (vector_length(vec) == 0) {
             log_error("Cannot pop from empty vector");
-            return;
-        }
+        } else if (vector_length(vec) == 1) {
+            if (vec->head != NULL) {
+                free(vec->head);
+                vec->head == NULL;
+                vec->count--;
+            }
+        } else if (vector_length(vec) > 1) {
+            vecnode *curr = vec->head;
 
-        vecnode *iter = vec->head;
+            // Find the element before the tail
+            while (curr != NULL) {
+                if (curr->next->next == NULL) {
+                    break;
+                }
 
-        // Find element before tail
-        while (iter->next->next != NULL) {
-            // seek
-            iter = iter->next;
-        }
+                curr = curr->next;
+            }
 
-        // Sanity check
-        if (iter->next != NULL && iter->next->next == NULL) {
+            // Sanity check that we are the penultimate node
+            if (curr != NULL && curr->next != NULL && curr->next->next == NULL) {
+                free(curr->next->next);
 
-            if (vec->tail != NULL) {
-                free(vec->tail);
-                vec->tail = iter;
+                curr->next = NULL;
+                vec->tail  = curr;
                 vec->count--;
             } else {
                 log_error("Cannot free a NULL vector tail");

@@ -9,6 +9,25 @@
 
 static void print_header() { printf("Running internal tests.......\n"); }
 
+static void print_string_vec(vector *v) {
+    if (v != NULL) {
+        vecnode *curr = v->head;
+
+        printf("Length: %d\n", vector_length(v));
+
+        if (vector_length(v) > 0) {
+            while (curr != NULL) {
+                printf("%s\n", curr->data);
+
+                curr = curr->next;
+            }
+        }
+        printf("==============\n");
+    } else {
+        printf("Cannot print NULL vector\n");
+    }
+}
+
 void run_tests(void) {
     print_header();
 
@@ -16,60 +35,58 @@ void run_tests(void) {
 
     vector *v = mk_vector();
 
-    char *liam = "Liam";
-    char *is   = "is";
-    char *the  = "the";
-    char *best = "best";
+    char *val1 = "val1";
+    char *val2 = "val2";
+    char *val3 = "val3";
+    char *val4 = "val4";
 
     if (v != NULL) {
-        vector_add(v, liam);
-        vector_add(v, is);
-        vector_add(v, the);
-        vector_add(v, best);
+        vector_add(v, val1);
+        vector_add(v, val2);
+        vector_add(v, val3);
+        vector_add(v, val4);
     } else {
         printf("mk_vector failed!\n");
     }
 
-    // Iterate over vector
-    vecnode *curr = v->head;
-    while (curr != NULL) {
-        printf("%s\n", curr->data);
+    print_string_vec(v);
 
-        curr = curr->next;
+    char *val5 = (char *)malloc(sizeof(char) * 5);
+    if (val5 != NULL) {
+        snprintf(val5, 5, "%s", "val5");
     }
 
-    printf("\n\n");
+    vector_prepend(v, val5);
 
-    char *blah = "blah";
-    vector_prepend(v, blah);
+    print_string_vec(v);
 
-    char *blah2 = "blahBlah";
-    vector_prepend(v, blah2);
-
-    // Iterate over vector
-    curr = v->head;
-    while (curr != NULL) {
-        printf("%s\n", curr->data);
-
-        curr = curr->next;
+    char *val6 = (char *)malloc(sizeof(char) * 5);
+    if (val6 != NULL) {
+        snprintf(val6, 5, "%s", "val6");
     }
 
-    printf("\n\n");
+    vector_prepend(v, val6);
 
-    v->tail->data = NULL;
+    print_string_vec(v);
+
+    printf("popping tail\n");
     vector_pop(v);
+    print_string_vec(v);
 
-    // Iterate over vector
-    curr = v->head;
-    while (curr != NULL) {
-        if (curr->data != NULL) {
-            printf("%s\n", curr->data);
-        } else {
-            printf("NULL\n");
-        }
+    printf("popping tail\n");
+    vector_pop(v);
+    print_string_vec(v);
 
-        curr = curr->next;
+    for (int i = 0; i < 5; i++) {
+        printf("popping tail\n");
+        vector_pop(v);
+        print_string_vec(v);
     }
+
+    printf("freeing vector\n");
+    vector_free(&v);
+
+    print_string_vec(v);
 }
 
 #endif

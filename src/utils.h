@@ -21,6 +21,9 @@ typedef struct vector {
 // Allocate a new vector
 vector *mk_vector(void);
 
+// Free a vector
+void vector_free(vector **vec);
+
 // Add an element to the end of a vector
 void vector_add(vector *vec, void *data);
 
