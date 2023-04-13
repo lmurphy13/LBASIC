@@ -1,3 +1,9 @@
+/**
+ * Internal Test Suite
+ * File: test.c
+ * Author: Liam M. Murphy
+ */
+
 #if defined(DEBUG)
 
 #include <stdio.h>
@@ -32,6 +38,8 @@ void run_tests(void) {
     print_header();
 
     // Begin internal unit test environment below
+
+    printf("Running vector tests.....\n");
 
     vector *v = mk_vector();
 

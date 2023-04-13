@@ -1,3 +1,9 @@
+/**
+ * Utilities Module
+ * File: utils.c
+ * Author: Liam M. Murphy
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
