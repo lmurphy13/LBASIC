@@ -8,6 +8,7 @@
 #define AST_H
 
 #include "token.h"
+#include "utils.h"
 #include <stdbool.h>
 
 #define MAX_CHILDREN 1024
@@ -64,7 +65,7 @@ typedef struct node {
     n_type type;
     union {
         struct {
-            int junk;
+            vector *children;   // All child nodes within a program will be within this vector
         } program;
         struct {
             data_type type;
@@ -86,6 +87,7 @@ typedef struct node {
             char name[MAX_LITERAL];
             data_type type;
             struct node *formal; // formal arguments
+            vector *body;
             struct node *return_expr;
         } function_decl;
         struct {
@@ -104,13 +106,11 @@ typedef struct node {
         } literal;
         struct {
             struct node *test;
-            // Body of while is contained in whild_stmt node's 'children'
+            vector *body;
         } while_stmt;
     } data;
     struct node *next; // Used in a limited number of cases when a linked list of a certain type of
                        // token is needed.
-    struct node *children[MAX_CHILDREN];
-    int num_children;
 } node;
 
 // Prototypes

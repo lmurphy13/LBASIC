@@ -37,3 +37,4 @@ void vector_pop(vector *vec);
 int vector_length(vector *vec);
 
 #endif // UTILS_H
+
