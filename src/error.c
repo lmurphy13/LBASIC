@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void log_error(const char *msg) { printf("ERROR: %s", msg); }
+void log_error(const char *msg) { printf("ERROR: %s\n", msg); }
 
 void debug_msg(const char *msg) {
 #if defined(DEBUG)

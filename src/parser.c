@@ -13,6 +13,7 @@
 #include "error.h"
 #include "parser.h"
 #include "token.h"
+#include "utils.h"
 
 #define INDENT_WIDTH 4
 
@@ -57,6 +58,7 @@ node *parse_assign_stmt(void);
 node *parse_value(void);
 node *parse_constant(void);
 node *parse_identifier(void);
+vector *parse_body(void);
 
 // Globals
 // Current token
@@ -73,9 +75,14 @@ node *mk_node(n_type type) {
         // Assign type
         retval->type = type;
 
-        // Zero out list of children nodes
-        memset(retval->children, 0, sizeof(retval->children));
-        retval->num_children = 0;
+        if (type == N_PROGRAM) { 
+            retval->data.program.children = mk_vector();
+
+            if (retval->data.program.children == NULL) {
+                log_error("Could not allocate node's children vector");
+                exit(1);
+            }
+        }
 
         retval->next = NULL;
     }
@@ -134,11 +141,14 @@ node *parse(t_list *tokens) {
         consume();
     }
 
+    // Parse the body of the program
+    program->data.program.children = parse_body();
+
     // Parse declarations
-    parse_declarations(program);
+//    parse_declarations(program);
 
     // Parse statements
-    parse_statements(program);
+//    parse_statements(program);
 
     return program;
 }
@@ -149,10 +159,22 @@ void parse_declarations(node *program) {
     bool more = true;
 
     do {
-        program->children[program->num_children] = parse_declaration(&more);
+        node *new_node = parse_declaration(&more);
 
-        if (more) {
-            program->num_children++;
+        switch (program->type) {
+            case N_PROGRAM:
+                vector_add(program->data.program.children, new_node);
+                break;
+            case N_FUNC_DECL:
+                vector_add(program->data.function_decl.body, new_node);
+                break;
+            case N_WHILE_STMT:
+                vector_add(program->data.while_stmt.body, new_node);
+                break;
+            case N_FOR_STMT:
+            default:
+                log_error("parse_declarations(): Unimplemented or unknown node type");
+                exit(1);
         }
     } while (more);
 }
@@ -202,10 +224,22 @@ void parse_statements(node *program) {
     bool more = true;
     printf("parsing stmts\n");
     do {
-        program->children[program->num_children] = parse_statement(&more);
+        node *new_node = parse_statement(&more);
 
-        if (more) {
-            program->num_children++;
+        switch (program->type) {
+            case N_PROGRAM:
+                vector_add(program->data.program.children, new_node);
+                break;
+            case N_FUNC_DECL:
+                vector_add(program->data.function_decl.body, new_node);
+                break;
+            case N_WHILE_STMT:
+                vector_add(program->data.while_stmt.body, new_node);
+                break;
+            case N_FOR_STMT:
+            default:
+                log_error("parse_statements(): Unimplemented or unknown node type");
+                exit(1);
         }
     } while (more);
 }
@@ -326,8 +360,13 @@ node *parse_function_decl() {
         }
 
         consume();
+
+        // Parse body
+        retval->data.function_decl.body = parse_body();
+
+
         // Begin parsing declarations
-        parse_declarations(retval);
+        //parse_declarations(retval);
 
         // // Begin parsing statements
         // parse_statements(retval);
@@ -804,6 +843,23 @@ node *parse_expression() {
     return retval;
 }
 
+// Parse the "body" of loops and functions
+vector *parse_body() {
+    vector *retval = mk_vector();
+    
+    if (retval != NULL) {
+        // The body could contain statements and expressions, terminated by and "end" token
+        while (lookahead.type != T_END) {
+
+
+            print_lookahead_debug("parse_body");
+            break;
+        }
+    }
+
+    return retval;
+}
+
 static void print_indent(int indent) {
     for (int i = 0; i < indent; i++) {
         printf(" ");
@@ -871,7 +927,7 @@ static void print_lookahead_debug(const char *msg) {
 
 static void print_node(node *n, int indent) {
     if (n == NULL) {
-        log_error("Unable to access node for printing\n");
+        log_error("Unable to access node for printing");
         exit(1);
     }
 
@@ -925,9 +981,17 @@ static void print_node(node *n, int indent) {
         indent -= INDENT_WIDTH;
 
         // Print FuncDecl children
+        vecnode *vn = n->data.function_decl.body->head;
+        while (vn != NULL) {
+            print_node(vn->data, indent + INDENT_WIDTH);
+
+            vn = vn->next;
+        }
+/*
         for (int idx = 0; idx < n->num_children; idx++) {
             print_node(n->children[idx], indent + INDENT_WIDTH);
         }
+*/
 
         print_indent(indent + INDENT_WIDTH);
         printf("Return: ");
@@ -1039,10 +1103,21 @@ void print_ast(node *ast) {
         indent += INDENT_WIDTH;
 
         // Print children
+        vecnode *vn = ast->data.program.children->head;
+        while (vn != NULL) {
+            node *n = vn->data;
+            print_node(n, indent);
+
+            vn = vn->next;
+        }
+
+/*        
         for (int idx = 0; idx < ast->num_children; idx++) {
             node *n = ast->children[idx];
             print_node(n, indent);
         }
+*/
+
     }
 
     printf(")\n");
