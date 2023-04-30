@@ -68,6 +68,11 @@ typedef struct node {
             vector *children;   // All child nodes within a program will be within this vector
         } program;
         struct {
+            struct node *lhs;
+            struct node *rhs;
+            char operator;
+        } binop;
+        struct {
             data_type type;
             char name[MAX_LITERAL];
         } formal;
