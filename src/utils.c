@@ -147,4 +147,3 @@ int vector_length(vector *vec) {
         return vec->count;
     }
 }
-

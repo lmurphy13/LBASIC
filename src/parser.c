@@ -67,9 +67,7 @@ vector *parse_body(void);
 static token lookahead;
 
 // List of "builtin" functions (identifiers)
-static char builtins[N_BUILTINS][MAX_LITERAL] = {
-    "println"
-};
+static char builtins[N_BUILTINS][MAX_LITERAL] = {"println"};
 
 // Pointer to doubly-linked list of tokens
 static t_list *toks;
@@ -82,7 +80,7 @@ node *mk_node(n_type type) {
         // Assign type
         retval->type = type;
 
-        if (type == N_PROGRAM) { 
+        if (type == N_PROGRAM) {
             retval->data.program.statements = mk_vector();
 
             if (retval->data.program.statements == NULL) {
@@ -134,7 +132,7 @@ static void syntax_error(const char *exp, token l) {
 // Check to see if an identifier (string) is a builtin function
 static bool is_builtin(const char *ident) {
     bool found = false;
-    
+
     for (int i = 0; i < N_BUILTINS; i++) {
         if (strcmp(ident, builtins[i]) == 0) {
             found = true;
@@ -173,7 +171,7 @@ node *parse(t_list *tokens) {
 //               | <statement>
 vector *parse_statements() {
     vector *retval = mk_vector();
-    bool more = true;
+    bool more      = true;
     printf("parsing stmts\n");
 
     if (retval != NULL) {
@@ -182,7 +180,7 @@ vector *parse_statements() {
             if (new_node != NULL) {
                 vector_add(retval, new_node);
             }
-        } while (more);   
+        } while (more);
     } else {
         log_error("parse_statements(): Unable to allocate vector");
     }
@@ -233,18 +231,13 @@ node *parse_statement(bool *more) {
         } else if (strcmp(tmp->literal, "(") == 0) {
             retval = parse_function_call_stmt();
             break;
-        } else if ( (strcmp(tmp->literal, "+") == 0) ||
-                    (strcmp(tmp->literal, "-") == 0) ||
-                    (strcmp(tmp->literal, "*") == 0) ||
-                    (strcmp(tmp->literal, "/") == 0) ||
-                    (strcmp(tmp->literal, "%") == 0) ||
-                    (strcmp(tmp->literal, ">") == 0) || 
-                    (strcmp(tmp->literal, "<") == 0) ||
-                    (strcmp(tmp->literal, ">=") == 0) ||
-                    (strcmp(tmp->literal, "<=") == 0) ||
-                    (strcmp(tmp->literal, "==") == 0) ||
-                    (strcmp(tmp->literal, "!=") == 0) ) {
-            retval = parse_expression();    // binop exprs when dealing with variables
+        } else if ((strcmp(tmp->literal, "+") == 0) || (strcmp(tmp->literal, "-") == 0) ||
+                   (strcmp(tmp->literal, "*") == 0) || (strcmp(tmp->literal, "/") == 0) ||
+                   (strcmp(tmp->literal, "%") == 0) || (strcmp(tmp->literal, ">") == 0) ||
+                   (strcmp(tmp->literal, "<") == 0) || (strcmp(tmp->literal, ">=") == 0) ||
+                   (strcmp(tmp->literal, "<=") == 0) || (strcmp(tmp->literal, "==") == 0) ||
+                   (strcmp(tmp->literal, "!=") == 0)) {
+            retval = parse_expression(); // binop exprs when dealing with variables
             break;
         } else {
             printf("Parser Error: Unknown case when encountering N_IDENT\n");
@@ -263,8 +256,8 @@ node *parse_statement(bool *more) {
     case N_EXPR:
         retval = parse_expression();
         break;
-    case T_RETURN:  // Return statements are parsed separately at the end of function decls
-    case T_END:     // This should be the end of most bodies (conditionals, functions, etc)
+    case T_RETURN: // Return statements are parsed separately at the end of function decls
+    case T_END:    // This should be the end of most bodies (conditionals, functions, etc)
     default:
         *more = false;
     }
@@ -822,7 +815,7 @@ node *parse_bin_op_expr() {
 // This is really just a wrapper around parse_statements().
 vector *parse_body() {
     vector *retval = mk_vector();
-    
+
     if (retval != NULL) {
         // The body could contain statements and expressions, terminated by and "end" token
         print_lookahead_debug("parse_body");

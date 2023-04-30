@@ -64,7 +64,7 @@ typedef struct node {
     n_type type;
     union {
         struct {
-            vector *statements;   // All child nodes within a program will be within this vector
+            vector *statements; // All child nodes within a program will be within this vector
         } program;
         struct {
             struct node *lhs;
