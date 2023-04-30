@@ -16,6 +16,7 @@
 #include "utils.h"
 
 #define INDENT_WIDTH 4
+#define N_BUILTINS 1
 
 // Static Prototypes
 static token get_token(t_list *);
@@ -26,14 +27,13 @@ static void syntax_error(const char *exp, token l);
 static void print_node(node *n, int indent);
 static data_type keyword_to_type(token_type t);
 static void print_lookahead_debug(const char *msg);
+static bool is_builtin(const char *ident);
 
 // Parsing Prototypes
-void parse_declarations(node *program);
-node *parse_declaration(bool *more);
-void parse_statements(node *program);
+vector *parse_statements(void);
 node *parse_statement(bool *more);
 node *parse_function_decl(void);
-node *parse_formals(void);
+vector *parse_formals(void);
 node *parse_label_decl(void);
 node *parse_struct_decl(void);
 node *parse_var_decls(void);
@@ -55,6 +55,8 @@ node *parse_while_stmt(void);
 node *parse_ifthen_stmt(void);
 node *parse_ifthenelse_stmt(void);
 node *parse_assign_stmt(void);
+node *parse_function_call_stmt(void);
+node *parse_return_stmt(void);
 node *parse_value(void);
 node *parse_constant(void);
 node *parse_identifier(void);
@@ -63,6 +65,11 @@ vector *parse_body(void);
 // Globals
 // Current token
 static token lookahead;
+
+// List of "builtin" functions (identifiers)
+static char builtins[N_BUILTINS][MAX_LITERAL] = {
+    "println"
+};
 
 // Pointer to doubly-linked list of tokens
 static t_list *toks;
@@ -76,15 +83,16 @@ node *mk_node(n_type type) {
         retval->type = type;
 
         if (type == N_PROGRAM) { 
-            retval->data.program.children = mk_vector();
+            retval->data.program.statements = mk_vector();
 
-            if (retval->data.program.children == NULL) {
-                log_error("Could not allocate node's children vector");
+            if (retval->data.program.statements == NULL) {
+                log_error("Could not allocate node's 'statements' vector");
                 exit(1);
             }
         }
-
-        retval->next = NULL;
+    } else {
+        log_error("mk_node(): Unable to allocate memory for new AST node");
+        exit(1);
     }
 
     return retval;
@@ -123,6 +131,20 @@ static void syntax_error(const char *exp, token l) {
     exit(PARSER_ERROR_SYNTAX_ERROR);
 }
 
+// Check to see if an identifier (string) is a builtin function
+static bool is_builtin(const char *ident) {
+    bool found = false;
+    
+    for (int i = 0; i < N_BUILTINS; i++) {
+        if (strcmp(ident, builtins[i]) == 0) {
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
 // Recursive descent
 
 // <program> := <declarations> <statements>
@@ -142,106 +164,30 @@ node *parse(t_list *tokens) {
     }
 
     // Parse the body of the program
-    program->data.program.children = parse_body();
-
-    // Parse declarations
-//    parse_declarations(program);
-
-    // Parse statements
-//    parse_statements(program);
+    program->data.program.statements = parse_statements();
 
     return program;
 }
 
-// <declarations> := <declaration> <declarations>
-//                 | <declaration>
-void parse_declarations(node *program) {
+// <statements> := <statement> <statements>
+//               | <statement>
+vector *parse_statements() {
+    vector *retval = mk_vector();
     bool more = true;
+    printf("parsing stmts\n");
 
-    do {
-        node *new_node = parse_declaration(&more);
-
-        switch (program->type) {
-            case N_PROGRAM:
-                vector_add(program->data.program.children, new_node);
-                break;
-            case N_FUNC_DECL:
-                vector_add(program->data.function_decl.body, new_node);
-                break;
-            case N_WHILE_STMT:
-                vector_add(program->data.while_stmt.body, new_node);
-                break;
-            case N_FOR_STMT:
-            default:
-                log_error("parse_declarations(): Unimplemented or unknown node type");
-                exit(1);
-        }
-    } while (more);
-}
-
-// <declaration> := <function-decl>
-//                | <label-decl>
-//                | <var-decl>
-//                | <struct-decl>
-node *parse_declaration(bool *more) {
-    node *retval;
-
-    switch (lookahead.type) {
-    case T_FUNC:
-        retval = parse_function_decl();
-        break;
-    case T_IDENT: {
-        token *tmp = peek();
-        // If not colon, this is not a label decl
-        if (tmp->type != 3) {
-            *more = false;
-            break;
-        }
-
-        retval = parse_label_decl();
-        break;
-    }
-    case T_INT:
-    case T_FLOAT:
-    case T_STRING:
-    case T_BOOL:
-        retval = parse_var_decl();
-        break;
-    case T_STRUCT:
-        retval = parse_struct_decl();
-        break;
-    default:
-        *more = false;
-        break;
+    if (retval != NULL) {
+        do {
+            node *new_node = parse_statement(&more);
+            if (new_node != NULL) {
+                vector_add(retval, new_node);
+            }
+        } while (more);   
+    } else {
+        log_error("parse_statements(): Unable to allocate vector");
     }
 
     return retval;
-}
-
-// <statements> := <statement> <statements>
-//               | <statement>
-void parse_statements(node *program) {
-    bool more = true;
-    printf("parsing stmts\n");
-    do {
-        node *new_node = parse_statement(&more);
-
-        switch (program->type) {
-            case N_PROGRAM:
-                vector_add(program->data.program.children, new_node);
-                break;
-            case N_FUNC_DECL:
-                vector_add(program->data.function_decl.body, new_node);
-                break;
-            case N_WHILE_STMT:
-                vector_add(program->data.while_stmt.body, new_node);
-                break;
-            case N_FOR_STMT:
-            default:
-                log_error("parse_statements(): Unimplemented or unknown node type");
-                exit(1);
-        }
-    } while (more);
 }
 
 // <statement> := <for-stmt>
@@ -249,13 +195,13 @@ void parse_statements(node *program) {
 //              | <if-then-stmt>
 //              | <if-then-else-stmt>
 //              | <assign-stmt>
+//              | <function-decl>
+//              | <var-decl>
+//              | <struct-decl
 //              | <expression>
 node *parse_statement(bool *more) {
     node *retval;
     printf("type: %d\n", lookahead.type);
-
-    while (1)
-        ;
 
     switch (lookahead.type) {
     case T_FOR:
@@ -270,24 +216,55 @@ node *parse_statement(bool *more) {
     case N_IFTHENELSE_STMT:
         retval = parse_ifthenelse_stmt();
         break;
+    case T_FUNC:
+        retval = parse_function_decl();
+        break;
     case T_IDENT: {
         print_lookahead_debug("ident");
         token *tmp = peek();
         printf("tmp literal: %s\n", tmp->literal);
+
         if (strcmp(tmp->literal, ":=") == 0) {
             retval = parse_assign_stmt();
             break;
         } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
             break;
+        } else if (strcmp(tmp->literal, "(") == 0) {
+            retval = parse_function_call_stmt();
+            break;
+        } else if ( (strcmp(tmp->literal, "+") == 0) ||
+                    (strcmp(tmp->literal, "-") == 0) ||
+                    (strcmp(tmp->literal, "*") == 0) ||
+                    (strcmp(tmp->literal, "/") == 0) ||
+                    (strcmp(tmp->literal, "%") == 0) ||
+                    (strcmp(tmp->literal, ">") == 0) || 
+                    (strcmp(tmp->literal, "<") == 0) ||
+                    (strcmp(tmp->literal, ">=") == 0) ||
+                    (strcmp(tmp->literal, "<=") == 0) ||
+                    (strcmp(tmp->literal, "==") == 0) ||
+                    (strcmp(tmp->literal, "!=") == 0) ) {
+            retval = parse_expression();    // binop exprs when dealing with variables
+            break;
         } else {
             printf("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
         }
     }
+    case T_INT:
+    case T_FLOAT:
+    case T_STRING:
+    case T_BOOL:
+        retval = parse_var_decl();
+        break;
+    case T_STRUCT:
+        retval = parse_struct_decl();
+        break;
     case N_EXPR:
         retval = parse_expression();
         break;
+    case T_RETURN:  // Return statements are parsed separately at the end of function decls
+    case T_END:     // This should be the end of most bodies (conditionals, functions, etc)
     default:
         *more = false;
     }
@@ -320,7 +297,7 @@ node *parse_function_decl() {
 
         // List of formal args
         if (tmp->type != T_RPAREN) {
-            retval->data.function_decl.formal = parse_formals();
+            retval->data.function_decl.formals = parse_formals();
             consume();
             tmp = peek();
         }
@@ -364,23 +341,17 @@ node *parse_function_decl() {
         // Parse body
         retval->data.function_decl.body = parse_body();
 
-
-        // Begin parsing declarations
-        //parse_declarations(retval);
-
-        // // Begin parsing statements
-        // parse_statements(retval);
-
         // Parse return statement
         // For now, we will not expect returns in void functions
         if (retval->data.function_decl.type != D_VOID) {
             if (lookahead.type != T_RETURN) {
                 syntax_error("'return'", lookahead);
             } else {
-                consume();
-                retval->data.function_decl.return_expr = parse_expression();
+                retval->data.function_decl.return_expr = parse_return_stmt();
             }
         }
+
+        consume();
 
         // Parse the end of the function
         if (lookahead.type != T_END) {
@@ -404,11 +375,13 @@ node *parse_function_decl() {
 //
 // I am cheating a bit here and parsing the list all in one go, instead of creating
 // a separate function for the <formal-list> non-terminal.
-node *parse_formals() {
+vector *parse_formals() {
     bool repeat = true;
     bool first  = true;
 
-    node *retval = mk_node(N_FORMAL);
+    vector *retval = mk_vector();
+
+    node *formal = mk_node(N_FORMAL);
     node *new    = {0};
 
     // TODO: Optimize this do-while loop, like when parsing struct member decls.
@@ -438,7 +411,7 @@ node *parse_formals() {
         }
 
         if (first) {
-            retval->data.formal.type = keyword_to_type(lookahead.type);
+            formal->data.formal.type = keyword_to_type(lookahead.type);
         } else {
             new->data.formal.type = keyword_to_type(lookahead.type);
         }
@@ -447,26 +420,13 @@ node *parse_formals() {
         consume();
 
         if (first) {
-            memset(retval->data.formal.name, 0, MAX_LITERAL);
-            sprintf(retval->data.formal.name, "%s", lookahead.literal);
+            memset(formal->data.formal.name, 0, MAX_LITERAL);
+            sprintf(formal->data.formal.name, "%s", lookahead.literal);
+            vector_add(retval, formal);
         } else {
             memset(new->data.formal.name, 0, MAX_LITERAL);
             sprintf(new->data.formal.name, "%s", lookahead.literal);
-        }
-
-        if (first) {
-            retval->next = NULL;
-        } else {
-            node *f = retval;
-
-            // Seek to end of list
-            while (f->next != NULL) {
-                f = f->next;
-            }
-
-            // Append new formal to end of list
-            f->next   = new;
-            new->next = NULL;
+            vector_add(retval, new);
         }
 
         // Look for a ',' or ')'
@@ -528,6 +488,10 @@ node *parse_var_decl() {
 node *parse_for_stmt() { return NULL; }
 node *parse_ifthen_stmt() { return NULL; }
 node *parse_ifthenelse_stmt() { return NULL; }
+node *parse_function_call_stmt(void) {
+    log_error("Function call statements not yet implemented");
+    return NULL;
+}
 node *parse_label_decl() { return NULL; }
 node *parse_call_expr() { return NULL; }
 node *parse_struct_access_expr() { return NULL; }
@@ -582,17 +546,8 @@ node *parse_while_stmt() {
         consume();
         printf("i am here\n");
 
-        // Decls contained within while stmt children
-        parse_declarations(retval);
-
-        print_lookahead_debug("after decls");
-
-        while (1)
-            ;
-
-        // Stmts contained within while stmt children
-        parse_statements(retval);
-        printf("end of while's stmts\n");
+        retval->data.while_stmt.body = parse_statements();
+        printf("end of while's body\n");
 
         consume();
         if (lookahead.type != T_END) {
@@ -606,12 +561,21 @@ node *parse_while_stmt() {
     return retval;
 }
 
+// 'return' <expression> ';'
+node *parse_return_stmt() {
+    node *retval = NULL;
+
+    retval = parse_expression();
+
+    return retval;
+}
+
 // <struct-decl> := 'struct' <ident> <member-decls> 'end'
 node *parse_struct_decl() {
     node *retval = mk_node(N_STRUCT_DECL);
 
     if (retval != NULL) {
-        retval->data.struct_decl.member = NULL;
+        retval->data.struct_decl.members = mk_vector();
         if (lookahead.type != T_STRUCT) {
             syntax_error("'struct'", lookahead);
         } else {
@@ -653,23 +617,7 @@ node *parse_struct_decl() {
             if (lookahead.type != T_SEMICOLON) {
                 syntax_error("';'", lookahead);
             } else {
-
-                // Seek to end of member list
-                node *m = retval->data.struct_decl.member;
-
-                // First member
-                if (m == NULL) {
-                    retval->data.struct_decl.member       = member;
-                    retval->data.struct_decl.member->next = NULL;
-                } else {
-                    while (m->next != NULL) {
-                        m = m->next;
-                    }
-
-                    // Append member to decl
-                    m->next      = member;
-                    member->next = NULL;
-                }
+                vector_add(retval->data.struct_decl.members, member);
             }
 
             consume();
@@ -831,6 +779,22 @@ node *parse_expression() {
     case T_NIL:
         retval = parse_value();
         break;
+    case T_SEMICOLON:
+        retval = mk_node(N_EMPTY_EXPR);
+        break;
+    case T_PLUS:
+    case T_MINUS:
+    case T_MUL:
+    case T_DIV:
+    case T_MOD:
+    case T_LT:
+    case T_GT:
+    case T_EQ:
+    case T_LE:
+    case T_GE:
+    case T_NE:
+        retval = parse_bin_op_expr();
+        break;
     default:
         printf("Other expression types not yet implemented\n");
         exit(1);
@@ -843,18 +807,26 @@ node *parse_expression() {
     return retval;
 }
 
+node *parse_bin_op_expr() {
+    node *retval = mk_node(N_BINOP_EXPR);
+
+    if (retval != NULL) {
+        log_error("parse_bin_op_expr(): Not implemented yet");
+        exit(1);
+    }
+
+    return retval;
+}
+
 // Parse the "body" of loops and functions
+// This is really just a wrapper around parse_statements().
 vector *parse_body() {
     vector *retval = mk_vector();
     
     if (retval != NULL) {
         // The body could contain statements and expressions, terminated by and "end" token
-        while (lookahead.type != T_END) {
-
-
-            print_lookahead_debug("parse_body");
-            break;
-        }
+        print_lookahead_debug("parse_body");
+        retval = parse_statements();
     }
 
     return retval;
@@ -968,11 +940,11 @@ static void print_node(node *n, int indent) {
         printf("Formals: ");
 
         indent += INDENT_WIDTH;
-        node *f = n->data.function_decl.formal;
+        vecnode *f = n->data.function_decl.formals->head;
         if (f != NULL) {
             printf("\n");
             while (f != NULL) {
-                print_node(f, indent + INDENT_WIDTH);
+                print_node(f->data, indent + INDENT_WIDTH);
                 f = f->next;
             }
         } else {
@@ -982,16 +954,11 @@ static void print_node(node *n, int indent) {
 
         // Print FuncDecl children
         vecnode *vn = n->data.function_decl.body->head;
-        while (vn != NULL) {
+        while (vn->next != NULL) {
             print_node(vn->data, indent + INDENT_WIDTH);
 
             vn = vn->next;
         }
-/*
-        for (int idx = 0; idx < n->num_children; idx++) {
-            print_node(n->children[idx], indent + INDENT_WIDTH);
-        }
-*/
 
         print_indent(indent + INDENT_WIDTH);
         printf("Return: ");
@@ -1012,11 +979,11 @@ static void print_node(node *n, int indent) {
         printf("Members: ");
 
         indent += INDENT_WIDTH;
-        node *m = n->data.struct_decl.member;
+        vecnode *m = n->data.struct_decl.members->head;
         if (m != NULL) {
             printf("\n");
             while (m != NULL) {
-                print_node(m, indent + INDENT_WIDTH);
+                print_node(m->data, indent + INDENT_WIDTH);
                 m = m->next;
             }
         } else {
@@ -1089,6 +1056,9 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_EMPTY_EXPR:
+        printf("EmptyExpr (),\n");
+        break;
     default:
         printf("Unknown node type: %d\n", n->type);
     }
@@ -1103,21 +1073,13 @@ void print_ast(node *ast) {
         indent += INDENT_WIDTH;
 
         // Print children
-        vecnode *vn = ast->data.program.children->head;
-        while (vn != NULL) {
+        vecnode *vn = ast->data.program.statements->head;
+        while (vn->next != NULL) {
             node *n = vn->data;
             print_node(n, indent);
 
             vn = vn->next;
         }
-
-/*        
-        for (int idx = 0; idx < ast->num_children; idx++) {
-            node *n = ast->children[idx];
-            print_node(n, indent);
-        }
-*/
-
     }
 
     printf(")\n");

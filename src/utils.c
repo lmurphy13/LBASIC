@@ -67,9 +67,11 @@ void vector_add(vector *vec, void *data) {
 
         } else {
             log_error("Cannot add NULL data to vector");
+            exit(1);
         }
     } else {
         log_error("Cannot add element to NULL vector!");
+        exit(1);
     }
 }
 

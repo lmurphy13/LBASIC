@@ -11,8 +11,6 @@
 #include "utils.h"
 #include <stdbool.h>
 
-#define MAX_CHILDREN 1024
-
 // Node types
 typedef enum n_type {
     N_PROGRAM = 0,
@@ -30,6 +28,7 @@ typedef enum n_type {
     N_ASSIGN,
     N_EXPR_LIST,
     N_EXPR,
+    N_EMPTY_EXPR,
     N_FORMAL,
     N_BINOP_EXPR,
     N_GOTO_EXPR,
@@ -65,13 +64,13 @@ typedef struct node {
     n_type type;
     union {
         struct {
-            vector *children;   // All child nodes within a program will be within this vector
+            vector *statements;   // All child nodes within a program will be within this vector
         } program;
         struct {
             struct node *lhs;
             struct node *rhs;
             char operator;
-        } binop;
+        } bin_op_expr;
         struct {
             data_type type;
             char name[MAX_LITERAL];
@@ -91,14 +90,14 @@ typedef struct node {
         struct {
             char name[MAX_LITERAL];
             data_type type;
-            struct node *formal; // formal arguments
-            vector *body;
+            vector *formals; // formal arguments
+            vector *body;    // statements make up the body of a function
             struct node *return_expr;
         } function_decl;
         struct {
             char name[MAX_LITERAL];
             data_type type; // always D_STRUCT
-            struct node *member;
+            vector *members;
         } struct_decl;
         struct {
             data_type type;
@@ -114,8 +113,6 @@ typedef struct node {
             vector *body;
         } while_stmt;
     } data;
-    struct node *next; // Used in a limited number of cases when a linked list of a certain type of
-                       // token is needed.
 } node;
 
 // Prototypes
