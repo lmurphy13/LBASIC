@@ -56,7 +56,7 @@ typedef enum {
     T_IDENT     = 43, // identifier [a-zA-Z] [a-zA-Z0-9]
     T_HEAD      = 44, // Head of list
     L_STR       = 45, // string literal
-    L_NUM       = 46, // number literal
+    L_NUM       = 46, // number literal (integer, for now)
     T_EOF       = 47, // End Of File
     NTOKENS
 } token_type;

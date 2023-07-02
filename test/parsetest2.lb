@@ -14,7 +14,8 @@ func function(int a, string b, bool c) -> void
 end
 
 
-'func fib(int n) -> int
-'    int a := 4;
-'    
-'end
+func fib(int n) -> int
+    int a := 4;
+    return a; 
+end
+

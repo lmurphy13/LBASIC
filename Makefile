@@ -1,14 +1,17 @@
+# file: Makefile
+# Author: Liam M. Murphy
+
 CC = gcc
 
 SRCDIR = src
 SOURCES = $(wildcard $(SRCDIR)/*.c)
-OBJECTS = $(SRCDIR)/error.o $(SRCDIR)/lexer.o $(SRCDIR)/token.o \
-		  $(SRCDIR)/parser.o $(SRCDIR)/main.o $(SRCDIR)/utils.o \
-		  $(SRCDIR)/test.o
+
+# Catchall sources -> objects
+OBJECTS = $(SOURCES:.c=.o)
 
 CFLAGS = -g -O0 -DDEBUG
 
-lbasic: $(SOURCES) $(OBJECTS) 
+lbasic: $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) -o $@
 
 clean:
@@ -18,3 +21,4 @@ clean:
 format:
 	clang-format-11 -i src/*.c
 	clang-format-11 -i src/*.h
+

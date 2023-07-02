@@ -59,59 +59,80 @@ typedef enum data_type {
     D_UNKNOWN
 } data_type;
 
+// Node types
+typedef struct program_s {
+    vector *statements; // All child nodes within a program will be within this vector
+} program_t;
+
+typedef struct bin_op_expr_s {
+    struct node *lhs;
+    struct node *rhs;
+    token_type operator;
+} bin_op_expr_t;
+
+typedef struct formal_s {
+    data_type type;
+    char name[MAX_LITERAL];
+} formal_t;
+
+typedef struct member_decl_s {
+    data_type type;
+    char name[MAX_LITERAL];
+} member_decl_t;
+
+typedef struct var_decl_s {
+    data_type type;
+    char name[MAX_LITERAL];
+    struct node *value; // should be an expression node
+} var_decl_t;
+
+typedef struct identifier_s {
+    char name[MAX_LITERAL];
+} identifier_t;
+
+typedef struct function_decl_s {
+    char name[MAX_LITERAL];
+    data_type type;
+    vector *formals; // formal arguments
+    vector *body;    // statements make up the body of a function
+    struct node *return_expr;
+} function_decl_t;
+
+typedef struct struct_decl_s {
+    char name[MAX_LITERAL];
+    data_type type; // always D_STRUCT
+    vector *members;
+} struct_decl_t;
+
+typedef struct literal_s {
+    data_type type;
+    union {
+        int intval;
+        float floatval;
+        bool boolval;
+        char stringval[MAX_LITERAL];
+    } value;
+} literal_t;
+
+typedef struct while_stmt_s {
+    struct node *test;
+    vector *body;
+} while_stmt_t;
+
 // AST node
 typedef struct node {
     n_type type;
     union {
-        struct {
-            vector *statements; // All child nodes within a program will be within this vector
-        } program;
-        struct {
-            struct node *lhs;
-            struct node *rhs;
-            char operator;
-        } bin_op_expr;
-        struct {
-            data_type type;
-            char name[MAX_LITERAL];
-        } formal;
-        struct {
-            data_type type;
-            char name[MAX_LITERAL];
-        } member_decl;
-        struct {
-            data_type type;
-            char name[MAX_LITERAL];
-            struct node *value; // should be an expression node
-        } var_decl;
-        struct {
-            char name[MAX_LITERAL];
-        } identifier;
-        struct {
-            char name[MAX_LITERAL];
-            data_type type;
-            vector *formals; // formal arguments
-            vector *body;    // statements make up the body of a function
-            struct node *return_expr;
-        } function_decl;
-        struct {
-            char name[MAX_LITERAL];
-            data_type type; // always D_STRUCT
-            vector *members;
-        } struct_decl;
-        struct {
-            data_type type;
-            union {
-                int intval;
-                float floatval;
-                bool boolval;
-                char stringval[MAX_LITERAL];
-            } value;
-        } literal;
-        struct {
-            struct node *test;
-            vector *body;
-        } while_stmt;
+        program_t program;
+        bin_op_expr_t bin_op_expr;
+        formal_t formal;
+        member_decl_t member_decl;
+        var_decl_t var_decl;
+        identifier_t identifier;
+        function_decl_t function_decl;
+        struct_decl_t struct_decl;
+        literal_t literal;
+        while_stmt_t while_stmt;
     } data;
 } node;
 

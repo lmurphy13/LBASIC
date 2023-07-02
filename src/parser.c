@@ -38,18 +38,25 @@ node *parse_label_decl(void);
 node *parse_struct_decl(void);
 node *parse_var_decls(void);
 node *parse_var_decl(void);
-node *parse_expression(void);
 node *parse_bin_op_expr(void);
-node *parse_and_expr(void);
-node *parse_or_expr(void);
-node *parse_add_expr(void);
-node *parse_sub_expr(void);
-node *parse_mul_expr(void);
-node *parse_div_expr(void);
-node *parse_mod_expr(void);
 node *parse_goto_expr(void);
 node *parse_call_expr(void);
 node *parse_struct_access_expr(void);
+
+// Borrowed from the C grammar
+// https://cs.wmich.edu/~gupta/teaching/cs4850/sumII06/The%20syntax%20of%20C%20in%20Backus-Naur%20form.htm
+node *parse_constant_expr(void);
+node *parse_conditional_expr(void);
+node *parse_logical_or_expr(void);
+node *parse_logical_and_expr(void);
+node *parse_equality_expr(void);
+node *parse_relational_expression(void);
+node *parse_add_expr(void);
+node *parse_mul_expr(void);
+node *parse_unary_expression(void);
+node *parse_primary_expression(void);
+node *parse_expression(void);
+
 node *parse_for_stmt(void);
 node *parse_while_stmt(void);
 node *parse_ifthen_stmt(void);
@@ -99,7 +106,13 @@ node *mk_node(n_type type) {
 // Extracts a token from a t_list struct
 static token get_token(t_list *t) {
     token retval;
-    retval = *(t->tok);
+    if (t != NULL) {
+        retval = *(t->tok);
+    } else {
+        log_error("Failed to get next token. Bad t_list or you're trying to access beyond the end "
+                  "of the token list.");
+        exit(1);
+    }
     return retval;
 }
 
@@ -197,6 +210,7 @@ vector *parse_statements() {
 //              | <var-decl>
 //              | <struct-decl
 //              | <expression>
+//              | ( <expression> )
 node *parse_statement(bool *more) {
     node *retval;
     printf("type: %d\n", lookahead.type);
@@ -223,7 +237,8 @@ node *parse_statement(bool *more) {
         printf("tmp literal: %s\n", tmp->literal);
 
         if (strcmp(tmp->literal, ":=") == 0) {
-            retval = parse_assign_stmt();
+            consume();
+            retval = parse_expression();
             break;
         } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
@@ -250,10 +265,16 @@ node *parse_statement(bool *more) {
     case T_BOOL:
         retval = parse_var_decl();
         break;
+    case L_NUM:
+        retval = parse_expression();
+        break;
     case T_STRUCT:
         retval = parse_struct_decl();
         break;
-    case N_EXPR:
+    // case N_EXPR:
+    //     retval = parse_expression();
+    //     break;
+    case T_LPAREN:
         retval = parse_expression();
         break;
     case T_RETURN: // Return statements are parsed separately at the end of function decls
@@ -270,6 +291,8 @@ node *parse_statement(bool *more) {
 node *parse_function_decl() {
     node *retval = mk_node(N_FUNC_DECL);
     bool more    = true;
+
+    printf("inside parse_function_decl();\n");
 
     if (retval != NULL) {
         consume();
@@ -341,14 +364,13 @@ node *parse_function_decl() {
                 syntax_error("'return'", lookahead);
             } else {
                 retval->data.function_decl.return_expr = parse_return_stmt();
+                consume();
             }
         }
 
-        consume();
-
         // Parse the end of the function
         if (lookahead.type != T_END) {
-            syntax_error("end", lookahead);
+            syntax_error("'end'", lookahead);
             printf("this one\n");
         } else {
             // Consume 'end'
@@ -509,8 +531,6 @@ node *parse_assign_stmt() {
         if (lookahead.type != T_ASSIGN) {
             syntax_error("':='", lookahead);
         }
-
-        consume();
     }
 
     return retval;
@@ -753,17 +773,39 @@ node *parse_expression() {
         }
 
         consume();
-        if (lookahead.type == T_LPAREN) {
-            retval = parse_call_expr();
-        } else if (lookahead.type == T_DOT) {
+        switch (lookahead.type) {
+        // case T_LPAREN:
+        //     retval = parse_call_expr();
+        //     break;
+        case T_DOT:
             retval = parse_struct_access_expr();
-        } else if (lookahead.type == T_ASSIGN) {
+            break;
+        case T_ASSIGN:
             printf("parsing assignment\n");
             retval = parse_assign_stmt(); // is this the best place?
-        } else {
+            break;
+        case T_PLUS:
+        case T_MINUS:
+        case T_MUL:
+        case T_DIV:
+        case T_MOD:
+        case T_LT:
+        case T_GT:
+        case T_EQ:
+        case T_LE:
+        case T_GE:
+        case T_NE:
+            retval = parse_bin_op_expr();
+            break;
+        case T_LPAREN:
+            retval = parse_expression();
+            break;
+        case T_RPAREN:
+            break;
+        default:
             syntax_error("'(' or '.'", lookahead);
+            break;
         }
-        break;
     // Cheat here to parse constants
     case L_STR:
     case L_NUM:
@@ -788,14 +830,18 @@ node *parse_expression() {
     case T_NE:
         retval = parse_bin_op_expr();
         break;
+    case T_LPAREN:
+        retval = parse_expression();
+        break;
+    case T_RPAREN:
+        break;
     default:
         printf("Other expression types not yet implemented\n");
         exit(1);
         break;
     }
 
-    printf("leaving parse_expression()\n");
-    print_lookahead_debug("liam");
+    print_lookahead_debug("leaving parse_expression()");
 
     return retval;
 }
@@ -804,12 +850,31 @@ node *parse_bin_op_expr() {
     node *retval = mk_node(N_BINOP_EXPR);
 
     if (retval != NULL) {
-        log_error("parse_bin_op_expr(): Not implemented yet");
-        exit(1);
+        retval->data.bin_op_expr.lhs = parse_expression();
+        printf("here binop1\n");
+        consume();
+        retval->data.bin_op_expr.operator= lookahead.type;
+        consume();
+        retval->data.bin_op_expr.rhs = parse_expression();
     }
 
     return retval;
 }
+
+node *parse_constant_expr(void) {
+    node *retval = mk_node(N_BINOP_EXPR);
+
+    return retval;
+}
+node *parse_conditional_expr(void);
+node *parse_logical_or_expr(void);
+node *parse_logical_and_expr(void);
+node *parse_equality_expr(void);
+node *parse_relational_expression(void);
+node *parse_add_expr(void);
+node *parse_mul_expr(void);
+node *parse_unary_expression(void);
+node *parse_primary_expression(void);
 
 // Parse the "body" of loops and functions
 // This is really just a wrapper around parse_statements().
@@ -930,7 +995,7 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + INDENT_WIDTH);
-        printf("Formals: ");
+        printf("Formals {\n");
 
         indent += INDENT_WIDTH;
         vecnode *f = n->data.function_decl.formals->head;
@@ -943,9 +1008,14 @@ static void print_node(node *n, int indent) {
         } else {
             printf("None\n");
         }
-        indent -= INDENT_WIDTH;
 
-        // Print FuncDecl children
+        print_indent(indent);
+        printf("}\n");
+
+        // Print FuncDecl body
+        print_indent(indent);
+        printf("Body {\n");
+
         vecnode *vn = n->data.function_decl.body->head;
         while (vn->next != NULL) {
             print_node(vn->data, indent + INDENT_WIDTH);
@@ -953,13 +1023,19 @@ static void print_node(node *n, int indent) {
             vn = vn->next;
         }
 
-        print_indent(indent + INDENT_WIDTH);
-        printf("Return: ");
+        print_indent(indent);
+        printf("}\n");
+
+        print_indent(indent);
+        printf("Return:\n");
+
         if (n->data.function_decl.return_expr == NULL) {
+            print_indent(indent + INDENT_WIDTH);
             printf("None\n");
         } else {
             print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
         }
+        indent -= INDENT_WIDTH;
 
         print_indent(indent);
         printf("),\n");
@@ -1052,6 +1128,22 @@ static void print_node(node *n, int indent) {
     case N_EMPTY_EXPR:
         printf("EmptyExpr (),\n");
         break;
+    case N_BINOP_EXPR:
+        printf("BinOpExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("LHS: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.bin_op_expr.lhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        printf("RHS: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.bin_op_expr.rhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        printf("),\n");
+        break;
     default:
         printf("Unknown node type: %d\n", n->type);
     }
@@ -1066,6 +1158,9 @@ void print_ast(node *ast) {
         indent += INDENT_WIDTH;
 
         // Print children
+        print_indent(indent);
+        printf("Statements {\n");
+        indent += INDENT_WIDTH;
         vecnode *vn = ast->data.program.statements->head;
         while (vn->next != NULL) {
             node *n = vn->data;
@@ -1073,8 +1168,13 @@ void print_ast(node *ast) {
 
             vn = vn->next;
         }
+
+        indent -= INDENT_WIDTH;
+        print_indent(indent);
+        printf("}\n");
     }
 
+    indent -= INDENT_WIDTH;
     printf(")\n");
     return;
 }
