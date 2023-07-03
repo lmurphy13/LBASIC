@@ -83,6 +83,7 @@ static t_list *toks;
 
 node *mk_node(n_type type) {
     node *retval = (node *)malloc(sizeof(node));
+    memset(retval, 0, sizeof(retval));
 
     // Freed TBD
     if (retval != NULL) {
@@ -352,6 +353,7 @@ static node *parse_function_decl() {
             break;
         case T_VOID:
             retval->data.function_decl.type = D_VOID;
+            retval->data.function_decl.is_void = true;
             break;
         default:
             // Expected a type, but didn't get one

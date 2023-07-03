@@ -137,6 +137,7 @@ typedef struct function_decl_s {
     data_type type;
     vector *formals;   // formal arguments
     struct node *body; // (block) statements make up the body of a function
+    bool is_void;
 } function_decl_t;
 
 typedef struct struct_decl_s {
@@ -169,7 +170,7 @@ typedef struct node {
         literal_t literal;
         block_stmt_t block_stmt;
         while_stmt_t while_stmt;
-        return_stmt_t;
+        return_stmt_t return_stmt;
     } data;
 } node;
 
