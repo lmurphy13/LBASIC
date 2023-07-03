@@ -1,0 +1,5 @@
+int a := 1;
+
+if (a > 0) then
+    print("a is greater than 0");
+end

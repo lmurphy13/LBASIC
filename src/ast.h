@@ -21,10 +21,12 @@ typedef enum n_type {
     N_VAR_DECL,
     N_MEMBER_DECL,
     N_STRUCT_DECL,
+    N_BLOCK_STMT,
     N_FOR_STMT,
     N_WHILE_STMT,
-    N_IFTHEN_STMT,
-    N_IFTHENELSE_STMT,
+    N_IF_STMT,
+    N_IFELSE_STMT,
+    N_RETURN_STMT,
     N_ASSIGN,
     N_EXPR_LIST,
     N_EXPR,
@@ -64,11 +66,55 @@ typedef struct program_s {
     vector *statements; // All child nodes within a program will be within this vector
 } program_t;
 
+// Multi-use block of statements (function body, if-else body, etc.)
+typedef struct block_stmt_s {
+    vector *statements;
+} block_stmt_t;
+
+typedef struct identifier_s {
+    char name[MAX_LITERAL];
+} identifier_t;
+
+typedef struct literal_s {
+    data_type type;
+    union {
+        int intval;
+        float floatval;
+        bool boolval;
+        char stringval[MAX_LITERAL];
+    } value;
+} literal_t;
+
 typedef struct bin_op_expr_s {
     struct node *lhs;
     struct node *rhs;
     token_type operator;
 } bin_op_expr_t;
+
+typedef struct goto_expr_s {
+    char label[MAX_LITERAL];
+} goto_expr_t;
+
+typedef struct call_expr_s {
+    char name[MAX_LITERAL];
+    vector *formals; // formal args
+} call_expr_t;
+
+typedef struct struct_access_s {
+    char name[MAX_LITERAL];
+    char member_name[MAX_LITERAL];
+} struct_access_t;
+
+typedef struct expression_s {
+    union {
+        bin_op_expr_t bin_op_expr;
+        goto_expr_t goto_expr;
+        call_expr_t call_expr;
+        struct_access_t struct_access;
+        identifier_t identifier;
+        literal_t literal;
+    } expr;
+} expression_t;
 
 typedef struct formal_s {
     data_type type;
@@ -86,16 +132,11 @@ typedef struct var_decl_s {
     struct node *value; // should be an expression node
 } var_decl_t;
 
-typedef struct identifier_s {
-    char name[MAX_LITERAL];
-} identifier_t;
-
 typedef struct function_decl_s {
     char name[MAX_LITERAL];
     data_type type;
-    vector *formals; // formal arguments
-    vector *body;    // statements make up the body of a function
-    struct node *return_expr;
+    vector *formals;   // formal arguments
+    struct node *body; // (block) statements make up the body of a function
 } function_decl_t;
 
 typedef struct struct_decl_s {
@@ -104,20 +145,14 @@ typedef struct struct_decl_s {
     vector *members;
 } struct_decl_t;
 
-typedef struct literal_s {
-    data_type type;
-    union {
-        int intval;
-        float floatval;
-        bool boolval;
-        char stringval[MAX_LITERAL];
-    } value;
-} literal_t;
-
 typedef struct while_stmt_s {
     struct node *test;
     vector *body;
 } while_stmt_t;
+
+typedef struct return_stmt_s {
+    struct node *expr;
+} return_stmt_t;
 
 // AST node
 typedef struct node {
@@ -132,7 +167,9 @@ typedef struct node {
         function_decl_t function_decl;
         struct_decl_t struct_decl;
         literal_t literal;
+        block_stmt_t block_stmt;
         while_stmt_t while_stmt;
+        return_stmt_t;
     } data;
 } node;
 

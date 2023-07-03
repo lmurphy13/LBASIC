@@ -4,6 +4,7 @@
  * Author: Liam M. Murphy
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,44 +31,45 @@ static void print_lookahead_debug(const char *msg);
 static bool is_builtin(const char *ident);
 
 // Parsing Prototypes
-vector *parse_statements(void);
-node *parse_statement(bool *more);
-node *parse_function_decl(void);
-vector *parse_formals(void);
-node *parse_label_decl(void);
-node *parse_struct_decl(void);
-node *parse_var_decls(void);
-node *parse_var_decl(void);
-node *parse_bin_op_expr(void);
-node *parse_goto_expr(void);
-node *parse_call_expr(void);
-node *parse_struct_access_expr(void);
+static vector *parse_statements(void);
+static node *parse_statement(bool *more);
+static node *parse_function_decl(void);
+static vector *parse_formals(void);
+static node *parse_label_decl(void);
+static node *parse_struct_decl(void);
+static node *parse_var_decls(void);
+static node *parse_var_decl(void);
+static node *parse_bin_op_expr(void);
+static node *parse_goto_expr(void);
+static node *parse_call_expr(void);
+static node *parse_struct_access_expr(void);
 
 // Borrowed from the C grammar
 // https://cs.wmich.edu/~gupta/teaching/cs4850/sumII06/The%20syntax%20of%20C%20in%20Backus-Naur%20form.htm
-node *parse_constant_expr(void);
-node *parse_conditional_expr(void);
-node *parse_logical_or_expr(void);
-node *parse_logical_and_expr(void);
-node *parse_equality_expr(void);
-node *parse_relational_expression(void);
-node *parse_add_expr(void);
-node *parse_mul_expr(void);
-node *parse_unary_expression(void);
-node *parse_primary_expression(void);
-node *parse_expression(void);
+static node *parse_constant_expr(void);
+static node *parse_conditional_expr(void);
+static node *parse_logical_or_expr(void);
+static node *parse_logical_and_expr(void);
+static node *parse_equality_expr(void);
+static node *parse_relational_expression(void);
+static node *parse_add_expr(void);
+static node *parse_mul_expr(void);
+static node *parse_unary_expression(void);
+static node *parse_primary_expression(void);
+static node *parse_expression(void);
 
-node *parse_for_stmt(void);
-node *parse_while_stmt(void);
-node *parse_ifthen_stmt(void);
-node *parse_ifthenelse_stmt(void);
-node *parse_assign_stmt(void);
-node *parse_function_call_stmt(void);
-node *parse_return_stmt(void);
-node *parse_value(void);
-node *parse_constant(void);
-node *parse_identifier(void);
-vector *parse_body(void);
+static node *parse_block_stmt(void);
+static node *parse_for_stmt(void);
+static node *parse_while_stmt(void);
+static node *parse_if_stmt(void);
+static node *parse_ifelse_stmt(void);
+static node *parse_assign_stmt(void);
+static node *parse_function_call_stmt(void);
+static node *parse_return_stmt(void);
+static node *parse_value(void);
+static node *parse_constant(void);
+static node *parse_identifier(void);
+static vector *parse_body(void);
 
 // Globals
 // Current token
@@ -137,7 +139,7 @@ static void backup() {
 }
 
 static void syntax_error(const char *exp, token l) {
-    printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", l.line, l.col, exp,
+    printf("Syntax Error (line %d, col %d): Expected '%s' but got '%s'.\n", l.line, l.col, exp,
            l.literal);
     exit(PARSER_ERROR_SYNTAX_ERROR);
 }
@@ -182,7 +184,7 @@ node *parse(t_list *tokens) {
 
 // <statements> := <statement> <statements>
 //               | <statement>
-vector *parse_statements() {
+static vector *parse_statements() {
     vector *retval = mk_vector();
     bool more      = true;
     printf("parsing stmts\n");
@@ -203,19 +205,22 @@ vector *parse_statements() {
 
 // <statement> := <for-stmt>
 //              | <while-stmt>
-//              | <if-then-stmt>
-//              | <if-then-else-stmt>
+//              | <if-stmt>
+//              | <if-else-stmt>
 //              | <assign-stmt>
 //              | <function-decl>
 //              | <var-decl>
 //              | <struct-decl
 //              | <expression>
 //              | ( <expression> )
-node *parse_statement(bool *more) {
+static node *parse_statement(bool *more) {
     node *retval;
     printf("type: %d\n", lookahead.type);
 
     switch (lookahead.type) {
+    case T_THEN:
+        retval = parse_block_stmt();
+        break;
     case T_FOR:
         retval = parse_for_stmt();
         break;
@@ -223,10 +228,10 @@ node *parse_statement(bool *more) {
         retval = parse_while_stmt();
         break;
     case T_IF:
-        retval = parse_ifthen_stmt();
+        retval = parse_if_stmt();
         break;
-    case N_IFTHENELSE_STMT:
-        retval = parse_ifthenelse_stmt();
+    case N_IFELSE_STMT:
+        retval = parse_ifelse_stmt();
         break;
     case T_FUNC:
         retval = parse_function_decl();
@@ -277,8 +282,9 @@ node *parse_statement(bool *more) {
     case T_LPAREN:
         retval = parse_expression();
         break;
-    case T_RETURN: // Return statements are parsed separately at the end of function decls
-    case T_END:    // This should be the end of most bodies (conditionals, functions, etc)
+    case T_RETURN:
+        retval = parse_return_stmt();
+    case T_END: // This should be the end of most bodies (conditionals, functions, etc)
     default:
         *more = false;
     }
@@ -288,7 +294,7 @@ node *parse_statement(bool *more) {
 
 // <function-decl> := 'func' <ident> '(' <formal-list> ')' '->' <type> <statements> 'end'
 //                  | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
-node *parse_function_decl() {
+static node *parse_function_decl() {
     node *retval = mk_node(N_FUNC_DECL);
     bool more    = true;
 
@@ -355,19 +361,20 @@ node *parse_function_decl() {
         consume();
 
         // Parse body
-        retval->data.function_decl.body = parse_body();
+        retval->data.function_decl.body = parse_block_stmt();
 
         // Parse return statement
         // For now, we will not expect returns in void functions
-        if (retval->data.function_decl.type != D_VOID) {
-            if (lookahead.type != T_RETURN) {
-                syntax_error("'return'", lookahead);
-            } else {
-                retval->data.function_decl.return_expr = parse_return_stmt();
-                consume();
-            }
-        }
-
+        /*
+                if (retval->data.function_decl.type != D_VOID) {
+                    if (lookahead.type != T_RETURN) {
+                        syntax_error("'return'", lookahead);
+                    } else {
+                        retval->data.function_decl.return_expr = parse_return_stmt();
+                        consume();
+                    }
+                }
+        */
         // Parse the end of the function
         if (lookahead.type != T_END) {
             syntax_error("'end'", lookahead);
@@ -390,7 +397,7 @@ node *parse_function_decl() {
 //
 // I am cheating a bit here and parsing the list all in one go, instead of creating
 // a separate function for the <formal-list> non-terminal.
-vector *parse_formals() {
+static vector *parse_formals() {
     bool repeat = true;
     bool first  = true;
 
@@ -465,7 +472,7 @@ vector *parse_formals() {
     return retval;
 }
 
-node *parse_var_decl() {
+static node *parse_var_decl() {
     node *retval = mk_node(N_VAR_DECL);
 
     if (retval != NULL) {
@@ -500,20 +507,64 @@ node *parse_var_decl() {
     return retval;
 }
 
-node *parse_for_stmt() { return NULL; }
-node *parse_ifthen_stmt() { return NULL; }
-node *parse_ifthenelse_stmt() { return NULL; }
-node *parse_function_call_stmt(void) {
-    log_error("Function call statements not yet implemented");
+static node *parse_block_stmt() {
+    node *retval = mk_node(N_BLOCK_STMT);
+
+    if (retval != NULL) {
+        // 'then' token should be incoming
+        if (lookahead.type != T_THEN) {
+            syntax_error("then", lookahead);
+        }
+
+        consume();
+        // Now parse statements
+        retval->data.block_stmt.statements = parse_statements();
+
+        // Look for 'end' token
+        consume();
+        if (lookahead.type != T_END) {
+            syntax_error("end", lookahead);
+        }
+    }
+
+    return retval;
+}
+
+static node *parse_for_stmt() {
+    assert(0 && "Not implemented");
     return NULL;
 }
-node *parse_label_decl() { return NULL; }
-node *parse_call_expr() { return NULL; }
-node *parse_struct_access_expr() { return NULL; }
-node *parse_goto_expr() { return NULL; }
+static node *parse_if_stmt() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_ifelse_stmt() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_function_call_stmt() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_label_decl() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_call_expr() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_struct_access_expr() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
+static node *parse_goto_expr() {
+    assert(0 && "Not implemented");
+    return NULL;
+}
 
 // <assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
-node *parse_assign_stmt() {
+static node *parse_assign_stmt() {
     printf("inside assign\n");
     node *retval = mk_node(N_ASSIGN);
 
@@ -537,7 +588,7 @@ node *parse_assign_stmt() {
 }
 
 // <while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
-node *parse_while_stmt() {
+static node *parse_while_stmt() {
     node *retval = mk_node(N_WHILE_STMT);
 
     if (retval != NULL) {
@@ -575,7 +626,7 @@ node *parse_while_stmt() {
 }
 
 // 'return' <expression> ';'
-node *parse_return_stmt() {
+static node *parse_return_stmt() {
     node *retval = NULL;
 
     retval = parse_expression();
@@ -584,7 +635,7 @@ node *parse_return_stmt() {
 }
 
 // <struct-decl> := 'struct' <ident> <member-decls> 'end'
-node *parse_struct_decl() {
+static node *parse_struct_decl() {
     node *retval = mk_node(N_STRUCT_DECL);
 
     if (retval != NULL) {
@@ -652,7 +703,7 @@ node *parse_struct_decl() {
 //          | <ident>
 //          | <ident> '(' <expr-list> ')'
 //          | <constant>
-node *parse_value() {
+static node *parse_value() {
     node *retval = mk_node(N_VALUE);
 
     if (retval != NULL) {
@@ -689,7 +740,7 @@ node *parse_value() {
 //			   | 'true'
 //			   | 'false'
 //			   | 'nil'
-node *parse_constant() {
+static node *parse_constant() {
     node *retval = mk_node(N_LITERAL);
 
     if (retval != NULL) {
@@ -732,7 +783,7 @@ node *parse_constant() {
     return retval;
 }
 
-node *parse_identifier() {
+static node *parse_identifier() {
     node *retval = mk_node(N_IDENT);
 
     if (retval != NULL) {
@@ -749,7 +800,11 @@ node *parse_identifier() {
 //               | <goto-expr>
 //               | <call-expr>
 //               | <struct-access-expr>
-node *parse_expression() {
+//               | <identifier>
+//               | <literal>
+//
+// TODO: Rewrite function to return an EXPR node
+static node *parse_expression() {
     node *retval;
 
     consume();
@@ -846,7 +901,7 @@ node *parse_expression() {
     return retval;
 }
 
-node *parse_bin_op_expr() {
+static node *parse_bin_op_expr() {
     node *retval = mk_node(N_BINOP_EXPR);
 
     if (retval != NULL) {
@@ -861,24 +916,24 @@ node *parse_bin_op_expr() {
     return retval;
 }
 
-node *parse_constant_expr(void) {
+static node *parse_constant_expr(void) {
     node *retval = mk_node(N_BINOP_EXPR);
 
     return retval;
 }
-node *parse_conditional_expr(void);
-node *parse_logical_or_expr(void);
-node *parse_logical_and_expr(void);
-node *parse_equality_expr(void);
-node *parse_relational_expression(void);
-node *parse_add_expr(void);
-node *parse_mul_expr(void);
-node *parse_unary_expression(void);
-node *parse_primary_expression(void);
+static node *parse_conditional_expr(void);
+static node *parse_logical_or_expr(void);
+static node *parse_logical_and_expr(void);
+static node *parse_equality_expr(void);
+static node *parse_relational_expression(void);
+static node *parse_add_expr(void);
+static node *parse_mul_expr(void);
+static node *parse_unary_expression(void);
+static node *parse_primary_expression(void);
 
 // Parse the "body" of loops and functions
 // This is really just a wrapper around parse_statements().
-vector *parse_body() {
+static vector *parse_body() {
     vector *retval = mk_vector();
 
     if (retval != NULL) {
@@ -1016,7 +1071,7 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("Body {\n");
 
-        vecnode *vn = n->data.function_decl.body->head;
+        vecnode *vn = n->data.function_decl.body->data.block_stmt.statements->head;
         while (vn->next != NULL) {
             print_node(vn->data, indent + INDENT_WIDTH);
 
@@ -1026,18 +1081,20 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("}\n");
 
-        print_indent(indent);
-        printf("Return:\n");
+        /*
+                print_indent(indent);
+                printf("Return:\n");
 
-        if (n->data.function_decl.return_expr == NULL) {
-            print_indent(indent + INDENT_WIDTH);
-            printf("None\n");
-        } else {
-            print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
-        }
-        indent -= INDENT_WIDTH;
+                if (n->data.function_decl.return_expr == NULL) {
+                    print_indent(indent + INDENT_WIDTH);
+                    printf("None\n");
+                } else {
+                    print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
+                }
+                indent -= INDENT_WIDTH;
 
-        print_indent(indent);
+                print_indent(indent);
+        */
         printf("),\n");
         break;
     case N_STRUCT_DECL:

@@ -251,12 +251,18 @@ static void tokenize(char *prog_buff) {
                     c = get_char(prog_buff);
                     if (c == '=') {
                         emit_token(token_list, T_LE, "<=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_LT, "<");
                     }
                     break;
                 case '>':
                     c = get_char(prog_buff);
                     if (c == '=') {
                         emit_token(token_list, T_GE, ">=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_GT, ">");
                     }
                     break;
                 case '!':
