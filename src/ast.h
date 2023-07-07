@@ -27,7 +27,7 @@ typedef enum n_type {
     N_IF_STMT,
     N_IFELSE_STMT,
     N_RETURN_STMT,
-    N_ASSIGN,
+    N_ASSIGN_EXPR,
     N_EXPR_LIST,
     N_EXPR,
     N_EMPTY_EXPR,
@@ -39,7 +39,8 @@ typedef enum n_type {
     N_NOT_EXPR,
     N_COMPARE_EXPR,
     N_ADD_EXPR,
-    N_MUL_EXPR,
+    N_MULT_EXPR,
+    N_PRIMARY_EXPR,
     N_NEGATE_EXPR,
     N_VALUE,
     N_VALUE_LIST,
@@ -47,6 +48,11 @@ typedef enum n_type {
     N_IDENT_LIST,
     N_CONSTANT,
     N_LITERAL,
+    N_INTEGER_LITERAL,
+    N_FLOAT_LITERAL,
+    N_STRING_LITERAL,
+    N_BOOL_LITERAL,
+    N_NIL,
     NUM_TYPES
 } n_type;
 
@@ -105,16 +111,10 @@ typedef struct struct_access_s {
     char member_name[MAX_LITERAL];
 } struct_access_t;
 
-typedef struct expression_s {
-    union {
-        bin_op_expr_t bin_op_expr;
-        goto_expr_t goto_expr;
-        call_expr_t call_expr;
-        struct_access_t struct_access;
-        identifier_t identifier;
-        literal_t literal;
-    } expr;
-} expression_t;
+typedef struct assign_expr_s {
+    struct node *lhs;
+    struct node *rhs;
+} assign_expr_t;
 
 typedef struct formal_s {
     data_type type;
@@ -155,22 +155,52 @@ typedef struct return_stmt_s {
     struct node *expr;
 } return_stmt_t;
 
+typedef struct integer_literal_s {
+    int value;
+} integer_literal_t;
+
+typedef struct float_literal_s {
+    float value;
+} float_literal_t;
+
+typedef struct string_literal_s {
+    char value[MAX_LITERAL + 1]; // we'll be nice and make these null-terminated
+} string_literal_t;
+
+typedef struct bool_literal_s {
+    char str_val[6]; // enough space to fit "false" plus null terminator
+    char value;      // 0 or 1
+} bool_literal_t;
+
+typedef struct nil_s {
+    char value; // Always zero
+} nil_t;
+
 // AST node
 typedef struct node {
     n_type type;
     union {
         program_t program;
-        bin_op_expr_t bin_op_expr;
         formal_t formal;
         member_decl_t member_decl;
         var_decl_t var_decl;
-        identifier_t identifier;
         function_decl_t function_decl;
         struct_decl_t struct_decl;
         literal_t literal;
         block_stmt_t block_stmt;
         while_stmt_t while_stmt;
         return_stmt_t return_stmt;
+        assign_expr_t assign_expr;
+        bin_op_expr_t bin_op_expr;
+        goto_expr_t goto_expr;
+        call_expr_t call_expr;
+        struct_access_t struct_access;
+        identifier_t identifier;
+        integer_literal_t integer_literal;
+        float_literal_t float_literal;
+        string_literal_t string_literal;
+        bool_literal_t bool_literal;
+        nil_t nil;
     } data;
 } node;
 

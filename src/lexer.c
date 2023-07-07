@@ -354,9 +354,34 @@ static void tokenize(char *prog_buff) {
                 sprintf(lexeme, "%s%c", lexeme, c);
                 c = get_char(prog_buff);
             }
-            unget_char();
-            emit_token(token_list, L_NUM, lexeme);
-            memset(lexeme, 0, sizeof(lexeme));
+
+            // Are we a float?
+            if (c == '.') {
+                // Append dot to lexeme
+                sprintf(lexeme, "%s%c", lexeme, c);
+                // Advance lexeme
+                c = get_char(prog_buff);
+
+                if (!is_digit(c)) {
+                    printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
+                           line_num, col_num, c, char_num);
+                    exit(LEXER_ERROR_UNKNOWN_CHARACTER);
+                }
+
+                // Read until we hit another non-digit character
+                while (is_digit(c)) {
+                    sprintf(lexeme, "%s%c", lexeme, c);
+                    c = get_char(prog_buff);
+                }
+
+                unget_char();
+                emit_token(token_list, L_FLOAT, lexeme);
+                memset(lexeme, 0, sizeof(lexeme));
+            } else {
+                unget_char();
+                emit_token(token_list, L_INTEGER, lexeme);
+                memset(lexeme, 0, sizeof(lexeme));
+            }
         }
 
         else {

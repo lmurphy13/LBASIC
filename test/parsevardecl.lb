@@ -1,0 +1,9 @@
+int myint;
+float myfloat;
+string mystring;
+bool mybool;
+
+int myint2 := 13;
+float myfloat2 := 3.14;
+string mystring2 := "Hello world!";
+bool mybool2 := true;
