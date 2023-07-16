@@ -1,0 +1,12 @@
+func main() -> int
+then
+    int x := 0;
+
+    if (x < 1) then
+        println("Hello Liam");
+    end
+
+    println("Hello world!");
+
+    return 0;
+end

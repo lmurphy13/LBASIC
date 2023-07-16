@@ -39,6 +39,7 @@ static void print_node(node *n, int indent);
 static data_type keyword_to_type(token_type t);
 static void print_lookahead_debug(const char *msg);
 static bool is_builtin(const char *ident);
+static bool is_binop_symbol(token *t);
 
 // Grammar productions
 static vector *parse_statements(void);
@@ -51,15 +52,21 @@ static node *parse_ifelse_stmt(void);
 static node *parse_assign_expr(void);
 static node *parse_function_call_stmt(void);
 static node *parse_expression(void);
+static vector *parse_formals(void);
 static node *parse_function_decl(void);
 static node *parse_label_decl(void);
 static node *parse_var_decl(void);
 static node *parse_struct_decl(void);
 static node *parse_return_stmt(void);
 
-// Precedence rules
+/* Precedence rules
+ * + -
+ * * / %
+ */
 static node *parse_add_expr(void);
 static node *parse_mult_expr(void);
+
+// Same as a 'factor'. Here we parse primitives.
 static node *parse_primary_expr(void);
 
 static node *parse_identifier(void);
@@ -145,6 +152,26 @@ static bool is_builtin(const char *ident) {
     }
 
     return found;
+}
+
+static bool is_binop_symbol(token *t) {
+    bool ret = false;
+
+    if (t != NULL) {
+        switch (t->type) {
+        case T_PLUS:
+        case T_MINUS:
+        case T_MUL:
+        case T_DIV:
+        case T_MOD:
+            ret = true;
+            break;
+        default:
+            assert(0 && "Other binop symbol types not yet implemented");
+        }
+    }
+
+    return ret;
 }
 
 static void print_lookahead_debug(const char *msg) {
@@ -242,8 +269,7 @@ static node *parse_statement(bool *more) {
         printf("tmp literal: %s\n", tmp->literal);
 
         if (strcmp(tmp->literal, ":=") == 0) {
-            consume();
-            retval = parse_expression();
+            retval = parse_assign_expr();
             break;
         } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
@@ -277,9 +303,6 @@ static node *parse_statement(bool *more) {
     case T_STRUCT:
         retval = parse_struct_decl();
         break;
-    // case N_EXPR:
-    //     retval = parse_expression();
-    //     break;
     case T_LPAREN:
         retval = parse_expression();
         break;
@@ -293,6 +316,7 @@ static node *parse_statement(bool *more) {
     return retval;
 }
 
+// static node *parse_block_stmt() { return NULL; } //assert(0 && "Not yet implemented"); }
 static node *parse_block_stmt() { assert(0 && "Not yet implemented"); }
 static node *parse_for_stmt() { assert(0 && "Not yet implemented"); }
 static node *parse_while_stmt() { assert(0 && "Not yet implemented"); }
@@ -302,66 +326,90 @@ static node *parse_ifelse_stmt() { assert(0 && "Not yet implemented"); }
 // Addition and subtraction
 static node *parse_add_expr() {
     print_lookahead_debug("begin add_expr");
-    consume();
-    node *lhs = parse_mult_expr();
-    //    consume();
 
-    node *rhs;
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_mult_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
 
-    print_lookahead_debug("before +/- selection");
-    node *new_binop_add = mk_node(N_BINOP_EXPR);
     switch (lookahead.type) {
     case T_PLUS:
     case T_MINUS:
-        new_binop_add->data.bin_op_expr.operator= lookahead.type;
+        ttype = lookahead.type;
         break;
-        // syntax_error("+ or -", lookahead);
     }
-    // Consume operator
-    consume();
 
-    rhs = parse_mult_expr();
-    //    consume();
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_mult_expr(); // "Term"
 
-    new_binop_add->data.bin_op_expr.lhs = lhs;
-    new_binop_add->data.bin_op_expr.rhs = rhs;
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_add_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_add_expr(): e1 is NULL");
+        }
+    }
 
-    print_lookahead_debug("end mult_expr");
-
-    return new_binop_add;
+    return retval;
 }
 
 // Multiplication, division, and modulus
 static node *parse_mult_expr() {
     print_lookahead_debug("begin mult_expr");
-    //    consume();
 
-    // literal or identifier
-    node *lhs = parse_primary_expr();
-    //    consume();
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_primary_expr(); // "Factor"
+    node *e2         = NULL;
+    token_type ttype = -1;
 
-    node *rhs;
-
-    node *new_binop_primary = mk_node(N_BINOP_EXPR);
     switch (lookahead.type) {
     case T_MUL:
     case T_DIV:
     case T_MOD:
-        new_binop_primary->data.bin_op_expr.operator= lookahead.type;
+        ttype = lookahead.type;
         break;
-        // syntax_error("* or / or %", lookahead);
     }
-    // Consume operator
-    consume();
 
-    rhs = parse_primary_expr();
-    //    consume();
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_primary_expr(); // "Factor"
 
-    new_binop_primary->data.bin_op_expr.lhs = lhs;
-    new_binop_primary->data.bin_op_expr.rhs = rhs;
-    print_lookahead_debug("end mult_expr");
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_mult_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_mult_expr(): e1 is NULL");
+        }
+    }
 
-    return new_binop_primary;
+    return retval;
 }
 
 // Literals and grouping expressions
@@ -392,10 +440,16 @@ static node *parse_primary_expr() {
     case T_NIL:
         retval = parse_nil();
         break;
+    case T_LPAREN:
+        consume();
+        retval = parse_expression();
+        consume();
+        return retval;
+        break;
     }
 
     // Consume the literal or ident
-    //    consume();
+    consume();
     print_lookahead_debug("end primary_expr");
 
     return retval;
@@ -406,28 +460,211 @@ static node *parse_assign_expr() {
     node *retval = mk_node(N_ASSIGN_EXPR);
 
     if (retval != NULL) {
-        retval->data.assign_expr.lhs = parse_add_expr();
-
-        if (lookahead.type == T_ASSIGN) {
-            consume();
-            retval->data.assign_expr.rhs = parse_assign_expr();
+        // Identifier should be live in
+        if (lookahead.type == T_IDENT) {
+            retval->data.assign_expr.lhs = parse_identifier();
+        } else {
+            syntax_error("identifier", lookahead);
         }
+
+        // Consume identifier (ignoring arrays for now)
+        consume();
+
+        print_lookahead_debug("after consuming ident");
+
+        // Now we should be looking at an assignment operator
+        if (lookahead.type == T_ASSIGN) {
+            // Consume assignment
+            consume();
+        } else {
+            syntax_error(":=", lookahead);
+        }
+
+        print_lookahead_debug("before parsing RHS");
+
+        // Right hand side is an expression
+        retval->data.assign_expr.rhs = parse_expression();
     }
 
     return retval;
 }
 
 static node *parse_function_call_stmt() { assert(0 && "Not yet implemented"); }
-static node *parse_function_decl() { assert(0 && "Not yet implemented"); }
+
+static vector *parse_formals() {
+    bool repeat = true;
+    bool first  = true;
+
+    vector *retval = mk_vector();
+
+    node *formal = mk_node(N_FORMAL);
+    node *new    = {0};
+
+    // TODO: Optimize this do-while loop, like when parsing struct member decls.
+    do {
+        if (!first) {
+            new = mk_node(N_FORMAL);
+        }
+
+        // Lookahead should be a type
+        consume();
+
+        // Expecting an identifier
+        token *tmp = peek();
+
+        switch (lookahead.type) {
+        case T_INT:
+        case T_BOOL:
+        case T_STRING:
+        case T_FLOAT:
+            if (tmp->type != T_IDENT) {
+                syntax_error("identifier", *tmp);
+            }
+            break;
+        default:
+            // Didn't get a type
+            syntax_error("type", lookahead);
+        }
+
+        if (first) {
+            formal->data.formal.type = keyword_to_type(lookahead.type);
+        } else {
+            new->data.formal.type = keyword_to_type(lookahead.type);
+        }
+
+        // Now should be the identifier itself
+        consume();
+
+        if (first) {
+            memset(formal->data.formal.name, 0, MAX_LITERAL);
+            sprintf(formal->data.formal.name, "%s", lookahead.literal);
+            vector_add(retval, formal);
+        } else {
+            memset(new->data.formal.name, 0, MAX_LITERAL);
+            sprintf(new->data.formal.name, "%s", lookahead.literal);
+            vector_add(retval, new);
+        }
+
+        // Look for a ',' or ')'
+        tmp = peek();
+
+        // End of formals
+        if (tmp->type == T_RPAREN) {
+            repeat = false;
+            break;
+        }
+
+        // More formals
+        else if (tmp->type == T_COMMA) {
+            consume();
+            repeat = true;
+            first  = false;
+        }
+
+    } while (repeat);
+
+    return retval;
+}
+
+static node *parse_function_decl() {
+    node *retval = mk_node(N_FUNC_DECL);
+
+    if (retval != NULL) {
+        // Look for 'func'
+        if (lookahead.type == T_FUNC) {
+            consume();
+        } else {
+            syntax_error("func", lookahead);
+        }
+
+        // Look for identifier
+        if (lookahead.type == T_IDENT) {
+            snprintf(retval->data.function_decl.name, sizeof(retval->data.function_decl.name), "%s",
+                     lookahead.literal);
+            consume();
+        } else {
+            syntax_error("function name", lookahead);
+        }
+
+        // Look for formal args
+        if (lookahead.type == T_LPAREN) {
+            token *tok = peek();
+            if ((tok != NULL) && (tok->type == T_RPAREN)) {
+                // No args
+                retval->data.function_decl.formals = NULL;
+
+                // Consume '('
+                consume();
+
+                // Consume ')'
+                consume();
+            } else if (tok != NULL) {
+                // Maybe we have some formals
+                retval->data.function_decl.formals = parse_formals();
+            }
+        } else {
+            syntax_error("(", lookahead);
+        }
+
+        // Look for type arrow
+        if (lookahead.type == T_OFTYPE) {
+            consume();
+        } else {
+            syntax_error("->", lookahead);
+        }
+
+        // Look for type
+        switch (lookahead.type) {
+        case T_INT:
+        case T_FLOAT:
+        case T_BOOL:
+        case T_STRING:
+        case T_VOID:
+            retval->data.function_decl.type = keyword_to_type(lookahead.type);
+            break;
+        default:
+            syntax_error("type declaration", lookahead);
+            break;
+        }
+
+        consume();
+
+        // Look for 'then'
+        if (lookahead.type == T_THEN) {
+            // If we have one, parse the function body
+            retval->data.function_decl.body = parse_block_stmt();
+        } else {
+            syntax_error("then", lookahead);
+        }
+
+        // Parse the end token and we're done
+        if (lookahead.type == T_END) {
+            consume();
+        } else {
+            syntax_error("end", lookahead);
+        }
+
+        print_lookahead_debug("here");
+    }
+
+    return retval;
+}
 
 static node *parse_expression() {
     struct node *retval;
 
     switch (lookahead.type) {
+    case T_IDENT:
+    case L_INTEGER:
+    case L_FLOAT:
+    case T_LPAREN:
+        retval = parse_add_expr();
+        break;
     case T_ASSIGN:
         retval = parse_assign_expr();
         break;
     default:
+        print_lookahead_debug("default parse_expr()");
         assert(0 && "Expression type not yet implemented");
     }
 
@@ -455,44 +692,53 @@ static node *parse_var_decl() {
         consume();
         // Look for the assignment
         if (lookahead.type == T_ASSIGN) {
+
+            // Consume assignment
+            consume();
             retval->data.var_decl.value = parse_expression();
-        }
 
-        // If we don't immediately assign a value, set a default based upon the type
-        if (lookahead.type == T_SEMICOLON) {
-            node *val_default = NULL;
-            switch (retval->data.var_decl.type) {
-            case D_INTEGER:
-                val_default                             = mk_node(N_INTEGER_LITERAL);
-                val_default->data.integer_literal.value = 0;
-                break;
-            case D_FLOAT:
-                val_default                           = mk_node(N_FLOAT_LITERAL);
-                val_default->data.float_literal.value = 0.0;
-                break;
-            case D_STRING:
-                val_default = mk_node(N_STRING_LITERAL);
-                // Empty string
-                memset(val_default->data.string_literal.value, 0,
-                       sizeof(val_default->data.string_literal.value));
-                snprintf(val_default->data.string_literal.value,
-                         sizeof(val_default->data.string_literal.value), "%s", "");
-                break;
-            case D_BOOLEAN:
-                val_default                          = mk_node(N_BOOL_LITERAL);
-                val_default->data.bool_literal.value = 0; // false
-                strncpy(val_default->data.bool_literal.str_val, "false", sizeof("false"));
-                break;
-            default:
-                syntax_error("Unknown literal type", lookahead);
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error("; after expression", lookahead);
             }
-
-            retval->data.var_decl.value = val_default;
-
-            // Consume next token and we're done
+            // Consume the semicolon
             consume();
         } else {
-            syntax_error(";", lookahead);
+            // If we don't immediately assign a value, set a default based upon the type
+            if (lookahead.type == T_SEMICOLON) {
+                node *val_default = NULL;
+                switch (retval->data.var_decl.type) {
+                case D_INTEGER:
+                    val_default                             = mk_node(N_INTEGER_LITERAL);
+                    val_default->data.integer_literal.value = 0;
+                    break;
+                case D_FLOAT:
+                    val_default                           = mk_node(N_FLOAT_LITERAL);
+                    val_default->data.float_literal.value = 0.0;
+                    break;
+                case D_STRING:
+                    val_default = mk_node(N_STRING_LITERAL);
+                    // Empty string
+                    memset(val_default->data.string_literal.value, 0,
+                           sizeof(val_default->data.string_literal.value));
+                    snprintf(val_default->data.string_literal.value,
+                             sizeof(val_default->data.string_literal.value), "%s", "");
+                    break;
+                case D_BOOLEAN:
+                    val_default                          = mk_node(N_BOOL_LITERAL);
+                    val_default->data.bool_literal.value = 0; // false
+                    strncpy(val_default->data.bool_literal.str_val, "false", sizeof("false"));
+                    break;
+                default:
+                    syntax_error("Unknown literal type", lookahead);
+                }
+
+                retval->data.var_decl.value = val_default;
+
+                // Consume next token and we're done
+                consume();
+            } else {
+                syntax_error("; after empty declaration", lookahead);
+            }
         }
     }
 
@@ -503,6 +749,7 @@ static node *parse_struct_decl() { assert(0 && "Not yet implemented"); }
 static node *parse_return_stmt() { assert(0 && "Not yet implemented"); }
 static node *parse_identifier() {
     node *retval = mk_node(N_IDENT);
+    print_lookahead_debug("parse_identifier");
 
     if (retval != NULL) {
         if (lookahead.type == T_IDENT) {
@@ -511,7 +758,6 @@ static node *parse_identifier() {
             snprintf(retval->data.identifier.name, sizeof(retval->data.identifier.name), "%s",
                      lookahead.literal);
 
-            consume();
         } else {
             syntax_error("identifier", lookahead);
         }
@@ -524,6 +770,7 @@ static node *parse_string_literal() {
 
     if (retval != NULL) {
         if (lookahead.type == L_STR) {
+            print_lookahead_debug("inside parse_string_literal");
             memset(retval->data.string_literal.value, 0, sizeof(retval->data.string_literal.value));
             snprintf(retval->data.string_literal.value,
                      sizeof(retval->data.string_literal.value) - 1, "%s", lookahead.literal);
@@ -628,6 +875,29 @@ static const char *type_to_str(data_type t) {
         break;
     case D_NIL:
         return "NIL";
+        break;
+    default:
+        return "UNKNOWN";
+        break;
+    }
+}
+
+static const char *binop_to_str(token_type t) {
+    switch (t) {
+    case T_PLUS:
+        return "+";
+        break;
+    case T_MINUS:
+        return "-";
+        break;
+    case T_MUL:
+        return "*";
+        break;
+    case T_DIV:
+        return "/";
+        break;
+    case T_MOD:
+        return "%";
         break;
     default:
         return "UNKNOWN";
@@ -862,11 +1132,34 @@ static void print_node(node *n, int indent) {
         print_node(n->data.bin_op_expr.lhs, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
+        print_indent(indent + INDENT_WIDTH);
+        printf("Operator: %s\n", binop_to_str(n->data.bin_op_expr.operator));
+
+        print_indent(indent + INDENT_WIDTH);
         printf("RHS: \n");
         indent += INDENT_WIDTH;
         print_node(n->data.bin_op_expr.rhs, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_ASSIGN_EXPR:
+        printf("AssignExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("LHS: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.assign_expr.lhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("RHS: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.assign_expr.rhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
         printf("),\n");
         break;
     default:

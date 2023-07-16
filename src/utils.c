@@ -65,6 +65,8 @@ void vector_add(vector *vec, void *data) {
 
             vec->count++;
 
+            printf("added new vector element\n");
+
         } else {
             log_error("Cannot add NULL data to vector");
             exit(1);
