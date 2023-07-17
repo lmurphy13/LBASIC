@@ -42,19 +42,19 @@ static bool is_builtin(const char *ident);
 static bool is_binop_symbol(token *t);
 
 // Grammar productions
-static vector *parse_statements(void);
-static node *parse_statement(bool *more);
-static node *parse_block_stmt(void);
+static vector *parse_statements(void);          // done
+static node *parse_statement(bool *more);       // done
+static node *parse_block_stmt(void);            // done
 static node *parse_for_stmt(void);
-static node *parse_while_stmt(void);
-static node *parse_if_stmt(void);
-static node *parse_assign_expr(void);
+static node *parse_while_stmt(void);            // done
+static node *parse_if_stmt(void);               // done
+static node *parse_assign_expr(void);           // done
 static node *parse_function_call_stmt(void);
-static node *parse_expression(void);
-static vector *parse_formals(void);
-static node *parse_function_decl(void);
+static node *parse_expression(void);            // done
+static vector *parse_formals(void);             // done
+static node *parse_function_decl(void);         // done
 static node *parse_label_decl(void);
-static node *parse_var_decl(void);
+static node *parse_var_decl(void);              // done
 static node *parse_struct_decl(void);
 static node *parse_return_stmt(void);
 
@@ -65,20 +65,20 @@ static node *parse_return_stmt(void);
  * + -
  * * / %
  */
-static node *parse_and_expr(void);
-static node *parse_not_expr(void);
-static node *parse_compare_expr(void);
-static node *parse_add_expr(void);
-static node *parse_mult_expr(void);
+static node *parse_and_expr(void);              // done
+static node *parse_not_expr(void);              // done
+static node *parse_compare_expr(void);          // done
+static node *parse_add_expr(void);              // done
+static node *parse_mult_expr(void);             // done
 // Same as a 'factor'. Here we parse primitives.
-static node *parse_primary_expr(void);
+static node *parse_primary_expr(void);          // done
 
-static node *parse_identifier(void);
-static node *parse_string_literal(void);
-static node *parse_integer_literal(void);
-static node *parse_float_literal(void);
-static node *parse_bool_literal(void);
-static node *parse_nil(void);
+static node *parse_identifier(void);            // done
+static node *parse_string_literal(void);        // done
+static node *parse_integer_literal(void);       // done
+static node *parse_float_literal(void);         // done
+static node *parse_bool_literal(void);          // done
+static node *parse_nil(void);                   // done
 
 node *mk_node(n_type type) {
     node *retval = (node *)malloc(sizeof(node));
@@ -179,6 +179,7 @@ static bool is_binop_symbol(token *t) {
 }
 
 static void print_lookahead_debug(const char *msg) {
+#ifdef DEBUG
     if (strlen(msg) > 0) {
         printf("Msg: %s\n", msg);
     }
@@ -186,6 +187,7 @@ static void print_lookahead_debug(const char *msg) {
     printf("Lookahead literal: %s\n", lookahead.literal);
     printf("Line: %d\n", lookahead.line);
     printf("Column: %d\n", lookahead.col);
+#endif
 }
 
 // Recursive descent
@@ -287,8 +289,14 @@ static node *parse_statement(bool *more) {
                    (strcmp(tmp->literal, "!=") == 0)) {
             retval = parse_expression(); // binop exprs when dealing with variables
             break;
+        } else if (strcmp(tmp->literal, ";") == 0) {
+            // Maybe we'll make this a no-op situation, but for now just raise an error
+            char str[1024] = { '\0' };
+            snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)", lookahead.literal, tmp->literal, tmp->line, tmp->col);
+            log_error(str);
+
         } else {
-            printf("Parser Error: Unknown case when encountering N_IDENT\n");
+            log_error("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
         }
     }
@@ -340,7 +348,49 @@ static node *parse_block_stmt() {
 }
 
 static node *parse_for_stmt() { assert(0 && "Not yet implemented"); }
-static node *parse_while_stmt() { assert(0 && "Not yet implemented"); }
+
+// <while-stmt> := 'while' '(' <expression> ')' <block-stmt> 'end'
+static node *parse_while_stmt() {
+    node *retval = mk_node(N_WHILE_STMT);
+
+    if (retval != NULL) {
+        // Parse 'while'
+        if (lookahead.type != T_WHILE) {
+            syntax_error("while", lookahead);
+        }
+        // Consume while
+        consume();
+
+        // Parse beginning of test '('
+        if (lookahead.type != T_LPAREN) {
+            syntax_error("(", lookahead);
+        }
+        // Consume (
+        consume();
+
+        // Parse expression
+        retval->data.while_stmt.test = parse_expression();
+
+        // Parse ending ')'
+        if (lookahead.type != T_RPAREN) {
+            syntax_error(")", lookahead);
+        }
+        // Consume )
+        consume();
+
+        // Parse body
+        retval->data.while_stmt.body = parse_block_stmt();
+
+        // Look for 'end'
+        if (lookahead.type != T_END) {
+            syntax_error("end", lookahead);
+        } else {
+            consume();
+        }
+    }
+
+    return retval;
+}
 
 // <if-stmt> := 'if' '(' <expression> ')' <block-stmt> ('else' 'then' <block-stmt>)? 'end'
 static node *parse_if_stmt() {
@@ -819,13 +869,13 @@ static node *parse_function_decl() {
                 // consume the (
                 // consume();
                 retval->data.function_decl.formals = parse_formals();
+
+                // Consume the ')' at the end of the formals list
+                consume();
             }
         } else {
             syntax_error("(", lookahead);
         }
-
-        // Consume the ')' at the end of the formals list
-        consume();
 
         // Look for type arrow
         if (lookahead.type == T_OFTYPE) {
@@ -974,7 +1024,33 @@ static node *parse_var_decl() {
 }
 
 static node *parse_struct_decl() { assert(0 && "Not yet implemented"); }
-static node *parse_return_stmt() { assert(0 && "Not yet implemented"); }
+
+// 'return' <expression> ';'
+static node *parse_return_stmt() {
+    node *retval = mk_node(N_RETURN_STMT);
+
+    if (retval != NULL) {
+        // Look for 'return'
+        if (lookahead.type != T_RETURN) {
+            syntax_error("return", lookahead);
+        } else {
+            consume();
+
+            retval->data.return_stmt.expr = parse_expression();
+
+            // Look for ;
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error("; after return expression", lookahead);
+            }
+
+            // Consume it
+            consume();
+        }
+    }
+
+    return retval;
+}
+
 static node *parse_identifier() {
     node *retval = mk_node(N_IDENT);
     print_lookahead_debug("parse_identifier");
@@ -999,6 +1075,7 @@ static node *parse_string_literal() {
     if (retval != NULL) {
         if (lookahead.type == L_STR) {
             print_lookahead_debug("inside parse_string_literal");
+            retval->data.string_literal.type = D_STRING;
             memset(retval->data.string_literal.value, 0, sizeof(retval->data.string_literal.value));
             snprintf(retval->data.string_literal.value,
                      sizeof(retval->data.string_literal.value) - 1, "%s", lookahead.literal);
@@ -1016,6 +1093,7 @@ static node *parse_integer_literal() {
     node *retval = mk_node(N_INTEGER_LITERAL);
 
     if (retval != NULL) {
+        retval->data.integer_literal.type = D_INTEGER;
         retval->data.integer_literal.value = atoi(lookahead.literal);
     }
 
@@ -1026,6 +1104,7 @@ static node *parse_float_literal() {
     node *retval = mk_node(N_FLOAT_LITERAL);
 
     if (retval != NULL) {
+        retval->data.float_literal.type = D_FLOAT;
         retval->data.float_literal.value = atof(lookahead.literal);
     }
 
@@ -1036,6 +1115,7 @@ static node *parse_bool_literal() {
 
     if (retval != NULL) {
         if (lookahead.type == T_TRUE || lookahead.type == T_FALSE) {
+            retval->data.bool_literal.type = D_BOOLEAN;
             memset(retval->data.bool_literal.str_val, 0, sizeof(retval->data.bool_literal.str_val));
             snprintf(retval->data.bool_literal.str_val, sizeof(retval->data.bool_literal.str_val),
                      "%s", lookahead.literal);
@@ -1217,10 +1297,10 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + INDENT_WIDTH);
-        printf("Formals { ");
+        printf("Formals ( ");
         indent += INDENT_WIDTH;
         if (n->data.function_decl.formals == NULL) {
-            printf("None }\n");
+            printf("None )\n");
         } else {
             printf("\n");
             vecnode *fn = n->data.function_decl.formals->head;
@@ -1232,7 +1312,7 @@ static void print_node(node *n, int indent) {
             }
 
             print_indent(indent);
-            printf("}\n");
+            printf(")\n");
         }
         // Print FuncDecl body
         print_indent(indent);
@@ -1257,6 +1337,15 @@ static void print_node(node *n, int indent) {
         */
         print_indent(indent);
         printf("),\n");
+        break;
+    case N_RETURN_STMT:
+        printf("ReturnStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expression: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.return_stmt.expr);
+        in
+
         break;
     case N_STRUCT_DECL:
         printf("StructDecl (\n");
@@ -1327,12 +1416,16 @@ static void print_node(node *n, int indent) {
     case N_INTEGER_LITERAL:
         printf("IntegerLiteral (\n");
         print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.integer_literal.type));
+        print_indent(indent + INDENT_WIDTH);
         printf("Value: %d\n", n->data.integer_literal.value);
         print_indent(indent);
         printf(")\n");
         break;
     case N_FLOAT_LITERAL:
         printf("FloatLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.float_literal.type));
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %f\n", n->data.float_literal.value);
         print_indent(indent);
@@ -1341,12 +1434,16 @@ static void print_node(node *n, int indent) {
     case N_STRING_LITERAL:
         printf("StringLiteral (\n");
         print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.string_literal.type));
+        print_indent(indent + INDENT_WIDTH);
         printf("Value: %s\n", n->data.string_literal.value);
         print_indent(indent);
         printf(")\n");
         break;
     case N_BOOL_LITERAL:
         printf("BoolLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.bool_literal.type));
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %d\n", n->data.bool_literal.value);
         print_indent(indent + INDENT_WIDTH);
@@ -1402,10 +1499,17 @@ static void print_node(node *n, int indent) {
     case N_WHILE_STMT:
         printf("WhileStmt (\n");
         print_indent(indent + INDENT_WIDTH);
-        printf("Expression: \n");
+        printf("Test: \n");
 
         indent += INDENT_WIDTH;
         print_node(n->data.while_stmt.test, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Body: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.while_stmt.body, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
         print_indent(indent);
@@ -1492,7 +1596,7 @@ void print_ast(node *ast) {
 
         // Print children
         print_indent(indent);
-        printf("Statements {\n");
+        printf("Statements (\n");
         indent += INDENT_WIDTH;
         vecnode *vn = ast->data.program.statements->head;
         while (vn->next != NULL) {
@@ -1504,7 +1608,7 @@ void print_ast(node *ast) {
 
         indent -= INDENT_WIDTH;
         print_indent(indent);
-        printf("}\n");
+        printf(")\n");
     }
 
     indent -= INDENT_WIDTH;

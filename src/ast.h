@@ -170,18 +170,22 @@ typedef struct return_stmt_s {
 } return_stmt_t;
 
 typedef struct integer_literal_s {
+    data_type type;
     int value;
 } integer_literal_t;
 
 typedef struct float_literal_s {
+    data_type type;
     float value;
 } float_literal_t;
 
 typedef struct string_literal_s {
+    data_type type;
     char value[MAX_LITERAL + 1]; // we'll be nice and make these null-terminated
 } string_literal_t;
 
 typedef struct bool_literal_s {
+    data_type type;
     char str_val[6]; // enough space to fit "false" plus null terminator
     char value;      // 0 or 1
 } bool_literal_t;
