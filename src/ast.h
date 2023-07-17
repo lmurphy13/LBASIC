@@ -25,7 +25,6 @@ typedef enum n_type {
     N_FOR_STMT,
     N_WHILE_STMT,
     N_IF_STMT,
-    N_IFELSE_STMT,
     N_RETURN_STMT,
     N_ASSIGN_EXPR,
     N_EXPR_LIST,
@@ -36,6 +35,7 @@ typedef enum n_type {
     N_GOTO_EXPR,
     N_CALL_EXPR,
     N_AND_EXPR,
+    N_NEG_EXPR,
     N_NOT_EXPR,
     N_COMPARE_EXPR,
     N_ADD_EXPR,
@@ -90,6 +90,14 @@ typedef struct literal_s {
         char stringval[MAX_LITERAL];
     } value;
 } literal_t;
+
+typedef struct neg_expr_s {
+    struct node *expr;
+} neg_expr_t;
+
+typedef struct not_expr_s {
+    struct node *expr;
+} not_expr_t;
 
 typedef struct bin_op_expr_s {
     struct node *lhs;
@@ -148,8 +156,14 @@ typedef struct struct_decl_s {
 
 typedef struct while_stmt_s {
     struct node *test;
-    vector *body;
+    struct node *body;
 } while_stmt_t;
+
+typedef struct if_stmt_s {
+    struct node *test;
+    struct node *body;
+    struct node *else_stmt;
+} if_stmt_t;
 
 typedef struct return_stmt_s {
     struct node *expr;
@@ -189,8 +203,11 @@ typedef struct node {
         literal_t literal;
         block_stmt_t block_stmt;
         while_stmt_t while_stmt;
+        if_stmt_t if_stmt;
         return_stmt_t return_stmt;
         assign_expr_t assign_expr;
+        neg_expr_t neg_expr;
+        not_expr_t not_expr;
         bin_op_expr_t bin_op_expr;
         goto_expr_t goto_expr;
         call_expr_t call_expr;

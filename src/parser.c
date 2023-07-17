@@ -48,7 +48,6 @@ static node *parse_block_stmt(void);
 static node *parse_for_stmt(void);
 static node *parse_while_stmt(void);
 static node *parse_if_stmt(void);
-static node *parse_ifelse_stmt(void);
 static node *parse_assign_expr(void);
 static node *parse_function_call_stmt(void);
 static node *parse_expression(void);
@@ -59,13 +58,18 @@ static node *parse_var_decl(void);
 static node *parse_struct_decl(void);
 static node *parse_return_stmt(void);
 
-/* Precedence rules
+/* Precedence rules, lowest to highest
+ * && ||
+ * !
+ * == != > >= < <=
  * + -
  * * / %
  */
+static node *parse_and_expr(void);
+static node *parse_not_expr(void);
+static node *parse_compare_expr(void);
 static node *parse_add_expr(void);
 static node *parse_mult_expr(void);
-
 // Same as a 'factor'. Here we parse primitives.
 static node *parse_primary_expr(void);
 
@@ -257,9 +261,6 @@ static node *parse_statement(bool *more) {
     case T_IF:
         retval = parse_if_stmt();
         break;
-    case N_IFELSE_STMT:
-        retval = parse_ifelse_stmt();
-        break;
     case T_FUNC:
         retval = parse_function_decl();
         break;
@@ -277,7 +278,8 @@ static node *parse_statement(bool *more) {
         } else if (strcmp(tmp->literal, "(") == 0) {
             retval = parse_function_call_stmt();
             break;
-        } else if ((strcmp(tmp->literal, "+") == 0) || (strcmp(tmp->literal, "-") == 0) ||
+        } else if ((strcmp(tmp->literal, "and") == 0) || (strcmp(tmp->literal, "or") == 0) ||
+                   (strcmp(tmp->literal, "+") == 0) || (strcmp(tmp->literal, "-") == 0) ||
                    (strcmp(tmp->literal, "*") == 0) || (strcmp(tmp->literal, "/") == 0) ||
                    (strcmp(tmp->literal, "%") == 0) || (strcmp(tmp->literal, ">") == 0) ||
                    (strcmp(tmp->literal, "<") == 0) || (strcmp(tmp->literal, ">=") == 0) ||
@@ -316,12 +318,215 @@ static node *parse_statement(bool *more) {
     return retval;
 }
 
-// static node *parse_block_stmt() { return NULL; } //assert(0 && "Not yet implemented"); }
-static node *parse_block_stmt() { assert(0 && "Not yet implemented"); }
+// <block-stmt> := 'then' <statements>
+static node *parse_block_stmt() {
+    node *retval = mk_node(N_BLOCK_STMT);
+
+    if (retval != NULL) {
+        // Look for 'then'
+        if (lookahead.type == T_THEN) {
+            // Consume it
+            consume();
+        } else {
+            syntax_error("then", lookahead);
+        }
+
+        // Parse statements until we hit 'end'
+        // NOTE: There will be nested 'end's (if's, loops)
+        retval->data.block_stmt.statements = parse_statements();
+    }
+
+    return retval;
+}
+
 static node *parse_for_stmt() { assert(0 && "Not yet implemented"); }
 static node *parse_while_stmt() { assert(0 && "Not yet implemented"); }
-static node *parse_if_stmt() { assert(0 && "Not yet implemented"); }
-static node *parse_ifelse_stmt() { assert(0 && "Not yet implemented"); }
+
+// <if-stmt> := 'if' '(' <expression> ')' <block-stmt> ('else' 'then' <block-stmt>)? 'end'
+static node *parse_if_stmt() {
+    node *retval = mk_node(N_IF_STMT);
+
+    if (retval != NULL) {
+        // Parse 'if'
+        if (lookahead.type != T_IF) {
+            syntax_error("if", lookahead);
+        }
+        // Consume if
+        consume();
+
+        // Parse beginning of test '('
+        if (lookahead.type != T_LPAREN) {
+            syntax_error("(", lookahead);
+        }
+        // Consume (
+        consume();
+
+        // Parse expression
+        retval->data.if_stmt.test = parse_expression();
+
+        // Parse ending ')'
+        if (lookahead.type != T_RPAREN) {
+            syntax_error(")", lookahead);
+        }
+        // Consume )
+        consume();
+
+        // Parse body
+        retval->data.if_stmt.body = parse_block_stmt();
+
+        // If we see an 'end' token, there will be no 'else'
+        if (lookahead.type == T_END) {
+            retval->data.if_stmt.else_stmt = NULL;
+            consume();
+        } else if (lookahead.type == T_ELSE) {
+            consume();
+            retval->data.if_stmt.else_stmt = parse_block_stmt();
+
+            if (lookahead.type == T_END) {
+                consume();
+            } else {
+                syntax_error("end", lookahead);
+            }
+        } else {
+            syntax_error("else or end", lookahead);
+        }
+    }
+
+    return retval;
+}
+
+// <if-stmt> := 'if' '(' <expression> ')' 'then' <stmts> ('else' <if-stmt>)* <end>
+// To handle the else-if we have to do this a bit differently
+
+// And and Or
+static node *parse_and_expr() {
+    print_lookahead_debug("begin and_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_not_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_AND:
+    case T_OR:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_not_expr(); // "Term"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_and_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_and_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
+
+// Negation and unary minus
+static node *parse_not_expr() {
+    print_lookahead_debug("begin not_expr");
+
+    node *retval = NULL;
+
+    // Look for !
+    if (lookahead.type == T_BANG) {
+        print_lookahead_debug("found !");
+        // Consume it
+        consume();
+
+        // Parse the expression
+        retval = mk_node(N_NOT_EXPR);
+        if (retval != NULL) {
+            retval->data.not_expr.expr = parse_expression();
+        } else {
+            log_error("Unable to create N_NOT_EXPR node");
+        }
+    } else if (lookahead.type == T_MINUS) {
+        consume();
+        print_lookahead_debug("found -");
+        // Parse the expr
+        retval = mk_node(N_NEG_EXPR);
+        if (retval != NULL) {
+            retval->data.neg_expr.expr = parse_expression();
+        } else {
+            log_error("Unable to create N_NEG_EXPR node");
+        }
+    } else {
+        print_lookahead_debug("did not find !");
+        // If we didn't find a !, continue to parse.
+        retval = parse_compare_expr();
+    }
+
+    return retval;
+}
+
+// Comparisons (relational)
+static node *parse_compare_expr() {
+    print_lookahead_debug("begin compare_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_add_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_EQ:
+    case T_NE:
+    case T_GT:
+    case T_GE:
+    case T_LT:
+    case T_LE:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_add_expr(); // "Term"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_add_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_add_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
 
 // Addition and subtraction
 static node *parse_add_expr() {
@@ -484,6 +689,14 @@ static node *parse_assign_expr() {
 
         // Right hand side is an expression
         retval->data.assign_expr.rhs = parse_expression();
+
+        print_lookahead_debug("after parsing RHS");
+
+        if (lookahead.type == T_SEMICOLON) {
+            consume();
+        } else {
+            syntax_error(";", lookahead);
+        }
     }
 
     return retval;
@@ -492,6 +705,7 @@ static node *parse_assign_expr() {
 static node *parse_function_call_stmt() { assert(0 && "Not yet implemented"); }
 
 static vector *parse_formals() {
+    print_lookahead_debug("inside parse_formals()");
     bool repeat = true;
     bool first  = true;
 
@@ -506,8 +720,8 @@ static vector *parse_formals() {
             new = mk_node(N_FORMAL);
         }
 
-        // Lookahead should be a type
         consume();
+        // Lookahead is now a type
 
         // Expecting an identifier
         token *tmp = peek();
@@ -550,6 +764,7 @@ static vector *parse_formals() {
 
         // End of formals
         if (tmp->type == T_RPAREN) {
+            consume();
             repeat = false;
             break;
         }
@@ -600,11 +815,17 @@ static node *parse_function_decl() {
                 consume();
             } else if (tok != NULL) {
                 // Maybe we have some formals
+
+                // consume the (
+                // consume();
                 retval->data.function_decl.formals = parse_formals();
             }
         } else {
             syntax_error("(", lookahead);
         }
+
+        // Consume the ')' at the end of the formals list
+        consume();
 
         // Look for type arrow
         if (lookahead.type == T_OFTYPE) {
@@ -652,13 +873,20 @@ static node *parse_function_decl() {
 
 static node *parse_expression() {
     struct node *retval;
+    print_lookahead_debug("begin parse_expr()");
 
     switch (lookahead.type) {
     case T_IDENT:
     case L_INTEGER:
     case L_FLOAT:
+    case L_STR:
+    case T_TRUE:
+    case T_FALSE:
     case T_LPAREN:
-        retval = parse_add_expr();
+    case T_BANG:
+    case T_MINUS:
+        // Entry point into arithmetic expressions and booleans
+        retval = parse_and_expr();
         break;
     case T_ASSIGN:
         retval = parse_assign_expr();
@@ -823,8 +1051,6 @@ static node *parse_nil() {
     if (retval != NULL) {
         if (lookahead.type == T_NIL) {
             retval->data.nil.value = 0; // ALWAYS zero
-
-            consume();
         } else {
             syntax_error("nil", lookahead);
         }
@@ -899,6 +1125,30 @@ static const char *binop_to_str(token_type t) {
     case T_MOD:
         return "%";
         break;
+    case T_AND:
+        return "and";
+        break;
+    case T_OR:
+        return "or";
+        break;
+    case T_EQ:
+        return "==";
+        break;
+    case T_NE:
+        return "!=";
+        break;
+    case T_GT:
+        return ">";
+        break;
+    case T_GE:
+        return ">=";
+        break;
+    case T_LT:
+        return "<";
+        break;
+    case T_LE:
+        return "<=";
+        break;
     default:
         return "UNKNOWN";
         break;
@@ -921,6 +1171,22 @@ static void print_node(node *n, int indent) {
     switch (n->type) {
     case N_PROGRAM:
         printf("Program (\n");
+        break;
+    case N_BLOCK_STMT:
+        printf("BlockStmt (\n");
+
+        indent += INDENT_WIDTH;
+        vecnode *bn = n->data.block_stmt.statements->head;
+        while (bn->next != NULL) {
+            node *n = bn->data;
+            print_node(n, indent);
+
+            bn = bn->next;
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("),\n");
         break;
     case N_VAR_DECL:
         printf("VarDecl (\n");
@@ -951,36 +1217,29 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + INDENT_WIDTH);
-        printf("Formals {\n");
-
+        printf("Formals { ");
         indent += INDENT_WIDTH;
-        vecnode *f = n->data.function_decl.formals->head;
-        if (f != NULL) {
-            printf("\n");
-            while (f != NULL) {
-                print_node(f->data, indent + INDENT_WIDTH);
-                f = f->next;
-            }
+        if (n->data.function_decl.formals == NULL) {
+            printf("None }\n");
         } else {
-            printf("None\n");
+            printf("\n");
+            vecnode *fn = n->data.function_decl.formals->head;
+
+            while (fn != NULL) {
+                node *n = fn->data;
+                print_node(n, indent + INDENT_WIDTH);
+                fn = fn->next;
+            }
+
+            print_indent(indent);
+            printf("}\n");
         }
-
-        print_indent(indent);
-        printf("}\n");
-
         // Print FuncDecl body
         print_indent(indent);
-        printf("Body {\n");
+        printf("Body:\n");
 
-        vecnode *vn = n->data.function_decl.body->data.block_stmt.statements->head;
-        while (vn->next != NULL) {
-            print_node(vn->data, indent + INDENT_WIDTH);
-
-            vn = vn->next;
-        }
-
-        print_indent(indent);
-        printf("}\n");
+        print_node(n->data.function_decl.body, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
 
         /*
                 print_indent(indent);
@@ -996,6 +1255,7 @@ static void print_node(node *n, int indent) {
 
                 print_indent(indent);
         */
+        print_indent(indent);
         printf("),\n");
         break;
     case N_STRUCT_DECL:
@@ -1108,6 +1368,37 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_IF_STMT:
+        printf("IfStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Test: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.if_stmt.test, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Body: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.if_stmt.body, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Else: ");
+
+        if (n->data.if_stmt.else_stmt == NULL) {
+            printf("None \n");
+        } else {
+            printf("\n");
+            indent += INDENT_WIDTH;
+            print_node(n->data.if_stmt.else_stmt, indent + INDENT_WIDTH);
+            indent -= INDENT_WIDTH;
+        }
+
+        print_indent(indent);
+        printf("),\n");
+        break;
     case N_WHILE_STMT:
         printf("WhileStmt (\n");
         print_indent(indent + INDENT_WIDTH);
@@ -1122,6 +1413,30 @@ static void print_node(node *n, int indent) {
         break;
     case N_EMPTY_EXPR:
         printf("EmptyExpr (),\n");
+        break;
+    case N_NEG_EXPR:
+        printf("NegExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expr: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.neg_expr.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf(")\n");
+        break;
+    case N_NOT_EXPR:
+        printf("NotExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expr: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.not_expr.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf(")\n");
         break;
     case N_BINOP_EXPR:
         printf("BinOpExpr (\n");

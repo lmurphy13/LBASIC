@@ -40,9 +40,14 @@ t_list *lex(const char *path) {
     char *prog_buff = input_file(path);
 
     if (prog_buff != NULL) {
-        debug_msg(prog_buff);
+        printf("%s", (prog_buff));
+        printf("=================================\n");
 
         token_list = t_list_new();
+
+        if (token_list == NULL) {
+            log_error("Unable to allocate memory for token_list");
+        }
 
         tokenize(prog_buff);
     }
@@ -57,24 +62,27 @@ t_list *lex(const char *path) {
 // Takes a file path and returns a buffer containing the contents of the file at path
 static char *input_file(const char *path) {
     FILE *fp     = fopen(path, "r");
-    char *buffer = {"\0"};
+    char *buffer = NULL;
 
     if (fp != NULL) {
         // Get file size
         fseek(fp, 0, SEEK_END);
         const size_t file_size = ftell(fp);
+        printf("file size: %d\n", file_size);
 
         // Seek back to the beginning of the file
-        fseek(fp, 0, SEEK_SET);
+        rewind(fp);
 
         // Allocate the buffer. Freed in lex()
-        buffer = (char *)malloc(sizeof(char) * file_size);
+        buffer = (char *)malloc(file_size + 1);
 
-        // Copy the file contents into the buffer
-        fread(buffer, file_size, 1, fp);
+        if (buffer != NULL) {
+            // Copy the file contents into the buffer
+            fread(buffer, 1, file_size, fp);
 
-        // Append \0 to end of buffer
-        strncat(buffer, "\0", strlen("\0"));
+            // Append \0 to end of buffer
+            buffer[file_size] = '\0';
+        }
 
         fclose(fp);
     } else {
@@ -143,6 +151,7 @@ static bool check_singles(char c) {
     // Intentional fallthrough
     case '<':
     case '>':
+    case '=':
     case '!':
     case ':':
     case '-':
@@ -181,7 +190,7 @@ static void unget_char() { char_num--; }
 
 static void tokenize(char *prog_buff) {
     static int state = 0;
-    char c;
+    char c           = 0;
     char lexeme[MAX_LITERAL];
     token_type tmp;
 
@@ -247,6 +256,14 @@ static void tokenize(char *prog_buff) {
 
             else {
                 switch (c) {
+                case '=':
+                    c = get_char(prog_buff);
+                    if (c == '=') {
+                        emit_token(token_list, T_EQ, "==");
+                    } else {
+                        unget_char();
+                    }
+                    break;
                 case '<':
                     c = get_char(prog_buff);
                     if (c == '=') {
@@ -269,15 +286,29 @@ static void tokenize(char *prog_buff) {
                     c = get_char(prog_buff);
                     if (c == '=') {
                         emit_token(token_list, T_NE, "!=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_BANG, "!");
                     }
                     break;
                 case '-':
                     c = get_char(prog_buff);
-                    if (c == '>') {
-                        emit_token(token_list, T_OFTYPE, "->");
+                    // Are we a number?
+                    if (is_digit(c)) {
+                        // Append '-' to lexeme
+                        col_num++;
+                        sprintf(lexeme, "%s%c", lexeme, '-');
+                        goto lex_num;
+                        // Yes, using a goto is bad, but it's the easiest way to
+                        // directly parse a negative number with atoi or atof if we
+                        // encode the - within the token
                     } else {
-                        unget_char();
-                        emit_token(token_list, T_MINUS, "-");
+                        if (c == '>') {
+                            emit_token(token_list, T_OFTYPE, "->");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_MINUS, "-");
+                        }
                     }
                     break;
                 }
@@ -349,6 +380,7 @@ static void tokenize(char *prog_buff) {
         // Number?
         else if (is_digit(c)) {
             // Read until not a digit
+        lex_num:
             while (is_digit(c)) {
                 // Append to lexeme
                 sprintf(lexeme, "%s%c", lexeme, c);

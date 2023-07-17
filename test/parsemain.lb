@@ -1,12 +1,26 @@
-func main() -> int
+func main(int argc, string argv) -> int
 then
-    int x := 0;
+    int x;
 
     if (x < 1) then
-        println("Hello Liam");
+        x := 1;
+    else then
+        if (x > 1) then
+            string foo := "bar";
+            string bar := "baz";
+
+            bar := bar + foo;
+        end
     end
 
-    println("Hello world!");
+    bool eq := (0 == 0);
+    bool gt := (1 > 0);
+    bool lt := (0 < 1);
+    bool ge := (1 >= 0);
+    bool le := (-10000.2149 <= 0);
+    bool ne := (false != true);
 
-    return 0;
+'    println("Hello world!");
+
+'    return 0;
 end
