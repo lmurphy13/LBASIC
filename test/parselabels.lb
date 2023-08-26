@@ -1,0 +1,12 @@
+func main() -> void
+then
+    int a := 0;
+loop:
+    a := a + 1;
+    goto loop;
+
+loop1:
+loop2:
+    return 0;
+
+end

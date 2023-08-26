@@ -45,19 +45,22 @@ static bool is_binop_symbol(token *t);
 static vector *parse_statements(void);    // done
 static node *parse_statement(bool *more); // done
 static node *parse_block_stmt(void);      // done
-static node *parse_for_stmt(void);
-static node *parse_while_stmt(void);  // done
-static node *parse_if_stmt(void);     // done
-static node *parse_assign_expr(void); // done
-static vector *parse_arg_list(void);
-static node *parse_call_expr(void);
-static node *parse_expression(void);    // done
-static vector *parse_formals(void);     // done
-static node *parse_function_decl(void); // done
-static node *parse_label_decl(void);
-static node *parse_var_decl(void); // done
-static node *parse_struct_decl(void);
-static node *parse_return_stmt(void);
+static node *parse_for_stmt(void);        // TBD later on
+static node *parse_while_stmt(void);      // done
+static node *parse_if_stmt(void);         // done
+static node *parse_assign_expr(void);     // done
+static vector *parse_arg_list(void);      // done
+static node *parse_call_expr(void);       // done
+static node *parse_expression(void);      // done
+static vector *parse_formals(void);       // done
+static node *parse_function_decl(void);   // done
+static node *parse_label_decl(void);      // done
+static node *parse_goto_stmt(void);       // done
+static node *parse_var_decl(void);        // done
+static node *parse_member_decl(void);     // done
+static node *parse_struct_decl(void);     // done
+static node *parse_struct_access_expr(void);
+static node *parse_return_stmt(void); // done
 
 /* Precedence rules, lowest to highest
  * && ||
@@ -261,7 +264,9 @@ static vector *parse_statements() {
 //              | <assign-stmt>
 //              | <function-decl>
 //              | <var-decl>
-//              | <struct-decl
+//              | <label-decl>
+//              | <goto-stmt>
+//              | <struct-decl>
 //              | <expression>
 //              | ';' (empty statement)
 //              | ( <expression> )
@@ -315,12 +320,17 @@ static node *parse_statement(bool *more) {
             snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)",
                      lookahead.literal, tmp->literal, tmp->line, tmp->col);
             log_error(str);
-
+        } else if (strcmp(tmp->literal, ".") == 0) {
+            retval = parse_struct_access_expr();
+            break;
         } else {
             log_error("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
         }
     }
+    case T_GOTO:
+        retval = parse_goto_stmt();
+        break;
     case T_INT:
     case T_FLOAT:
     case T_STRING:
@@ -331,9 +341,31 @@ static node *parse_statement(bool *more) {
     case L_FLOAT:
         retval = parse_expression();
         break;
-    case T_STRUCT:
-        retval = parse_struct_decl();
+    case T_STRUCT: {
+        // We are either a struct declaration or a variable declaration
+        // This is our only LL(2) region
+        token *next1 = peek();
+        if (next1->type == T_IDENT) {
+            consume();
+            token *next2 = peek();
+
+            if (next2->type == T_IDENT) {
+                // If we see 'struct <ident> <ident>', then this is a struct variable declaration.
+                backup();
+
+                retval = parse_var_decl();
+            } else if (next2->type == T_THEN) {
+                // If we see 'struct <ident> then', then this is a struct declaration.
+                backup();
+
+                retval = parse_struct_decl();
+            } else {
+                // Some other case, which is an error
+                syntax_error("identifier or 'then'", lookahead);
+            }
+        }
         break;
+    }
     case T_LPAREN:
         retval = parse_expression();
         break;
@@ -1094,12 +1126,96 @@ static node *parse_expression() {
 
     return retval;
 }
-static node *parse_label_decl() { assert(0 && "Not yet implemented"); }
+
+// <label-decl> := <identifier> ':'
+static node *parse_label_decl() {
+    node *retval = mk_node(N_LABEL_DECL);
+
+    if (retval != NULL) {
+        // Look for label name
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.label_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.label_decl.name, sizeof(retval->data.label_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+
+        // Look for colon
+        if (lookahead.type != T_COLON) {
+            syntax_error(":", lookahead);
+        }
+
+        // Consume it
+        consume();
+    }
+
+    return retval;
+}
+
+// <goto-stmt> := 'goto' <identifier> ';'
+static node *parse_goto_stmt() {
+    node *retval = mk_node(N_GOTO_STMT);
+
+    if (retval != NULL) {
+        // Look for goto
+        if (lookahead.type != T_GOTO) {
+            syntax_error("goto", lookahead);
+        }
+
+        // Otherwise, consume it
+        consume();
+
+        // Look for identifier
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.goto_stmt.label, 0, MAX_LITERAL);
+            snprintf(retval->data.goto_stmt.label, sizeof(retval->data.goto_stmt.label), "%s",
+                     lookahead.literal);
+
+            consume();
+        }
+
+        // Look for semicolon
+        if (lookahead.type != T_SEMICOLON) {
+            syntax_error(";", lookahead);
+        }
+
+        consume();
+    }
+
+    return retval;
+}
+
+// <var-decl> := ( 'struct' )? <type> <identifier> ( ':=' <expression> )? ';'
 static node *parse_var_decl() {
     node *retval = mk_node(N_VAR_DECL);
 
     if (retval != NULL) {
-        retval->data.var_decl.type = keyword_to_type(lookahead.type);
+        print_lookahead_debug("top of var_decl");
+
+        // Look for the optional 'struct' keyword
+        if (lookahead.type == T_STRUCT) {
+            retval->data.var_decl.is_struct = true;
+            // consume it
+            consume();
+        }
+
+        // Get type
+        if (retval->data.var_decl.is_struct) {
+            // If we're a struct, our data type is 'struct' and our struct type is the identifier
+            // after the 'struct' keyword
+            retval->data.var_decl.type = D_STRUCT;
+            memset(retval->data.var_decl.struct_type, 0, sizeof(retval->data.var_decl.struct_type));
+            snprintf(retval->data.var_decl.struct_type, sizeof(retval->data.var_decl.struct_type),
+                     "%s", lookahead.literal);
+        } else {
+            // Otherwise, we're a primitive data type
+            retval->data.var_decl.type = keyword_to_type(lookahead.type);
+        }
 
         // Consume the type declaration
         consume();
@@ -1152,6 +1268,11 @@ static node *parse_var_decl() {
                     val_default->data.bool_literal.value = 0; // false
                     strncpy(val_default->data.bool_literal.str_val, "false", sizeof("false"));
                     break;
+                case D_STRUCT:
+                    // For structs, don't assign a default value. We'll handle this at codegen time
+                    // by allocating memory.
+                    val_default = NULL;
+                    break;
                 default:
                     syntax_error("Unknown literal type", lookahead);
                 }
@@ -1169,7 +1290,135 @@ static node *parse_var_decl() {
     return retval;
 }
 
-static node *parse_struct_decl() { assert(0 && "Not yet implemented"); }
+static node *parse_member_decl() {
+    node *retval = mk_node(N_MEMBER_DECL);
+
+    if (retval != NULL) {
+        switch (lookahead.type) {
+        case T_INT:
+        case T_BOOL:
+        case T_STRING:
+        case T_FLOAT:
+            retval->data.member_decl.type = keyword_to_type(lookahead.type);
+            break;
+        default:
+            syntax_error("type", lookahead);
+        }
+
+        consume();
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.member_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.member_decl.name, sizeof(retval->data.member_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+        if (lookahead.type != T_SEMICOLON) {
+            syntax_error(";", lookahead);
+        }
+
+        consume();
+    }
+
+    return retval;
+}
+
+// <struct-decl> := 'struct' <ident> 'then' <member-decls> 'end'
+static node *parse_struct_decl() {
+    node *retval = mk_node(N_STRUCT_DECL);
+
+    if (retval != NULL) {
+        retval->data.struct_decl.members = mk_vector();
+        if (lookahead.type != T_STRUCT) {
+            syntax_error("struct", lookahead);
+        } else {
+            retval->data.struct_decl.type = D_STRUCT;
+        }
+
+        consume();
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.struct_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.struct_decl.name, sizeof(retval->data.struct_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+        if (lookahead.type != T_THEN) {
+            syntax_error("then", lookahead);
+        }
+
+        // Parse member declarations
+        consume();
+        do {
+            node *member = parse_member_decl();
+
+            if (member != NULL) {
+                vector_add(retval->data.struct_decl.members, member);
+            } else {
+                log_error("Unable to add NULL member decl to vector");
+            }
+        } while (lookahead.type != T_END);
+
+        // Check for the 'end' token
+        if (lookahead.type != T_END) {
+            syntax_error("'end", lookahead);
+        } else {
+            // Consume 'end'
+            consume();
+        }
+    }
+
+    return retval;
+}
+
+// <struct-access-expr> := <ident> '.' <ident>
+static node *parse_struct_access_expr() {
+    node *retval = mk_node(N_STRUCT_ACCESS_EXPR);
+
+    if (retval != NULL) {
+        print_lookahead_debug("top of parse_struct_access");
+
+        // Get struct name
+
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        } else {
+            memset(retval->data.struct_access.name, 0, sizeof(retval->data.struct_access.name));
+            snprintf(retval->data.struct_access.name, sizeof(retval->data.struct_access.name), "%s",
+                     lookahead.literal);
+
+            // Consume struct name
+            consume();
+        }
+
+        print_lookahead_debug("looking for dot");
+        if (lookahead.type != T_DOT) {
+            syntax_error(".", lookahead);
+        } else {
+            // Consume dot
+            consume();
+        }
+
+        print_lookahead_debug("looking for ident");
+        if (lookahead.type != T_IDENT) {
+            syntax_error("member identifier", lookahead);
+        } else {
+            memset(retval->data.struct_access.member_name, 0,
+                   sizeof(retval->data.struct_access.member_name));
+            snprintf(retval->data.struct_access.member_name,
+                     sizeof(retval->data.struct_access.member_name), "%s", lookahead.literal);
+
+            // Consume member name
+            consume();
+        }
+    }
+
+    return retval;
+}
 
 // 'return' <expression> ';'
 static node *parse_return_stmt() {
@@ -1304,6 +1553,9 @@ static data_type keyword_to_type(token_type t) {
     case T_VOID:
         return D_VOID;
         break;
+    case T_STRUCT:
+        return D_STRUCT;
+        break;
     default:
         return D_UNKNOWN;
         break;
@@ -1329,6 +1581,9 @@ static const char *type_to_str(data_type t) {
         break;
     case D_NIL:
         return "NIL";
+        break;
+    case D_STRUCT:
+        return "STRUCT";
         break;
     default:
         return "UNKNOWN";
@@ -1419,9 +1674,13 @@ static void print_node(node *n, int indent) {
     case N_VAR_DECL:
         printf("VarDecl (\n");
         print_indent(indent + INDENT_WIDTH);
-        printf("Name: %s\n", n->data.formal.name);
+        printf("Name: %s\n", n->data.var_decl.name);
         print_indent(indent + INDENT_WIDTH);
-        printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        printf("IsStruct: %s\n", (n->data.var_decl.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.var_decl.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("StructType: %s\n", n->data.var_decl.struct_type);
         print_indent(indent + INDENT_WIDTH);
         printf("Value: ");
 
@@ -1437,6 +1696,20 @@ static void print_node(node *n, int indent) {
 
         print_indent(indent);
         printf("),\n");
+        break;
+    case N_LABEL_DECL:
+        printf("LabelDecl (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Name: %s\n", n->data.label_decl.name);
+        print_indent(indent);
+        printf("), \n");
+        break;
+    case N_GOTO_STMT:
+        printf("GotoStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Label: %s\n", n->data.goto_stmt.label);
+        print_indent(indent);
+        printf("), \n");
         break;
     case N_FUNC_DECL:
         printf("FuncDecl (\n");

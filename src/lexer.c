@@ -378,7 +378,7 @@ static void tokenize(char *prog_buff) {
         else if (isalpha(c)) {
             char tmp_delim = 0;
             bool inc_line  = false;
-            // Read until newline, space, colon, semicolon, or lparen
+            // Read until newline, space, colon, semicolon, period, or lparen
             while ((c != '\n') && (c != ' ')) {
                 col_num++;
                 // Append to lexeme
@@ -389,7 +389,7 @@ static void tokenize(char *prog_buff) {
                     inc_line = true;
                 }
 
-                if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',') {
+                if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',' || c == '.') {
                     tmp_delim = c;
                     break;
                 }

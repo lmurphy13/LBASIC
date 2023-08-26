@@ -13,47 +13,48 @@
 
 // Node types
 typedef enum n_type {
-    N_PROGRAM         = 0,
-    N_STATEMENTS      = 1,
-    N_STATEMENT       = 2,
-    N_FUNC_DECL       = 3,
-    N_LABEL_DECL      = 4,
-    N_VAR_DECL        = 5,
-    N_MEMBER_DECL     = 6,
-    N_STRUCT_DECL     = 7,
-    N_BLOCK_STMT      = 8,
-    N_FOR_STMT        = 9,
-    N_WHILE_STMT      = 10,
-    N_IF_STMT         = 11,
-    N_RETURN_STMT     = 12,
-    N_ASSIGN_EXPR     = 13,
-    N_EXPR_LIST       = 14,
-    N_EXPR            = 15,
-    N_EMPTY_EXPR      = 16,
-    N_FORMAL          = 17,
-    N_BINOP_EXPR      = 18,
-    N_GOTO_EXPR       = 19,
-    N_CALL_EXPR       = 20,
-    N_AND_EXPR        = 21,
-    N_NEG_EXPR        = 22,
-    N_NOT_EXPR        = 23,
-    N_COMPARE_EXPR    = 24,
-    N_ADD_EXPR        = 25,
-    N_MULT_EXPR       = 26,
-    N_PRIMARY_EXPR    = 27,
-    N_NEGATE_EXPR     = 28,
-    N_VALUE           = 29,
-    N_VALUE_LIST      = 30,
-    N_IDENT           = 31,
-    N_IDENT_LIST      = 32,
-    N_CONSTANT        = 33,
-    N_LITERAL         = 34,
-    N_INTEGER_LITERAL = 35,
-    N_FLOAT_LITERAL   = 36,
-    N_STRING_LITERAL  = 37,
-    N_BOOL_LITERAL    = 38,
-    N_NIL             = 39,
-    NUM_TYPES         = 40
+    N_PROGRAM            = 0,
+    N_STATEMENTS         = 1,
+    N_STATEMENT          = 2,
+    N_FUNC_DECL          = 3,
+    N_LABEL_DECL         = 4,
+    N_VAR_DECL           = 5,
+    N_MEMBER_DECL        = 6,
+    N_STRUCT_DECL        = 7,
+    N_BLOCK_STMT         = 8,
+    N_FOR_STMT           = 9,
+    N_WHILE_STMT         = 10,
+    N_IF_STMT            = 11,
+    N_RETURN_STMT        = 12,
+    N_ASSIGN_EXPR        = 13,
+    N_STRUCT_ACCESS_EXPR = 14,
+    N_EXPR_LIST          = 15,
+    N_EXPR               = 16,
+    N_EMPTY_EXPR         = 17,
+    N_FORMAL             = 18,
+    N_BINOP_EXPR         = 19,
+    N_GOTO_STMT          = 20,
+    N_CALL_EXPR          = 21,
+    N_AND_EXPR           = 22,
+    N_NEG_EXPR           = 23,
+    N_NOT_EXPR           = 24,
+    N_COMPARE_EXPR       = 25,
+    N_ADD_EXPR           = 26,
+    N_MULT_EXPR          = 27,
+    N_PRIMARY_EXPR       = 28,
+    N_NEGATE_EXPR        = 29,
+    N_VALUE              = 30,
+    N_VALUE_LIST         = 31,
+    N_IDENT              = 32,
+    N_IDENT_LIST         = 33,
+    N_CONSTANT           = 34,
+    N_LITERAL            = 35,
+    N_INTEGER_LITERAL    = 36,
+    N_FLOAT_LITERAL      = 37,
+    N_STRING_LITERAL     = 38,
+    N_BOOL_LITERAL       = 39,
+    N_NIL                = 41,
+    NUM_TYPES            = 42
 } n_type;
 
 typedef enum data_type {
@@ -105,9 +106,13 @@ typedef struct bin_op_expr_s {
     token_type operator;
 } bin_op_expr_t;
 
-typedef struct goto_expr_s {
+typedef struct label_decl_s {
+    char name[MAX_LITERAL];
+} label_decl_t;
+
+typedef struct goto_stmt_s {
     char label[MAX_LITERAL];
-} goto_expr_t;
+} goto_stmt_t;
 
 typedef struct call_expr_s {
     char func_name[MAX_LITERAL];
@@ -136,6 +141,8 @@ typedef struct member_decl_s {
 
 typedef struct var_decl_s {
     data_type type;
+    char struct_type[MAX_LITERAL];
+    bool is_struct;
     char name[MAX_LITERAL];
     struct node *value; // should be an expression node
 } var_decl_t;
@@ -150,8 +157,8 @@ typedef struct function_decl_s {
 
 typedef struct struct_decl_s {
     char name[MAX_LITERAL];
-    data_type type; // always D_STRUCT
-    vector *members;
+    data_type type;  // always D_STRUCT
+    vector *members; // member_decl_t's
 } struct_decl_t;
 
 typedef struct while_stmt_s {
@@ -213,7 +220,8 @@ typedef struct node {
         neg_expr_t neg_expr;
         not_expr_t not_expr;
         bin_op_expr_t bin_op_expr;
-        goto_expr_t goto_expr;
+        label_decl_t label_decl;
+        goto_stmt_t goto_stmt;
         call_expr_t call_expr;
         struct_access_t struct_access;
         identifier_t identifier;
