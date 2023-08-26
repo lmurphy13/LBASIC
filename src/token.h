@@ -7,6 +7,8 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include "utils.h" /* line_t, vector */
+
 #define MAX_LITERAL 1024
 
 typedef enum {
@@ -65,6 +67,7 @@ typedef enum {
 typedef struct {
     token_type type;
     char literal[MAX_LITERAL];
+    char line_str[MAX_LINE];
     unsigned int line;
     unsigned int col;
 } token;

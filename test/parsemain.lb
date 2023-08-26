@@ -1,3 +1,21 @@
+func fact(int n) -> int
+then
+    if (n == 0) then
+        return 1;
+'    else then
+'        return (n * fact(n - 1));
+    end
+end
+
+func fib(int n) -> int
+then
+    if (n == 0 or n == 1) then
+        return n;
+    else then
+        return n - 1;
+    end
+end
+
 func main(int argc, string argv) -> int
 then
     int x;
@@ -20,7 +38,7 @@ then
     bool le := (-10000.2149 <= 0);
     bool ne := (false != true);
 
-'    println("Hello world!");
+    println("Hello world!");
 
-'    return 0;
+    return 0;
 end

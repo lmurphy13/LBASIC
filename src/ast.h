@@ -13,47 +13,47 @@
 
 // Node types
 typedef enum n_type {
-    N_PROGRAM = 0,
-    N_STATEMENTS,
-    N_STATEMENT,
-    N_FUNC_DECL,
-    N_LABEL_DECL,
-    N_VAR_DECL,
-    N_MEMBER_DECL,
-    N_STRUCT_DECL,
-    N_BLOCK_STMT,
-    N_FOR_STMT,
-    N_WHILE_STMT,
-    N_IF_STMT,
-    N_RETURN_STMT,
-    N_ASSIGN_EXPR,
-    N_EXPR_LIST,
-    N_EXPR,
-    N_EMPTY_EXPR,
-    N_FORMAL,
-    N_BINOP_EXPR,
-    N_GOTO_EXPR,
-    N_CALL_EXPR,
-    N_AND_EXPR,
-    N_NEG_EXPR,
-    N_NOT_EXPR,
-    N_COMPARE_EXPR,
-    N_ADD_EXPR,
-    N_MULT_EXPR,
-    N_PRIMARY_EXPR,
-    N_NEGATE_EXPR,
-    N_VALUE,
-    N_VALUE_LIST,
-    N_IDENT,
-    N_IDENT_LIST,
-    N_CONSTANT,
-    N_LITERAL,
-    N_INTEGER_LITERAL,
-    N_FLOAT_LITERAL,
-    N_STRING_LITERAL,
-    N_BOOL_LITERAL,
-    N_NIL,
-    NUM_TYPES
+    N_PROGRAM         = 0,
+    N_STATEMENTS      = 1,
+    N_STATEMENT       = 2,
+    N_FUNC_DECL       = 3,
+    N_LABEL_DECL      = 4,
+    N_VAR_DECL        = 5,
+    N_MEMBER_DECL     = 6,
+    N_STRUCT_DECL     = 7,
+    N_BLOCK_STMT      = 8,
+    N_FOR_STMT        = 9,
+    N_WHILE_STMT      = 10,
+    N_IF_STMT         = 11,
+    N_RETURN_STMT     = 12,
+    N_ASSIGN_EXPR     = 13,
+    N_EXPR_LIST       = 14,
+    N_EXPR            = 15,
+    N_EMPTY_EXPR      = 16,
+    N_FORMAL          = 17,
+    N_BINOP_EXPR      = 18,
+    N_GOTO_EXPR       = 19,
+    N_CALL_EXPR       = 20,
+    N_AND_EXPR        = 21,
+    N_NEG_EXPR        = 22,
+    N_NOT_EXPR        = 23,
+    N_COMPARE_EXPR    = 24,
+    N_ADD_EXPR        = 25,
+    N_MULT_EXPR       = 26,
+    N_PRIMARY_EXPR    = 27,
+    N_NEGATE_EXPR     = 28,
+    N_VALUE           = 29,
+    N_VALUE_LIST      = 30,
+    N_IDENT           = 31,
+    N_IDENT_LIST      = 32,
+    N_CONSTANT        = 33,
+    N_LITERAL         = 34,
+    N_INTEGER_LITERAL = 35,
+    N_FLOAT_LITERAL   = 36,
+    N_STRING_LITERAL  = 37,
+    N_BOOL_LITERAL    = 38,
+    N_NIL             = 39,
+    NUM_TYPES         = 40
 } n_type;
 
 typedef enum data_type {
@@ -110,8 +110,8 @@ typedef struct goto_expr_s {
 } goto_expr_t;
 
 typedef struct call_expr_s {
-    char name[MAX_LITERAL];
-    vector *formals; // formal args
+    char func_name[MAX_LITERAL];
+    vector *args; // arguments
 } call_expr_t;
 
 typedef struct struct_access_s {

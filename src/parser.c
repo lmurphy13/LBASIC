@@ -42,19 +42,20 @@ static bool is_builtin(const char *ident);
 static bool is_binop_symbol(token *t);
 
 // Grammar productions
-static vector *parse_statements(void);          // done
-static node *parse_statement(bool *more);       // done
-static node *parse_block_stmt(void);            // done
+static vector *parse_statements(void);    // done
+static node *parse_statement(bool *more); // done
+static node *parse_block_stmt(void);      // done
 static node *parse_for_stmt(void);
-static node *parse_while_stmt(void);            // done
-static node *parse_if_stmt(void);               // done
-static node *parse_assign_expr(void);           // done
-static node *parse_function_call_stmt(void);
-static node *parse_expression(void);            // done
-static vector *parse_formals(void);             // done
-static node *parse_function_decl(void);         // done
+static node *parse_while_stmt(void);  // done
+static node *parse_if_stmt(void);     // done
+static node *parse_assign_expr(void); // done
+static vector *parse_arg_list(void);
+static node *parse_call_expr(void);
+static node *parse_expression(void);    // done
+static vector *parse_formals(void);     // done
+static node *parse_function_decl(void); // done
 static node *parse_label_decl(void);
-static node *parse_var_decl(void);              // done
+static node *parse_var_decl(void); // done
 static node *parse_struct_decl(void);
 static node *parse_return_stmt(void);
 
@@ -65,20 +66,20 @@ static node *parse_return_stmt(void);
  * + -
  * * / %
  */
-static node *parse_and_expr(void);              // done
-static node *parse_not_expr(void);              // done
-static node *parse_compare_expr(void);          // done
-static node *parse_add_expr(void);              // done
-static node *parse_mult_expr(void);             // done
+static node *parse_and_expr(void);     // done
+static node *parse_not_expr(void);     // done
+static node *parse_compare_expr(void); // done
+static node *parse_add_expr(void);     // done
+static node *parse_mult_expr(void);    // done
 // Same as a 'factor'. Here we parse primitives.
-static node *parse_primary_expr(void);          // done
+static node *parse_primary_expr(void); // done
 
-static node *parse_identifier(void);            // done
-static node *parse_string_literal(void);        // done
-static node *parse_integer_literal(void);       // done
-static node *parse_float_literal(void);         // done
-static node *parse_bool_literal(void);          // done
-static node *parse_nil(void);                   // done
+static node *parse_identifier(void);      // done
+static node *parse_string_literal(void);  // done
+static node *parse_integer_literal(void); // done
+static node *parse_float_literal(void);   // done
+static node *parse_bool_literal(void);    // done
+static node *parse_nil(void);             // done
 
 node *mk_node(n_type type) {
     node *retval = (node *)malloc(sizeof(node));
@@ -141,6 +142,11 @@ static void backup() {
 static void syntax_error(const char *exp, token l) {
     printf("Syntax Error (line %d, col %d): Expected '%s' but got '%s'.\n", l.line, l.col, exp,
            l.literal);
+    printf("%s", l.line_str);
+    for (int i = 0; i < l.col; i++) {
+        printf(" ");
+    }
+    printf("^\n");
     exit(PARSER_ERROR_SYNTAX_ERROR);
 }
 
@@ -206,6 +212,11 @@ node *parse(t_list *tokens) {
     if (lookahead.type == T_HEAD) {
         // Found head, get first real token
         consume();
+
+        if (lookahead.type == T_EOF) {
+            // If we go immediately to an EOF, this is an empty file.
+            log_error("Empty files are not valid LBASIC programs");
+        }
     }
 
     // Parse the body of the program
@@ -225,7 +236,14 @@ static vector *parse_statements() {
         do {
             node *new_node = parse_statement(&more);
             if (new_node != NULL) {
+                print_lookahead_debug("adding statement node");
+                printf("NODE TYPE: %d\n", new_node->type);
                 vector_add(retval, new_node);
+
+                // If we reach the end of the file, break out
+                if (lookahead.type == T_EOF) {
+                    break;
+                }
             }
         } while (more);
     } else {
@@ -245,9 +263,10 @@ static vector *parse_statements() {
 //              | <var-decl>
 //              | <struct-decl
 //              | <expression>
+//              | ';' (empty statement)
 //              | ( <expression> )
 static node *parse_statement(bool *more) {
-    node *retval;
+    node *retval = NULL;
     printf("type: %d\n", lookahead.type);
 
     switch (lookahead.type) {
@@ -278,7 +297,8 @@ static node *parse_statement(bool *more) {
             retval = parse_label_decl();
             break;
         } else if (strcmp(tmp->literal, "(") == 0) {
-            retval = parse_function_call_stmt();
+            // Likely a function call
+            retval = parse_expression();
             break;
         } else if ((strcmp(tmp->literal, "and") == 0) || (strcmp(tmp->literal, "or") == 0) ||
                    (strcmp(tmp->literal, "+") == 0) || (strcmp(tmp->literal, "-") == 0) ||
@@ -291,8 +311,9 @@ static node *parse_statement(bool *more) {
             break;
         } else if (strcmp(tmp->literal, ";") == 0) {
             // Maybe we'll make this a no-op situation, but for now just raise an error
-            char str[1024] = { '\0' };
-            snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)", lookahead.literal, tmp->literal, tmp->line, tmp->col);
+            char str[1024] = {'\0'};
+            snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)",
+                     lookahead.literal, tmp->literal, tmp->line, tmp->col);
             log_error(str);
 
         } else {
@@ -318,7 +339,14 @@ static node *parse_statement(bool *more) {
         break;
     case T_RETURN:
         retval = parse_return_stmt();
+        break;
+    case T_SEMICOLON:
+        // If we see a lone semicolon, just consume it and move on. Empty statement.
+        printf("FOUND LONE SEMICOLON\n");
+        consume();
+        break;
     case T_END: // This should be the end of most bodies (conditionals, functions, etc)
+    case T_EOF: // End of file, we're done
     default:
         *more = false;
     }
@@ -670,6 +698,7 @@ static node *parse_mult_expr() {
 // Literals and grouping expressions
 static node *parse_primary_expr() {
     node *retval;
+    bool parsed_func_call = false;
     print_lookahead_debug("begin primary_expr");
 
     // Move past assignment operator
@@ -689,9 +718,20 @@ static node *parse_primary_expr() {
     case T_FALSE:
         retval = parse_bool_literal();
         break;
-    case T_IDENT:
-        retval = parse_identifier();
+    case T_IDENT: {
+        // We need to check if this is a regular variable or a function call
+        token *tmp = peek();
+        if ((tmp != NULL) && (tmp->type == T_LPAREN)) {
+            // This is a function call
+            retval = parse_call_expr();
+            print_lookahead_debug("returned from call_expr");
+            return retval;
+        } else if (tmp != NULL) {
+            // Treat this as a regular variable name
+            retval = parse_identifier();
+        }
         break;
+    }
     case T_NIL:
         retval = parse_nil();
         break;
@@ -752,7 +792,113 @@ static node *parse_assign_expr() {
     return retval;
 }
 
-static node *parse_function_call_stmt() { assert(0 && "Not yet implemented"); }
+// <arg-list> := ( <expression> (',')? )*
+static vector *parse_arg_list() {
+    vector *retval = mk_vector();
+
+    if (retval == NULL) {
+        log_error("Unable to allocate vector for function call arguments");
+    }
+
+    print_lookahead_debug("inside parse_arg_list");
+
+    // Look for args (expressions)
+    bool repeat = true;
+
+    node *new_arg_expr = NULL;
+
+    do {
+        new_arg_expr = parse_expression();
+        if (new_arg_expr != NULL) {
+            vector_add(retval, new_arg_expr);
+        } else {
+            log_error("Unable to parse argument expression");
+        }
+
+        print_lookahead_debug("after argument");
+
+        if (lookahead.type == T_RPAREN) {
+            repeat = false;
+        } else if (lookahead.type == T_COMMA) {
+            consume();
+            repeat = true;
+        }
+    } while (repeat);
+
+    return retval;
+}
+
+// <call-expr> := <identifier> '(' ( <arg-list> )? ')'
+static node *parse_call_expr() {
+    node *retval = mk_node(N_CALL_EXPR);
+
+    if (retval != NULL) {
+        print_lookahead_debug("inside call_expr");
+        if (lookahead.type != T_IDENT) {
+            syntax_error("identifier", lookahead);
+        }
+
+        memset(retval->data.call_expr.func_name, 0, sizeof(retval->data.call_expr.func_name));
+        snprintf(retval->data.call_expr.func_name, sizeof(retval->data.call_expr.func_name), "%s",
+                 lookahead.literal);
+
+        // Consume function name
+        consume();
+
+        if (lookahead.type != T_LPAREN) {
+            syntax_error("(", lookahead);
+        }
+
+        // Consume (
+        consume();
+
+        if (lookahead.type == T_RPAREN) {
+            // No args
+            retval->data.call_expr.args = NULL;
+        } else {
+            retval->data.call_expr.args = parse_arg_list();
+
+            if (lookahead.type != T_RPAREN) {
+                syntax_error(") after argument list", lookahead);
+            }
+            consume();
+        }
+
+        // Check for something that might indicate we are not a lone function call
+        bool found_follower = false;
+        switch (lookahead.type) {
+        case T_RPAREN:
+        case T_COMMA:
+        case T_PLUS:
+        case T_MINUS:
+        case T_MUL:
+        case T_DIV:
+        case T_MOD:
+        case T_LT:
+        case T_GT:
+        case T_EQ:
+        case T_LE:
+        case T_GE:
+        case T_NE:
+        case T_AND:
+        case T_OR:
+            found_follower = true;
+        }
+
+        // If we don't find any followers, check for a semicolon
+        if (!found_follower) {
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error("; after function call", lookahead);
+            } else {
+                consume();
+            }
+        }
+    }
+
+    print_lookahead_debug("end of call_expr");
+
+    return retval;
+}
 
 static vector *parse_formals() {
     print_lookahead_debug("inside parse_formals()");
@@ -1037,7 +1183,9 @@ static node *parse_return_stmt() {
             consume();
 
             retval->data.return_stmt.expr = parse_expression();
+            print_lookahead_debug("after return expr");
 
+            //          consume();
             // Look for ;
             if (lookahead.type != T_SEMICOLON) {
                 syntax_error("; after return expression", lookahead);
@@ -1093,7 +1241,7 @@ static node *parse_integer_literal() {
     node *retval = mk_node(N_INTEGER_LITERAL);
 
     if (retval != NULL) {
-        retval->data.integer_literal.type = D_INTEGER;
+        retval->data.integer_literal.type  = D_INTEGER;
         retval->data.integer_literal.value = atoi(lookahead.literal);
     }
 
@@ -1104,7 +1252,7 @@ static node *parse_float_literal() {
     node *retval = mk_node(N_FLOAT_LITERAL);
 
     if (retval != NULL) {
-        retval->data.float_literal.type = D_FLOAT;
+        retval->data.float_literal.type  = D_FLOAT;
         retval->data.float_literal.value = atof(lookahead.literal);
     }
 
@@ -1257,7 +1405,7 @@ static void print_node(node *n, int indent) {
 
         indent += INDENT_WIDTH;
         vecnode *bn = n->data.block_stmt.statements->head;
-        while (bn->next != NULL) {
+        while (bn != NULL) {
             node *n = bn->data;
             print_node(n, indent);
 
@@ -1321,20 +1469,6 @@ static void print_node(node *n, int indent) {
         print_node(n->data.function_decl.body, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
-        /*
-                print_indent(indent);
-                printf("Return:\n");
-
-                if (n->data.function_decl.return_expr == NULL) {
-                    print_indent(indent + INDENT_WIDTH);
-                    printf("None\n");
-                } else {
-                    print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
-                }
-                indent -= INDENT_WIDTH;
-
-                print_indent(indent);
-        */
         print_indent(indent);
         printf("),\n");
         break;
@@ -1343,9 +1477,33 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Expression: \n");
         indent += INDENT_WIDTH;
-        print_node(n->data.return_stmt.expr);
-        in
+        print_node(n->data.return_stmt.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_CALL_EXPR:
+        printf("CallExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Function name: %s\n", n->data.call_expr.func_name);
+        print_indent(indent + INDENT_WIDTH);
+        printf("Args: ");
+        if (n->data.call_expr.args == NULL) {
+            printf("None\n");
+        } else {
+            indent += INDENT_WIDTH;
+            printf("\n");
+            vecnode *an = n->data.call_expr.args->head;
 
+            while (an != NULL) {
+                node *n = an->data;
+                print_node(n, indent + INDENT_WIDTH);
+                an = an->next;
+            }
+            indent -= INDENT_WIDTH;
+        }
+        print_indent(indent);
+        printf("),\n");
         break;
     case N_STRUCT_DECL:
         printf("StructDecl (\n");
@@ -1596,18 +1754,23 @@ void print_ast(node *ast) {
 
         // Print children
         print_indent(indent);
-        printf("Statements (\n");
-        indent += INDENT_WIDTH;
-        vecnode *vn = ast->data.program.statements->head;
-        while (vn->next != NULL) {
-            node *n = vn->data;
-            print_node(n, indent);
+        printf("Statements (");
+        if (ast->data.program.statements->head != NULL) {
+            printf("\n");
+            indent += INDENT_WIDTH;
+            vecnode *vn = ast->data.program.statements->head;
+            while (vn != NULL) {
+                node *n = vn->data;
+                print_node(n, indent);
 
-            vn = vn->next;
+                vn = vn->next;
+            }
+
+            indent -= INDENT_WIDTH;
+            print_indent(indent);
+        } else {
+            printf("None");
         }
-
-        indent -= INDENT_WIDTH;
-        print_indent(indent);
         printf(")\n");
     }
 
