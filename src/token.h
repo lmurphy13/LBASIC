@@ -14,53 +14,57 @@
 typedef enum {
     T_LPAREN    = 0,  // (
     T_RPAREN    = 1,  // )
-    T_ASSIGN    = 2,  // :=
-    T_COLON     = 3,  // :
-    T_SEMICOLON = 4,  // ;
-    T_COMMA     = 5,  // ,
-    T_DOT       = 6,  // .
-    T_SQUOTE    = 7,  // '
-    T_DQUOTE    = 8,  // "
-    T_PLUS      = 9,  // +
-    T_MINUS     = 10, // -
-    T_MUL       = 11, // *
-    T_DIV       = 12, // /
-    T_MOD       = 13, // %
-    T_OFTYPE    = 14, // ->
-    T_LT        = 15, // <
-    T_GT        = 16, // >
-    T_BANG      = 17, // !
-    T_EQ        = 18, // ==
-    T_LE        = 19, // <=
-    T_GE        = 20, // >=
-    T_NE        = 21, // !=
-    T_AND       = 22, // and
-    T_OR        = 23, // or
-    T_FUNC      = 24, // func
-    T_FOR       = 25, // for
-    T_WHILE     = 26, // while
-    T_TO        = 27, // to
-    T_END       = 28, // end
-    T_STRUCT    = 29, // struct
-    T_TRUE      = 30, // true
-    T_FALSE     = 31, // false
-    T_NIL       = 32, // nil
-    T_INT       = 33, // int
-    T_BOOL      = 34, // bool
-    T_STRING    = 35, // string
-    T_FLOAT     = 36, // float
-    T_VOID      = 37, // void
-    T_GOTO      = 38, // goto
-    T_IF        = 39, // if
-    T_THEN      = 40, // then
-    T_ELSE      = 41, // else
-    T_RETURN    = 42, // return
-    T_IDENT     = 43, // identifier [a-zA-Z] [a-zA-Z0-9]
-    T_HEAD      = 44, // Head of list
-    L_STR       = 45, // string literal
-    L_INTEGER   = 46, // integer literal
-    L_FLOAT     = 47, // float literal
-    T_EOF       = 48, // End Of File
+    T_LBRACKET  = 2,  // [
+    T_RBRACKET  = 3,  // ]
+    T_LBRACE    = 4,  // {
+    T_RBRACE    = 5,  // }
+    T_ASSIGN    = 6,  // :=
+    T_COLON     = 7,  // :
+    T_SEMICOLON = 8,  // ;
+    T_COMMA     = 9,  // ,
+    T_DOT       = 10, // .
+    T_SQUOTE    = 11, // '
+    T_DQUOTE    = 12, // "
+    T_PLUS      = 13, // +
+    T_MINUS     = 14, // -
+    T_MUL       = 15, // *
+    T_DIV       = 16, // /
+    T_MOD       = 17, // %
+    T_OFTYPE    = 18, // ->
+    T_LT        = 19, // <
+    T_GT        = 20, // >
+    T_BANG      = 21, // !
+    T_EQ        = 22, // ==
+    T_LE        = 23, // <=
+    T_GE        = 24, // >=
+    T_NE        = 25, // !=
+    T_AND       = 26, // and
+    T_OR        = 27, // or
+    T_FUNC      = 28, // func
+    T_FOR       = 29, // for
+    T_WHILE     = 30, // while
+    T_TO        = 31, // to
+    T_END       = 32, // end
+    T_STRUCT    = 33, // struct
+    T_TRUE      = 34, // true
+    T_FALSE     = 35, // false
+    T_NIL       = 36, // nil
+    T_INT       = 37, // int
+    T_BOOL      = 38, // bool
+    T_STRING    = 39, // string
+    T_FLOAT     = 40, // float
+    T_VOID      = 41, // void
+    T_GOTO      = 42, // goto
+    T_IF        = 43, // if
+    T_THEN      = 44, // then
+    T_ELSE      = 45, // else
+    T_RETURN    = 46, // return
+    T_IDENT     = 47, // identifier [a-zA-Z] [a-zA-Z0-9]
+    T_HEAD      = 48, // Head of list
+    L_STR       = 49, // string literal
+    L_INTEGER   = 50, // integer literal
+    L_FLOAT     = 51, // float literal
+    T_EOF       = 52, // End Of File
     NTOKENS
 } token_type;
 

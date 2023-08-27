@@ -1,4 +1,4 @@
-func main() -> int
+func main(string args) -> void
 then
     struct person then
         string name;
@@ -13,6 +13,18 @@ then
     is_cool := true;
 
     liam.name := "Liam";
+    liam.age := 25;
 
-    return 0;
+    string newname := liam.name;
+
+    struct person joe;
+
+    joe.age := liam.age;
+
+    if (joe.age > liam.age) then
+        println("Joe is older!");
+        return joe.age;
+    else then
+        return liam.age;
+    end
 end

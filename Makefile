@@ -15,12 +15,12 @@ lbasic: $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) -o $@
 
 clean:
-	rm -rf $(SRCDIR)/*.o &
+	rm -rf $(SRCDIR)/*.o
 	rm lbasic
 
 realclean:
-	rm -rf $(SRCDIR)/*.o &
-	rm lbasic &
+	rm -rf $(SRCDIR)/*.o
+	rm lbasic
 	rm /usr/local/bin/lbasic
 
 format:

@@ -26,35 +26,37 @@ typedef enum n_type {
     N_WHILE_STMT         = 10,
     N_IF_STMT            = 11,
     N_RETURN_STMT        = 12,
-    N_ASSIGN_EXPR        = 13,
-    N_STRUCT_ACCESS_EXPR = 14,
-    N_EXPR_LIST          = 15,
-    N_EXPR               = 16,
-    N_EMPTY_EXPR         = 17,
-    N_FORMAL             = 18,
-    N_BINOP_EXPR         = 19,
-    N_GOTO_STMT          = 20,
-    N_CALL_EXPR          = 21,
-    N_AND_EXPR           = 22,
-    N_NEG_EXPR           = 23,
-    N_NOT_EXPR           = 24,
-    N_COMPARE_EXPR       = 25,
-    N_ADD_EXPR           = 26,
-    N_MULT_EXPR          = 27,
-    N_PRIMARY_EXPR       = 28,
-    N_NEGATE_EXPR        = 29,
-    N_VALUE              = 30,
-    N_VALUE_LIST         = 31,
-    N_IDENT              = 32,
-    N_IDENT_LIST         = 33,
-    N_CONSTANT           = 34,
-    N_LITERAL            = 35,
-    N_INTEGER_LITERAL    = 36,
-    N_FLOAT_LITERAL      = 37,
-    N_STRING_LITERAL     = 38,
-    N_BOOL_LITERAL       = 39,
-    N_NIL                = 41,
-    NUM_TYPES            = 42
+    N_ARRAY_INIT_STMT    = 13,
+    N_ARRAY_ACCESS_EXPR  = 14,
+    N_ASSIGN_EXPR        = 15,
+    N_STRUCT_ACCESS_EXPR = 16,
+    N_EXPR_LIST          = 17,
+    N_EXPR               = 18,
+    N_EMPTY_EXPR         = 19,
+    N_FORMAL             = 20,
+    N_BINOP_EXPR         = 21,
+    N_GOTO_STMT          = 22,
+    N_CALL_EXPR          = 23,
+    N_AND_EXPR           = 24,
+    N_NEG_EXPR           = 25,
+    N_NOT_EXPR           = 26,
+    N_COMPARE_EXPR       = 27,
+    N_ADD_EXPR           = 28,
+    N_MULT_EXPR          = 29,
+    N_PRIMARY_EXPR       = 30,
+    N_NEGATE_EXPR        = 31,
+    N_VALUE              = 32,
+    N_VALUE_LIST         = 33,
+    N_IDENT              = 34,
+    N_IDENT_LIST         = 35,
+    N_CONSTANT           = 36,
+    N_LITERAL            = 37,
+    N_INTEGER_LITERAL    = 38,
+    N_FLOAT_LITERAL      = 39,
+    N_STRING_LITERAL     = 40,
+    N_BOOL_LITERAL       = 41,
+    N_NIL                = 42,
+    NUM_TYPES            = 43
 } n_type;
 
 typedef enum data_type {
@@ -131,6 +133,10 @@ typedef struct assign_expr_s {
 
 typedef struct formal_s {
     data_type type;
+    char struct_type[MAX_LITERAL];
+    bool is_struct;
+    bool is_array;
+    int num_dimensions;
     char name[MAX_LITERAL];
 } formal_t;
 
@@ -143,6 +149,8 @@ typedef struct var_decl_s {
     data_type type;
     char struct_type[MAX_LITERAL];
     bool is_struct;
+    bool is_array;
+    int num_dimensions; // keep track of the number of array dimensions
     char name[MAX_LITERAL];
     struct node *value; // should be an expression node
 } var_decl_t;
@@ -175,6 +183,26 @@ typedef struct if_stmt_s {
 typedef struct return_stmt_s {
     struct node *expr;
 } return_stmt_t;
+
+typedef struct array_init_stmt_s {
+    vector *expressions;
+    /* vector holding expressions for each element of the initialized array.
+     * May be a vector of vectors, depending on array dimensionality.
+     */
+} array_init_stmt_t;
+
+typedef struct array_access_expr_s {
+    char name[MAX_LITERAL];
+    vector *expressions;
+    /* vector holding expressions in order of dimension
+     * (i.e. my_array[0][i-1][2][3+j] --> 0, i-1, 2, 3+j,
+     * where each vector element is an expression)
+     *
+     * or
+     *
+     * my_array[0] --> 0
+     */
+} array_access_expr_t;
 
 typedef struct integer_literal_s {
     data_type type;
@@ -224,6 +252,8 @@ typedef struct node {
         goto_stmt_t goto_stmt;
         call_expr_t call_expr;
         struct_access_t struct_access;
+        array_init_stmt_t array_init_stmt;
+        array_access_expr_t array_access_expr;
         identifier_t identifier;
         integer_literal_t integer_literal;
         float_literal_t float_literal;

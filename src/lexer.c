@@ -176,6 +176,18 @@ static bool check_singles(char c) {
     case ')':
         emit_token(token_list, T_RPAREN, ")");
         break;
+    case '[':
+        emit_token(token_list, T_LBRACKET, "[");
+        break;
+    case ']':
+        emit_token(token_list, T_RBRACKET, "]");
+        break;
+    case '{':
+        emit_token(token_list, T_LBRACE, "{");
+        break;
+    case '}':
+        emit_token(token_list, T_RBRACE, "}");
+        break;
     case ';':
         emit_token(token_list, T_SEMICOLON, ";");
         break;
@@ -389,7 +401,9 @@ static void tokenize(char *prog_buff) {
                     inc_line = true;
                 }
 
-                if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',' || c == '.') {
+                // Delimiters
+                if (c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
+                    c == ':' || c == ';' || c == ',' || c == '.') {
                     tmp_delim = c;
                     break;
                 }

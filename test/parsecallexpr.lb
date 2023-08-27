@@ -16,8 +16,12 @@ then
     end
 end
 
-fib(10, 20, "liam");
+func main(string args) -> void
+then
 
-if (liam == "hello") then
-    return 0;
+    fib(10, 20, "liam");
+
+    if (liam == "hello") then
+       return 0;
+    end
 end

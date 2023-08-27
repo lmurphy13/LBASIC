@@ -1,0 +1,3 @@
+string[][] string_array;
+
+bool[] bool_array;
