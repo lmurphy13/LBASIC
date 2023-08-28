@@ -1,4 +1,4 @@
-func main(string[] args, int argc, bool[][] perms, struct info[][][][] infos) -> void
+func main(string[] args, int argc, struct data data, struct info[][][][] infos) -> void
 then
     struct person then
         string name;
