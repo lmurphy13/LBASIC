@@ -28,4 +28,4 @@ format:
 	clang-format-11 -i src/*.h
 
 install:
-	sudo cp lbasic /usr/local/bin
+	cp lbasic /usr/local/bin

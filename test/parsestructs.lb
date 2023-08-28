@@ -1,4 +1,4 @@
-func main(string args) -> void
+func main(string[] args, int argc, bool[][] perms, struct info[][][][] infos) -> void
 then
     struct person then
         string name;
@@ -27,4 +27,10 @@ then
     else then
         return liam.age;
     end
+end
+
+func whatever(int bla, struct person p) -> int
+then
+    println("blah");
+    return -15;
 end

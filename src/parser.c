@@ -969,9 +969,11 @@ static node *parse_call_expr() {
 }
 
 // TODO: Allow this to accept arrays and structs
+// <formal> := ( 'struct' )? <type> ( '[' ']' )* <identifier>
+// <formal-list> := <formal> ( ',' <formal> )*
 static vector *parse_formals() {
     print_lookahead_debug("inside parse_formals()");
-    bool repeat = true;
+    bool repeat = false;
     bool first  = true;
 
     vector *retval = mk_vector();
@@ -979,41 +981,94 @@ static vector *parse_formals() {
     node *formal = mk_node(N_FORMAL);
     node *new    = {0};
 
+    node *current = formal;
+
     // TODO: Optimize this do-while loop, like when parsing struct member decls.
     do {
         if (!first) {
-            new = mk_node(N_FORMAL);
+            new     = mk_node(N_FORMAL);
+            current = new;
         }
 
         consume();
         // Lookahead is now a type
 
-        // Expecting an identifier
-        token *tmp = peek();
-
-        switch (lookahead.type) {
-        case T_INT:
-        case T_BOOL:
-        case T_STRING:
-        case T_FLOAT:
-            if (tmp->type != T_IDENT) {
-                syntax_error(__FUNCTION__, "identifier", *tmp);
+        // Look for the optional 'struct' keyword
+        if (lookahead.type == T_STRUCT) {
+            if (first) {
+                formal->data.formal.is_struct = true;
+            } else {
+                new->data.formal.is_struct = true;
             }
-            break;
-        default:
-            // Didn't get a type
-            syntax_error(__FUNCTION__, "type", lookahead);
+            // consume it
+            consume();
         }
 
         if (first) {
-            formal->data.formal.type = keyword_to_type(lookahead.type);
+            if (formal->data.formal.is_struct) {
+                // If we're a struct, our data type is 'struct' and our struct type is the
+                // identifier after the 'struct' keyword
+                formal->data.formal.type = D_STRUCT;
+                memset(formal->data.formal.struct_type, 0, sizeof(formal->data.formal.struct_type));
+                snprintf(formal->data.formal.struct_type, sizeof(formal->data.formal.struct_type),
+                         "%s", lookahead.literal);
+            } else {
+                // If no 'struct', then just get the type
+                formal->data.formal.type = keyword_to_type(lookahead.type);
+            }
         } else {
-            new->data.formal.type = keyword_to_type(lookahead.type);
+            if (new->data.formal.is_struct) {
+                // If we're a struct, our data type is 'struct' and our struct type is the
+                // identifier after the 'struct' keyword
+                new->data.formal.type = D_STRUCT;
+                memset(new->data.formal.struct_type, 0, sizeof(new->data.formal.struct_type));
+                snprintf(new->data.formal.struct_type, sizeof(new->data.formal.struct_type), "%s",
+                         lookahead.literal);
+            } else {
+                new->data.formal.type = keyword_to_type(lookahead.type);
+            }
+        }
+
+        // consume type
+        consume();
+
+        print_lookahead_debug("before checking array");
+
+        // Check to see if the formal is an array
+        if (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                if (first) {
+                    formal->data.formal.is_array       = true;
+                    formal->data.formal.num_dimensions = 1;
+                } else {
+                    new->data.formal.is_array       = true;
+                    new->data.formal.num_dimensions = 1;
+                }
+
+                consume();
+            }
+        }
+
+        while (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                if (first) {
+                    formal->data.formal.num_dimensions += 1;
+                } else {
+                    new->data.formal.num_dimensions += 1;
+                }
+                consume();
+            }
         }
 
         // Now should be the identifier itself
-        consume();
-
         if (first) {
             memset(formal->data.formal.name, 0, MAX_LITERAL);
             sprintf(formal->data.formal.name, "%s", lookahead.literal);
@@ -1025,7 +1080,7 @@ static vector *parse_formals() {
         }
 
         // Look for a ',' or ')'
-        tmp = peek();
+        token *tmp = peek();
 
         // End of formals
         if (tmp->type == T_RPAREN) {
@@ -1893,7 +1948,15 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.formal.name);
         print_indent(indent + INDENT_WIDTH);
+        printf("IsStruct: %s\n", (n->data.formal.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsArray: %s\n", (n->data.formal.is_array ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Dimensions: %d\n", n->data.formal.num_dimensions);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("StructType: %s\n", n->data.formal.struct_type);
         print_indent(indent);
         printf("),\n");
         break;
