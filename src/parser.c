@@ -145,8 +145,11 @@ static void backup() {
 }
 
 static void syntax_error(const char *func, const char *exp, token l) {
-    printf("Syntax Error (line %d, col %d): Expected '%s' but got '%s'. Error caught within %s()\n",
-           l.line, l.col, exp, l.literal, func);
+    printf("Syntax Error (line %d, col %d): Expected '%s' but got '%s'.\n", l.line, l.col, exp,
+           l.literal);
+#if defined(DEBUG)
+    printf("Error caught within %s()\n", func);
+#endif
     printf("%s", l.line_str);
     for (int i = 0; i < l.col; i++) {
         printf(" ");
@@ -1084,6 +1087,8 @@ static vector *parse_formals() {
 }
 
 // TODO: Allow this to return structs and arrays
+// <function-decl> := 'func' <ident> '(' <formals> ')' '->' ( 'struct' )? <type> ( '[' ']' )* 'then'
+// <block-stmt> 'end'
 static node *parse_function_decl() {
     node *retval = mk_node(N_FUNC_DECL);
 
@@ -1138,20 +1143,63 @@ static node *parse_function_decl() {
         }
 
         // Look for type
-        switch (lookahead.type) {
-        case T_INT:
-        case T_FLOAT:
-        case T_BOOL:
-        case T_STRING:
-        case T_VOID:
-            retval->data.function_decl.type = keyword_to_type(lookahead.type);
-            break;
-        default:
-            syntax_error(__FUNCTION__, "type declaration", lookahead);
-            break;
+
+        // Is it a struct?
+        if (lookahead.type == T_STRUCT) {
+            retval->data.function_decl.is_struct = true;
+            consume();
+        }
+
+        if (retval->data.function_decl.is_struct) {
+            if (lookahead.type != T_IDENT) {
+                syntax_error(__FUNCTION__, "struct type", lookahead);
+            } else {
+                memset(retval->data.function_decl.struct_type, 0,
+                       sizeof(retval->data.function_decl.struct_type));
+                snprintf(retval->data.function_decl.struct_type,
+                         sizeof(retval->data.function_decl.struct_type), "%s", lookahead.literal);
+                retval->data.function_decl.type = D_STRUCT;
+            }
+        } else {
+            switch (lookahead.type) {
+            case T_INT:
+            case T_FLOAT:
+            case T_BOOL:
+            case T_STRING:
+            case T_VOID:
+                retval->data.function_decl.type = keyword_to_type(lookahead.type);
+                break;
+            default:
+                syntax_error(__FUNCTION__, "type declaration", lookahead);
+                break;
+            }
         }
 
         consume();
+
+        // Is it an array?
+        if (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.function_decl.is_array       = true;
+                retval->data.function_decl.num_dimensions = 1;
+                consume();
+            }
+        }
+
+        while (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.function_decl.num_dimensions += 1;
+                consume();
+            }
+        }
 
         // Look for 'then'
         if (lookahead.type == T_THEN) {
@@ -1832,6 +1880,14 @@ static void print_node(node *n, int indent) {
         printf("Name: %s\n", n->data.function_decl.name);
         print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("StructType: %s\n", n->data.function_decl.struct_type);
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsStruct: %s\n", (n->data.function_decl.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsArray: %s\n", (n->data.function_decl.is_array ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Dimensions: %d\n", n->data.function_decl.num_dimensions);
         print_indent(indent + INDENT_WIDTH);
         printf("Formals ( ");
         indent += INDENT_WIDTH;

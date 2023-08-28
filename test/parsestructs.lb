@@ -29,7 +29,7 @@ then
     end
 end
 
-func whatever(int bla, struct person p) -> int
+func whatever(int bla, struct person p) -> struct blah[][][]
 then
     println("blah");
     return -15;

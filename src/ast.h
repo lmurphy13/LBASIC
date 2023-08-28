@@ -158,9 +158,13 @@ typedef struct var_decl_s {
 typedef struct function_decl_s {
     char name[MAX_LITERAL];
     data_type type;
+    char struct_type[MAX_LITERAL];
     vector *formals;   // formal arguments
     struct node *body; // (block) statements make up the body of a function
     bool is_void;
+    bool is_array;
+    bool is_struct;
+    int num_dimensions;
 } function_decl_t;
 
 typedef struct struct_decl_s {
