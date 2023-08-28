@@ -27,7 +27,7 @@ void print_usage() {
 }
 
 void print_version() {
-    printf("LBASIC Compiler v0.1 - November 2022\n");
+    printf("LBASIC Compiler v0.2 - September 2023\n");
     printf("Author: Liam M. Murphy\n");
 }
 
