@@ -1,4 +1,5 @@
 *.o
+*.old
 lbasic
 .vscode/
 tags

@@ -65,11 +65,15 @@ void vector_add(vector *vec, void *data) {
 
             vec->count++;
 
+            printf("added new vector element\n");
+
         } else {
             log_error("Cannot add NULL data to vector");
+            exit(1);
         }
     } else {
         log_error("Cannot add element to NULL vector!");
+        exit(1);
     }
 }
 
@@ -146,3 +150,35 @@ int vector_length(vector *vec) {
     }
 }
 
+vecnode *get_nth_node(vector *vec, const int n) {
+    vecnode *retval = NULL;
+
+    if (vec != NULL) {
+        const int length = vector_length(vec);
+        if (n > length) {
+            char msg[128] = {'\0'};
+            snprintf(msg, sizeof(msg), "Cannot get node %d from a vector with length %d", n,
+                     length);
+
+            log_error(msg);
+        } else {
+            vecnode *vn = vec->head;
+            int index   = 1;
+            while (index < n) {
+                if (vn != NULL) {
+                    if (n == 1) {
+                        retval = vec->head;
+                        break;
+                    }
+
+                    vn = vn->next;
+                    index++;
+                }
+            }
+
+            retval = vn;
+        }
+    }
+
+    return retval;
+}

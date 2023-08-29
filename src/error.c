@@ -9,16 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-void log_error(const char *msg) { printf("ERROR: %s\n", msg); }
+void log_error(const char *msg) {
+    printf("ERROR: %s\n", msg);
+    exit(1);
+}
 
 void debug_msg(const char *msg) {
 #if defined(DEBUG)
     // Append two newlines to the end of msg
-    char *debug_buff = (char *)malloc((strlen(msg) + 2) * sizeof(char));
-    sprintf(debug_buff, "%s\n\n", msg);
-
-    printf("%s", debug_buff);
-
-    free(debug_buff);
+    printf("%s\n\n", msg);
 #endif
 }

@@ -7,6 +7,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#define MAX_LINE 4096
+
+/* Vectors */
 typedef struct vecnode {
     void *data;
     struct vecnode *next;
@@ -36,5 +39,16 @@ void vector_pop(vector *vec);
 // Get length of vector
 int vector_length(vector *vec);
 
-#endif // UTILS_H
+// Get the nth node from a vector
+vecnode *get_nth_node(vector *vec, const int n);
 
+/* Line Map (vector)
+ *
+ *  The idea here is to maintain a list of strings for each line in the
+ *  input program. This will be used to display more effective error
+ *  messages in the front-half of the compiler. */
+typedef struct line_s {
+    char text[MAX_LINE];
+} line_t;
+
+#endif // UTILS_H

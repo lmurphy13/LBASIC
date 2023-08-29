@@ -1,0 +1,17 @@
+func halo() -> void
+then
+    ' this should get caught by the type checker
+    string butts := 3;
+
+    return butts;
+end
+
+func main() -> int
+then
+    int i := 0
+    while (i < 10) then
+        string hallo := "world";
+
+        i := i + 1;
+    end
+end
