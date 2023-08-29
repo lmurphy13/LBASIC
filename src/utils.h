@@ -8,6 +8,7 @@
 #define UTILS_H
 
 #define MAX_LINE 4096
+#define MAX_SLOTS 1024
 
 /* Vectors */
 typedef struct vecnode {
@@ -20,6 +21,10 @@ typedef struct vector {
     vecnode *tail;
     int count;
 } vector;
+
+typedef struct hashtable {
+    vector *slots[MAX_SLOTS];
+} hashtable;
 
 // Allocate a new vector
 vector *mk_vector(void);
@@ -50,5 +55,20 @@ vecnode *get_nth_node(vector *vec, const int n);
 typedef struct line_s {
     char text[MAX_LINE];
 } line_t;
+
+// Allocate a new hash table
+hashtable *mk_hashtable(void);
+
+// Free a hash table
+void ht_free(hashtable *ht);
+
+// Insert an element
+void ht_insert(hashtable *ht, void *key, void *data);
+
+// Lookup an element
+void *ht_lookup(hashtable *ht, void *key);
+
+// Remove an element
+void ht_remove(hashtable *ht, void *key);
 
 #endif // UTILS_H

@@ -182,3 +182,110 @@ vecnode *get_nth_node(vector *vec, const int n) {
 
     return retval;
 }
+
+// Allocate a new hash table
+hashtable *mk_hashtable() {
+    hashtable *retval = (hashtable *)malloc(sizeof(hashtable));
+
+    if (retval != NULL) {
+        memset(retval, 0, sizeof(*retval));
+    }
+
+    return retval;
+}
+
+// Free a hash table
+// void ht_free(hashtable *ht);
+
+// Private hash function
+static unsigned int ht_hash(void *key) {
+    unsigned int accum = 0;
+
+    if (key == NULL) {
+        log_error("Unable to access key for hashing");
+    }
+
+    // Cast key as a char *
+    char *data = key;
+
+    // Sum each byte
+    for (size_t idx = 0; idx < strlen(data); idx += 1) {
+        const unsigned int val = data[idx];
+        accum += val;
+    }
+
+    const unsigned int retval = accum % MAX_SLOTS;
+    return retval;
+}
+
+// Insert an element
+void ht_insert(hashtable *ht, void *key, void *data) {
+    if (ht != NULL) {
+        if (key != NULL) {
+            if (data != NULL) {
+                unsigned int index = ht_hash(key);
+                printf("INDEX INSERT: %u\n", index);
+
+                if (ht->slots[index] == NULL) {
+                    ht->slots[index] = mk_vector();
+                    if (ht->slots[index] != NULL) {
+                        vector_add(ht->slots[index], data);
+                    } else {
+                        char msg[1024] = {'\0'};
+                        snprintf(msg, sizeof(msg),
+                                 "Unable to create vector for hashtable insertion at index: %d",
+                                 index);
+                        log_error(msg);
+                    }
+                } else {
+                    vector_add(ht->slots[index], data);
+                }
+            } else {
+                log_error("Unable to access data for insertion");
+            }
+        } else {
+            log_error("Unable to access key for insertion");
+        }
+    } else {
+        log_error("Unable to access hashtable for insertion");
+    }
+}
+
+// Lookup an element
+void *ht_lookup(hashtable *ht, void *key) {
+    void *retval = NULL;
+
+    if (ht != NULL) {
+        if (key != NULL) {
+            unsigned int index = ht_hash(key);
+            printf("INDEX LOOKUP: %u\n", index);
+
+            vector *slot_ptr = ht->slots[index];
+            if (slot_ptr != NULL) {
+                if (slot_ptr->count == 1) {
+                    vecnode *vn = slot_ptr->head;
+                    if (vn != NULL) {
+                        retval = vn->data;
+                    } else {
+                        log_error("Unable to access vecnode at vector head for lookup");
+                    }
+                } else {
+                }
+            } else {
+                char msg[1024] = {'\0'};
+                snprintf(msg, sizeof(msg),
+                         "Unable to access vector for hashtable lookup at index: %d", index);
+                log_error(msg);
+            }
+        } else {
+            log_error("Unable to access key for lookup");
+        }
+    } else {
+        log_error("Unable to access hashtable for lookup");
+    }
+
+    return retval;
+}
+
+// Remove an element
+// void ht_remove(hashtable *ht, void *key);

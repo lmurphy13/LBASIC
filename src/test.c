@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "symtab.h"
 #include "test.h"
 #include "utils.h"
 
@@ -85,16 +86,37 @@ void run_tests(void) {
     vector_pop(v);
     print_string_vec(v);
 
-    for (int i = 0; i < 5; i++) {
-        printf("popping tail\n");
-        vector_pop(v);
-        print_string_vec(v);
-    }
-
     printf("freeing vector\n");
     vector_free(&v);
 
     print_string_vec(v);
+
+    printf("Running hashtable tests................\n");
+
+    hashtable *ht = mk_hashtable();
+
+    if (ht != NULL) {
+        binding_t *b1 = mk_binding();
+        binding_t *b2 = mk_binding();
+
+        snprintf(b1->name, sizeof(b1->name), "%s", "LIAM");
+        snprintf(b1->struct_type, sizeof(b1->struct_type), "%s", "STRUCTYPE1");
+        b1->data_type   = SYM_DTYPE_STRING;
+        b1->object_type = SYM_OTYPE_VARIABLE;
+
+        snprintf(b2->name, sizeof(b2->name), "%s", "LIAM");
+        snprintf(b2->struct_type, sizeof(b2->struct_type), "%s", "STRUCTYPE2");
+        b2->data_type   = SYM_DTYPE_STRING;
+        b2->object_type = SYM_OTYPE_VARIABLE;
+
+        ht_insert(ht, b1, b1);
+        ht_insert(ht, b2, b2);
+
+        binding_t *lookup1 = (binding_t *)ht_lookup(ht, b1);
+        if (lookup1 != NULL) {
+            printf("lookup1.name == %s\n", lookup1->name);
+        }
+    }
 }
 
 #endif

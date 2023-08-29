@@ -88,10 +88,11 @@ static node *parse_nil(void);             // done
 
 node *mk_node(n_type type) {
     node *retval = (node *)malloc(sizeof(node));
-    memset(retval, 0, sizeof(node));
 
     // Freed TBD
     if (retval != NULL) {
+        memset(retval, 0, sizeof(node));
+
         // Assign type
         retval->type = type;
 
@@ -100,12 +101,10 @@ node *mk_node(n_type type) {
 
             if (retval->data.program.statements == NULL) {
                 log_error("Could not allocate node's 'statements' vector");
-                exit(1);
             }
         }
     } else {
         log_error("mk_node(): Unable to allocate memory for new AST node");
-        exit(1);
     }
 
     return retval;
@@ -119,7 +118,6 @@ static token get_token(t_list *t) {
     } else {
         log_error("Failed to get next token. Bad t_list or you're trying to access beyond the end "
                   "of the token list.");
-        exit(1);
     }
     return retval;
 }
@@ -1953,7 +1951,6 @@ static void print_indent(int indent) {
 static void print_node(node *n, int indent) {
     if (n == NULL) {
         log_error("Unable to access node for printing");
-        exit(1);
     }
 
     print_indent(indent);

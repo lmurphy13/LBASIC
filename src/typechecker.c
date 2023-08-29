@@ -7,6 +7,7 @@
 #include "typechecker.h"
 
 #include "error.h"
+#include "symtab.h"
 
 #include <stdio.h>
 
@@ -17,14 +18,14 @@
 void typecheck(node *ast) {
     node *root = ast;
 
+    binding_t *b = mk_binding();
+
     if (root != NULL) {
-        
+
     } else {
         log_error("Unable to access AST for type checking");
     }
 }
 
 // Might not be needed
-void print_checked_ast(node *ast) {
-    return;
-}
+void print_checked_ast(node *ast) { return; }
