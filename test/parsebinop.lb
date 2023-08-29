@@ -1,8 +1,0 @@
-int a := (a + ((2 * 3) / 2.5));
-a := a + (2 % 2);
-
-b := (!(a and b)) or !false;
-
-int c := ((1 > 0) == (!true));
-
-int d := true or !false;

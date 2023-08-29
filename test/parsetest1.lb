@@ -1,6 +1,5 @@
 func function(int a, string b, bool c) -> int
-then
-    int copy := a;
+'    int copy := a;
 
 	return;
 end

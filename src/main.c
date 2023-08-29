@@ -21,13 +21,12 @@
 void print_usage() {
     printf("LBASIC Compiler Usage\n");
     printf("    ./lbasic -v or --version\n");
-    printf("    ./lbasic -t or --test (debug build only)\n");
-    printf("    ./lbasic -h or --help\n");
+    printf("    ./lbasic -t or --test\n");
     printf("    ./lbasic <path>\n");
 }
 
 void print_version() {
-    printf("LBASIC Compiler v0.2 - September 2023\n");
+    printf("LBASIC Compiler v0.1 - November 2022\n");
     printf("Author: Liam M. Murphy\n");
 }
 
@@ -39,17 +38,12 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        else if ((strcmp(argv[1], "-t") == 0) || (strcmp(argv[1], "--test") == 0)) {
+        if ((strcmp(argv[1], "-t") == 0) || (strcmp(argv[1], "--test") == 0)) {
 #if defined(DEBUG)
             run_tests();
 #else
             printf("Test suite unavailable in production builds\n");
 #endif
-            return 0;
-        }
-
-        else if ((strcmp(argv[1], "-h") == 0) || (strcmp(argv[1], "--help") == 0)) {
-            print_usage();
             return 0;
         }
 
@@ -64,11 +58,12 @@ int main(int argc, char *argv[]) {
             node *program = parse(token_list);
 
             if (program != NULL) {
+                // Cleanup token_list
+                // t_list_free(token_list);
+
 #if defined(DEBUG)
                 print_ast(program);
 #endif
-                // Cleanup token_list
-                t_list_free(token_list);
             } else {
                 log_error("Invalid AST generated during parsing.");
                 exit(COMPILER_ERROR_BAD_AST);

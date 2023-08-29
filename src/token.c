@@ -12,14 +12,12 @@
 static unsigned int token_count = 0;
 
 t_list *t_list_new(void) {
-    t_list *new = (t_list *)malloc(sizeof(t_list) + 1);
-    memset(new, 0, sizeof(t_list));
-    new->next = NULL;
-    new->prev = NULL;
+    t_list *new = (t_list *)malloc(sizeof(t_list));
+    new->next   = NULL;
+    new->prev   = NULL;
 
     token *tok = (token *)malloc(sizeof(token));
     memset(tok->literal, 0, MAX_LITERAL);
-    memset(tok->line_str, 0, MAX_LINE);
     strncpy(tok->literal, "HEAD", strlen("HEAD"));
 
     tok->type = T_HEAD;
