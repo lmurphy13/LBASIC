@@ -3,12 +3,9 @@ bool isEven := false;
 string myName := "Liam";
 float poptart := nil;
 
-int i := a + b;
-
-
-'while (true)
+while (true)
 '	println("hello world!");
-'	int iter := 5;
-'
-'    iter := iter + 1;
-'end
+	int iter := 5;
+
+    iter := iter + 1;
+end

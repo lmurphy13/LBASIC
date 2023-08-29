@@ -1,6 +1,0 @@
-func simple_func(int a) -> int
-then
-    return a;
-end
-
-simple_func(5);
