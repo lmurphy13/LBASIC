@@ -26,7 +26,7 @@ typedef enum n_type {
     N_WHILE_STMT         = 10,
     N_IF_STMT            = 11,
     N_RETURN_STMT        = 12,
-    N_ARRAY_INIT_STMT    = 13,
+    N_ARRAY_INIT_EXPR    = 13,
     N_ARRAY_ACCESS_EXPR  = 14,
     N_ASSIGN_EXPR        = 15,
     N_STRUCT_ACCESS_EXPR = 16,
@@ -188,12 +188,12 @@ typedef struct return_stmt_s {
     struct node *expr;
 } return_stmt_t;
 
-typedef struct array_init_stmt_s {
+typedef struct array_init_expr_s {
     vector *expressions;
     /* vector holding expressions for each element of the initialized array.
      * May be a vector of vectors, depending on array dimensionality.
      */
-} array_init_stmt_t;
+} array_init_expr_t;
 
 typedef struct array_access_expr_s {
     char name[MAX_LITERAL];
@@ -256,7 +256,7 @@ typedef struct node {
         goto_stmt_t goto_stmt;
         call_expr_t call_expr;
         struct_access_t struct_access;
-        array_init_stmt_t array_init_stmt;
+        array_init_expr_t array_init_expr;
         array_access_expr_t array_access_expr;
         identifier_t identifier;
         integer_literal_t integer_literal;

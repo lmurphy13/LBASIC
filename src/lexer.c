@@ -324,6 +324,11 @@ static void tokenize(char *prog_buff) {
                         emit_token(token_list, T_EQ, "==");
                     } else {
                         unget_char();
+                        unget_char();
+                        c = get_char(prog_buff);
+                        printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
+                               line_num, col_num, c, char_num);
+                        exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                     }
                     break;
                 case '<':

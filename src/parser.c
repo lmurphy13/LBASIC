@@ -61,7 +61,7 @@ static node *parse_member_decl(void);        // done
 static node *parse_struct_decl(void);        // done
 static node *parse_struct_access_expr(void); // done
 static node *parse_return_stmt(void);        // done
-static node *parse_array_init_stmt(void);    // TBD
+static node *parse_array_init_expr(void);    // done
 static node *parse_array_access_expr(void);  // TBD
 
 /* Precedence rules, lowest to highest
@@ -301,7 +301,7 @@ static node *parse_statement(bool *more) {
         printf("tmp literal: %s\n", tmp->literal);
 
         if (strcmp(tmp->literal, ":=") == 0) {
-            retval = parse_assign_expr();
+            retval = parse_expression();
             break;
         } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
@@ -329,6 +329,10 @@ static node *parse_statement(bool *more) {
             // Likely a struct access
             retval = parse_expression();
             break;
+        } else if (strcmp(tmp->literal, "[") == 0) {
+            // Likely an array access
+            retval = parse_expression();
+            break;
         } else {
             log_error("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
@@ -349,7 +353,7 @@ static node *parse_statement(bool *more) {
         break;
     case T_STRUCT: {
         // We are either a struct declaration or a variable declaration
-        // This is our only LL(2) region
+        // LL(2) region
         token *next1 = peek();
         if (next1->type == T_IDENT) {
             consume();
@@ -757,7 +761,9 @@ static node *parse_primary_expr() {
         retval = parse_bool_literal();
         break;
     case T_IDENT: {
-        // We need to check if this is a regular variable or a function call
+        print_lookahead_debug("checking primary_expr ident cases");
+        // We need to check if this is a regular variable, a function call, a struct access, or an
+        // array access
         token *tmp = peek();
         if ((tmp != NULL) && (tmp->type == T_LPAREN)) {
             // This is a function call
@@ -784,6 +790,61 @@ static node *parse_primary_expr() {
                     retval = parse_struct_access_expr();
                 }
             }
+            return retval;
+        } else if ((tmp != NULL) && (tmp->type == T_LBRACKET)) {
+            // This is an array access
+
+            // First, try to figure out if we ever hit an assignment operator
+            // Token lookahead buffer (does not consume from real token stream)
+            t_list *curr_tok = toks;
+            token tmp_tok    = get_token(curr_tok);
+
+            // Now get next token
+            curr_tok = curr_tok->next;
+            tmp_tok  = get_token(curr_tok);
+
+            bool more = false;
+            do {
+                if (tmp_tok.type != T_LBRACKET) {
+                    // At this point, this shouldn't happen, but if it does, break out
+                    break;
+                } else {
+                    curr_tok = curr_tok->next;
+                    tmp_tok  = get_token(curr_tok);
+
+                    // Read chars until closing bracket
+                    while (tmp_tok.type != T_RBRACKET) {
+                        curr_tok = curr_tok->next;
+                        tmp_tok  = get_token(curr_tok);
+                    }
+
+                    // Look for closing bracket
+                    if (tmp_tok.type != T_RBRACKET) {
+                        // If we don't find it, break out
+                        break;
+                    } else {
+                        curr_tok = curr_tok->next;
+                        tmp_tok  = get_token(curr_tok);
+                    }
+
+                    // See if we have another dimension
+                    if (tmp_tok.type == T_LBRACKET) {
+                        more = true;
+                    } else {
+                        break;
+                    }
+                }
+            } while (more);
+
+            if (tmp_tok.type == T_ASSIGN) {
+                // This is an assignment (eventually)
+                retval = parse_assign_expr();
+            } else {
+                retval = parse_array_access_expr();
+            }
+            return retval;
+        } else if ((tmp != NULL) && (tmp->type == T_ASSIGN)) {
+            retval = parse_assign_expr();
             return retval;
         } else if (tmp != NULL) {
             // Treat this as a regular variable name
@@ -824,6 +885,8 @@ static node *parse_assign_expr() {
 
             if (tmp->type == T_DOT) {
                 retval->data.assign_expr.lhs = parse_struct_access_expr();
+            } else if (tmp->type == T_LBRACKET) {
+                retval->data.assign_expr.lhs = parse_array_access_expr();
             } else {
                 retval->data.assign_expr.lhs = parse_identifier();
                 consume();
@@ -1240,14 +1303,19 @@ static node *parse_expression() {
         retval = parse_and_expr();
         break;
     case T_ASSIGN:
+        // This case might be dead code
         retval = parse_assign_expr();
         break;
     case T_LBRACE:
-        retval = parse_array_init_stmt();
+        retval = parse_array_init_expr();
         break;
-    default:
-        print_lookahead_debug("default parse_expr()");
-        assert(0 && "Expression type not yet implemented");
+    default: {
+        char str[1024] = {'\0'};
+        snprintf(str, sizeof(str),
+                 "Unknown token at beginning of expression: %s (line %d, col: %d)\n%s",
+                 lookahead.literal, lookahead.line, lookahead.col, lookahead.line_str);
+        log_error(str);
+    }
     }
 
     return retval;
@@ -1346,8 +1414,6 @@ static node *parse_var_decl() {
         // Consume the type declaration
         consume();
 
-        print_lookahead_debug("looking for lbracket");
-
         // Look for the optional array declaration
         if (lookahead.type == T_LBRACKET) {
             consume();
@@ -1382,6 +1448,7 @@ static node *parse_var_decl() {
         }
 
         consume();
+
         // Look for the assignment
         if (lookahead.type == T_ASSIGN) {
 
@@ -1517,7 +1584,7 @@ static node *parse_struct_decl() {
 
         // Check for the 'end' token
         if (lookahead.type != T_END) {
-            syntax_error(__FUNCTION__, "'end", lookahead);
+            syntax_error(__FUNCTION__, "end", lookahead);
         } else {
             // Consume 'end'
             consume();
@@ -1587,7 +1654,6 @@ static node *parse_return_stmt() {
             retval->data.return_stmt.expr = parse_expression();
             print_lookahead_debug("after return expr");
 
-            //          consume();
             // Look for ;
             if (lookahead.type != T_SEMICOLON) {
                 syntax_error(__FUNCTION__, "; after return expression", lookahead);
@@ -1601,11 +1667,93 @@ static node *parse_return_stmt() {
     return retval;
 }
 
-// <array-init> := '{' ( <expr> ( ',' )? )? '}' ';'
-static node *parse_array_init_stmt() { assert(0 && "Not yet implemented"); }
+// <array-init-expr> := '{' ( <expr> ( ',' )? )? '}'
+static node *parse_array_init_expr() {
+    node *retval = mk_node(N_ARRAY_INIT_EXPR);
 
-// <array-access-expr> := ( '[' <expression> ']' )+
-static node *parse_array_access_expr() { assert(0 && "Not yet implemented"); }
+    if (retval != NULL) {
+        if (lookahead.type != T_LBRACE) {
+            syntax_error(__FUNCTION__, "{", lookahead);
+        } else {
+            retval->data.array_init_expr.expressions = mk_vector();
+            consume();
+
+            if (lookahead.type == T_RBRACE) {
+                // Empty intializer
+                consume();
+            } else {
+                // Look for expressions, separated by commas.
+                bool more = false;
+
+                do {
+                    node *expr = parse_expression();
+                    vector_add(retval->data.array_init_expr.expressions, expr);
+
+                    print_lookahead_debug("after adding expr");
+
+                    if (lookahead.type == T_COMMA) {
+                        consume();
+                        more = true;
+                    } else if (lookahead.type == T_RBRACE) {
+                        consume();
+                        more = false;
+                    }
+                } while (more);
+            }
+        }
+    }
+
+    return retval;
+}
+
+// <array-access-expr> := <ident> ( '[' <expression> ']' )+
+static node *parse_array_access_expr() {
+    node *retval = mk_node(N_ARRAY_ACCESS_EXPR);
+
+    if (retval != NULL) {
+        print_lookahead_debug("top of parse_array_access_expr()");
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        } else {
+            memset(retval->data.array_access_expr.name, 0,
+                   sizeof(retval->data.array_access_expr.name));
+            snprintf(retval->data.array_access_expr.name,
+                     sizeof(retval->data.array_access_expr.name), "%s", lookahead.literal);
+
+            retval->data.array_access_expr.expressions = mk_vector();
+            consume();
+        }
+
+        // Look for indexing
+        bool more = false;
+        do {
+            if (lookahead.type != T_LBRACKET) {
+                syntax_error(__FUNCTION__, "[", lookahead);
+            } else {
+                consume();
+
+                // Read expression
+                node *expr = parse_expression();
+                vector_add(retval->data.array_access_expr.expressions, expr);
+
+                // Look for closing bracket
+                if (lookahead.type != T_RBRACKET) {
+                    syntax_error(__FUNCTION__, "]", lookahead);
+                } else {
+                    consume();
+                }
+
+                if (lookahead.type == T_LBRACKET) {
+                    more = true;
+                } else {
+                    more = false;
+                }
+            }
+        } while (more);
+    }
+
+    return retval;
+}
 
 static node *parse_identifier() {
     node *retval = mk_node(N_IDENT);
@@ -1981,6 +2129,50 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_ARRAY_INIT_EXPR:
+        printf("ArrayInitExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expressions: \n");
+
+        indent += INDENT_WIDTH;
+        vecnode *e = n->data.array_init_expr.expressions->head;
+        print_indent(indent + INDENT_WIDTH);
+        printf("NumElements: %d\n", n->data.array_init_expr.expressions->count);
+
+        if (e != NULL) {
+            printf("\n");
+            while (e != NULL) {
+                print_node(e->data, indent + INDENT_WIDTH);
+                e = e->next;
+            }
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("), \n");
+        break;
+    case N_ARRAY_ACCESS_EXPR:
+        printf("ArrayAccessExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expressions: \n");
+
+        indent += INDENT_WIDTH;
+        vecnode *el = n->data.array_access_expr.expressions->head;
+        print_indent(indent + INDENT_WIDTH);
+        printf("NumElements: %d\n", n->data.array_access_expr.expressions->count);
+
+        if (el != NULL) {
+            printf("\n");
+            while (el != NULL) {
+                print_node(el->data, indent + INDENT_WIDTH);
+                el = el->next;
+            }
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("), \n");
+        break;
     case N_FORMAL:
         printf("Formal (\n");
         print_indent(indent + INDENT_WIDTH);
@@ -2039,7 +2231,7 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %d\n", n->data.integer_literal.value);
         print_indent(indent);
-        printf(")\n");
+        printf("),\n");
         break;
     case N_FLOAT_LITERAL:
         printf("FloatLiteral (\n");
@@ -2048,7 +2240,7 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %f\n", n->data.float_literal.value);
         print_indent(indent);
-        printf(")\n");
+        printf("),\n");
         break;
     case N_STRING_LITERAL:
         printf("StringLiteral (\n");
@@ -2057,7 +2249,7 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %s\n", n->data.string_literal.value);
         print_indent(indent);
-        printf(")\n");
+        printf("),\n");
         break;
     case N_BOOL_LITERAL:
         printf("BoolLiteral (\n");
@@ -2068,14 +2260,14 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("StringValue: %s\n", n->data.bool_literal.str_val);
         print_indent(indent);
-        printf(")\n");
+        printf("),\n");
         break;
     case N_NIL:
         printf("Nil (\n");
         print_indent(indent + INDENT_WIDTH);
         printf("Value: %d\n", n->data.nil.value);
         print_indent(indent);
-        printf(")\n");
+        printf("),\n");
         break;
     case N_IDENT:
         printf("Identifier (\n");
