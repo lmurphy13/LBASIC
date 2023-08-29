@@ -4,87 +4,108 @@
  * Author: Liam M. Murphy
  */
 
+#include "parser.h"
+
+#include "ast.h"
+#include "error.h"
+#include "token.h"
+#include "utils.h"
+
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "ast.h"
-#include "error.h"
-#include "parser.h"
-#include "token.h"
-#include "utils.h"
-
 #define INDENT_WIDTH 4
-
-// Static Prototypes
-static token get_token(t_list *);
-static token *peek(void);
-static void consume(void);
-static void backup(void);
-static void syntax_error(const char *exp, token l);
-static void print_node(node *n, int indent);
-static data_type keyword_to_type(token_type t);
-static void print_lookahead_debug(const char *msg);
-
-// Parsing Prototypes
-void parse_declarations(node *program);
-node *parse_declaration(bool *more);
-void parse_statements(node *program);
-node *parse_statement(bool *more);
-node *parse_function_decl(void);
-node *parse_formals(void);
-node *parse_label_decl(void);
-node *parse_struct_decl(void);
-node *parse_var_decls(void);
-node *parse_var_decl(void);
-node *parse_expression(void);
-node *parse_bin_op_expr(void);
-node *parse_and_expr(void);
-node *parse_or_expr(void);
-node *parse_add_expr(void);
-node *parse_sub_expr(void);
-node *parse_mul_expr(void);
-node *parse_div_expr(void);
-node *parse_mod_expr(void);
-node *parse_goto_expr(void);
-node *parse_call_expr(void);
-node *parse_struct_access_expr(void);
-node *parse_for_stmt(void);
-node *parse_while_stmt(void);
-node *parse_ifthen_stmt(void);
-node *parse_ifthenelse_stmt(void);
-node *parse_assign_stmt(void);
-node *parse_value(void);
-node *parse_constant(void);
-node *parse_identifier(void);
-vector *parse_body(void);
+#define N_BUILTINS 1
 
 // Globals
-// Current token
 static token lookahead;
+
+// List of "builtin" functions (identifiers)
+static char builtins[N_BUILTINS][MAX_LITERAL] = {"println"};
 
 // Pointer to doubly-linked list of tokens
 static t_list *toks;
 
+// Private prototypes
+static token get_token(t_list *);
+static token *peek(void);
+static void consume(void);
+static void backup(void);
+static void syntax_error(const char *func, const char *exp, token l);
+static void print_node(node *n, int indent);
+static data_type keyword_to_type(token_type t);
+static void print_lookahead_debug(const char *msg);
+static bool is_builtin(const char *ident);
+static bool is_binop_symbol(token *t);
+
+// Grammar productions
+static vector *parse_statements(void);       // done
+static node *parse_statement(bool *more);    // done
+static node *parse_block_stmt(void);         // done
+static node *parse_for_stmt(void);           // TBD later on
+static node *parse_while_stmt(void);         // done
+static node *parse_if_stmt(void);            // done
+static node *parse_assign_expr(void);        // done
+static vector *parse_arg_list(void);         // done
+static node *parse_call_expr(void);          // done
+static node *parse_expression(void);         // done
+static vector *parse_formals(void);          // done
+static node *parse_function_decl(void);      // done
+static node *parse_label_decl(void);         // done
+static node *parse_goto_stmt(void);          // done
+static node *parse_var_decl(void);           // done
+static node *parse_member_decl(void);        // done
+static node *parse_struct_decl(void);        // done
+static node *parse_struct_access_expr(void); // done
+static node *parse_return_stmt(void);        // done
+static node *parse_array_init_expr(void);    // done
+static node *parse_array_access_expr(void);  // done
+
+/* Precedence rules, lowest to highest
+ * && ||
+ * !
+ * == != > >= < <=
+ * + -
+ * * / %
+ */
+static node *parse_and_expr(void);     // done
+static node *parse_not_expr(void);     // done
+static node *parse_compare_expr(void); // done
+static node *parse_add_expr(void);     // done
+static node *parse_mult_expr(void);    // done
+// Same as a 'factor'. Here we parse primitives.
+static node *parse_primary_expr(void); // done
+
+static node *parse_identifier(void);      // done
+static node *parse_string_literal(void);  // done
+static node *parse_integer_literal(void); // done
+static node *parse_float_literal(void);   // done
+static node *parse_bool_literal(void);    // done
+static node *parse_nil(void);             // done
+
 node *mk_node(n_type type) {
     node *retval = (node *)malloc(sizeof(node));
+    memset(retval, 0, sizeof(node));
 
     // Freed TBD
     if (retval != NULL) {
         // Assign type
         retval->type = type;
 
-        if (type == N_PROGRAM) { 
-            retval->data.program.children = mk_vector();
+        if (type == N_PROGRAM) {
+            retval->data.program.statements = mk_vector();
 
-            if (retval->data.program.children == NULL) {
-                log_error("Could not allocate node's children vector");
+            if (retval->data.program.statements == NULL) {
+                log_error("Could not allocate node's 'statements' vector");
                 exit(1);
             }
         }
-
-        retval->next = NULL;
+    } else {
+        log_error("mk_node(): Unable to allocate memory for new AST node");
+        exit(1);
     }
 
     return retval;
@@ -93,7 +114,13 @@ node *mk_node(n_type type) {
 // Extracts a token from a t_list struct
 static token get_token(t_list *t) {
     token retval;
-    retval = *(t->tok);
+    if (t != NULL) {
+        retval = *(t->tok);
+    } else {
+        log_error("Failed to get next token. Bad t_list or you're trying to access beyond the end "
+                  "of the token list.");
+        exit(1);
+    }
     return retval;
 }
 
@@ -117,15 +144,69 @@ static void backup() {
     toks         = t_list_prev(toks);
 }
 
-static void syntax_error(const char *exp, token l) {
-    printf("Syntax Error (line %d, col %d): Expected %s but got '%s'.\n", l.line, l.col, exp,
+static void syntax_error(const char *func, const char *exp, token l) {
+    printf("Syntax Error (line %d, col %d): Expected '%s' but got '%s'.\n", l.line, l.col, exp,
            l.literal);
+#if defined(DEBUG)
+    printf("Error caught within %s()\n", func);
+#endif
+    printf("%s", l.line_str);
+    for (int i = 0; i < l.col; i++) {
+        printf(" ");
+    }
+    printf("^\n");
     exit(PARSER_ERROR_SYNTAX_ERROR);
+}
+
+// Check to see if an identifier (string) is a builtin function
+static bool is_builtin(const char *ident) {
+    bool found = false;
+
+    for (int i = 0; i < N_BUILTINS; i++) {
+        if (strcmp(ident, builtins[i]) == 0) {
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
+static bool is_binop_symbol(token *t) {
+    bool ret = false;
+
+    if (t != NULL) {
+        switch (t->type) {
+        case T_PLUS:
+        case T_MINUS:
+        case T_MUL:
+        case T_DIV:
+        case T_MOD:
+            ret = true;
+            break;
+        default:
+            assert(0 && "Other binop symbol types not yet implemented");
+        }
+    }
+
+    return ret;
+}
+
+static void print_lookahead_debug(const char *msg) {
+#ifdef DEBUG
+    if (strlen(msg) > 0) {
+        printf("Msg: %s\n", msg);
+    }
+    printf("Lookahead type: %d\n", lookahead.type);
+    printf("Lookahead literal: %s\n", lookahead.literal);
+    printf("Line: %d\n", lookahead.line);
+    printf("Column: %d\n", lookahead.col);
+#endif
 }
 
 // Recursive descent
 
-// <program> := <declarations> <statements>
+// <program> := <statements>
 node *parse(t_list *tokens) {
     node *program = mk_node(N_PROGRAM);
 
@@ -139,125 +220,69 @@ node *parse(t_list *tokens) {
     if (lookahead.type == T_HEAD) {
         // Found head, get first real token
         consume();
+
+        if (lookahead.type == T_EOF) {
+            // If we go immediately to an EOF, this is an empty file.
+            log_error("Empty files are not valid LBASIC programs");
+        }
     }
 
     // Parse the body of the program
-    program->data.program.children = parse_body();
-
-    // Parse declarations
-//    parse_declarations(program);
-
-    // Parse statements
-//    parse_statements(program);
+    program->data.program.statements = parse_statements();
 
     return program;
 }
 
-// <declarations> := <declaration> <declarations>
-//                 | <declaration>
-void parse_declarations(node *program) {
-    bool more = true;
+// <statements> := <statement> <statements>
+//               | <statement>
+static vector *parse_statements() {
+    vector *retval = mk_vector();
+    bool more      = true;
+    printf("parsing stmts\n");
 
-    do {
-        node *new_node = parse_declaration(&more);
+    if (retval != NULL) {
+        do {
+            node *new_node = parse_statement(&more);
+            if (new_node != NULL) {
+                print_lookahead_debug("adding statement node");
+                printf("NODE TYPE: %d\n", new_node->type);
+                vector_add(retval, new_node);
 
-        switch (program->type) {
-            case N_PROGRAM:
-                vector_add(program->data.program.children, new_node);
-                break;
-            case N_FUNC_DECL:
-                vector_add(program->data.function_decl.body, new_node);
-                break;
-            case N_WHILE_STMT:
-                vector_add(program->data.while_stmt.body, new_node);
-                break;
-            case N_FOR_STMT:
-            default:
-                log_error("parse_declarations(): Unimplemented or unknown node type");
-                exit(1);
-        }
-    } while (more);
-}
-
-// <declaration> := <function-decl>
-//                | <label-decl>
-//                | <var-decl>
-//                | <struct-decl>
-node *parse_declaration(bool *more) {
-    node *retval;
-
-    switch (lookahead.type) {
-    case T_FUNC:
-        retval = parse_function_decl();
-        break;
-    case T_IDENT: {
-        token *tmp = peek();
-        // If not colon, this is not a label decl
-        if (tmp->type != 3) {
-            *more = false;
-            break;
-        }
-
-        retval = parse_label_decl();
-        break;
-    }
-    case T_INT:
-    case T_FLOAT:
-    case T_STRING:
-    case T_BOOL:
-        retval = parse_var_decl();
-        break;
-    case T_STRUCT:
-        retval = parse_struct_decl();
-        break;
-    default:
-        *more = false;
-        break;
+                // If we reach the end of the file, break out
+                if (lookahead.type == T_EOF) {
+                    break;
+                }
+            }
+        } while (more);
+    } else {
+        log_error("parse_statements(): Unable to allocate vector");
     }
 
     return retval;
 }
 
-// <statements> := <statement> <statements>
-//               | <statement>
-void parse_statements(node *program) {
-    bool more = true;
-    printf("parsing stmts\n");
-    do {
-        node *new_node = parse_statement(&more);
-
-        switch (program->type) {
-            case N_PROGRAM:
-                vector_add(program->data.program.children, new_node);
-                break;
-            case N_FUNC_DECL:
-                vector_add(program->data.function_decl.body, new_node);
-                break;
-            case N_WHILE_STMT:
-                vector_add(program->data.while_stmt.body, new_node);
-                break;
-            case N_FOR_STMT:
-            default:
-                log_error("parse_statements(): Unimplemented or unknown node type");
-                exit(1);
-        }
-    } while (more);
-}
-
-// <statement> := <for-stmt>
+// <statement> := <block-stmt>
+//              | <for-stmt>
 //              | <while-stmt>
-//              | <if-then-stmt>
-//              | <if-then-else-stmt>
+//              | <if-stmt>
+//              | <if-else-stmt>
 //              | <assign-stmt>
+//              | <function-decl>
+//              | <var-decl>
+//              | <label-decl>
+//              | <goto-stmt>
+//              | <struct-decl>
 //              | <expression>
-node *parse_statement(bool *more) {
-    node *retval;
+//              | ';' (empty statement)
+//              | ( <expression> )
+static node *parse_statement(bool *more) {
+    node *retval = NULL;
     printf("type: %d\n", lookahead.type);
 
-    while (1)
-        ;
-
     switch (lookahead.type) {
+    case T_THEN:
+        retval = parse_block_stmt();
+        break;
     case T_FOR:
         retval = parse_for_stmt();
         break;
@@ -265,29 +290,104 @@ node *parse_statement(bool *more) {
         retval = parse_while_stmt();
         break;
     case T_IF:
-        retval = parse_ifthen_stmt();
+        retval = parse_if_stmt();
         break;
-    case N_IFTHENELSE_STMT:
-        retval = parse_ifthenelse_stmt();
+    case T_FUNC:
+        retval = parse_function_decl();
         break;
     case T_IDENT: {
         print_lookahead_debug("ident");
         token *tmp = peek();
         printf("tmp literal: %s\n", tmp->literal);
+
         if (strcmp(tmp->literal, ":=") == 0) {
-            retval = parse_assign_stmt();
+            retval = parse_expression();
             break;
         } else if (strcmp(tmp->literal, ":") == 0) {
             retval = parse_label_decl();
             break;
+        } else if (strcmp(tmp->literal, "(") == 0) {
+            // Likely a function call
+            retval = parse_expression();
+            break;
+        } else if ((strcmp(tmp->literal, "and") == 0) || (strcmp(tmp->literal, "or") == 0) ||
+                   (strcmp(tmp->literal, "+") == 0) || (strcmp(tmp->literal, "-") == 0) ||
+                   (strcmp(tmp->literal, "*") == 0) || (strcmp(tmp->literal, "/") == 0) ||
+                   (strcmp(tmp->literal, "%") == 0) || (strcmp(tmp->literal, ">") == 0) ||
+                   (strcmp(tmp->literal, "<") == 0) || (strcmp(tmp->literal, ">=") == 0) ||
+                   (strcmp(tmp->literal, "<=") == 0) || (strcmp(tmp->literal, "==") == 0) ||
+                   (strcmp(tmp->literal, "!=") == 0)) {
+            retval = parse_expression(); // binop exprs when dealing with variables
+            break;
+        } else if (strcmp(tmp->literal, ";") == 0) {
+            // Maybe we'll make this a no-op situation, but for now just raise an error
+            char str[1024] = {'\0'};
+            snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)",
+                     lookahead.literal, tmp->literal, tmp->line, tmp->col);
+            log_error(str);
+        } else if (strcmp(tmp->literal, ".") == 0) {
+            // Likely a struct access
+            retval = parse_expression();
+            break;
+        } else if (strcmp(tmp->literal, "[") == 0) {
+            // Likely an array access
+            retval = parse_expression();
+            break;
         } else {
-            printf("Parser Error: Unknown case when encountering N_IDENT\n");
+            log_error("Parser Error: Unknown case when encountering N_IDENT\n");
             break;
         }
     }
-    case N_EXPR:
+    case T_GOTO:
+        retval = parse_goto_stmt();
+        break;
+    case T_INT:
+    case T_FLOAT:
+    case T_STRING:
+    case T_BOOL:
+        retval = parse_var_decl();
+        break;
+    case L_INTEGER:
+    case L_FLOAT:
         retval = parse_expression();
         break;
+    case T_STRUCT: {
+        // We are either a struct declaration or a variable declaration
+        // LL(2) region
+        token *next1 = peek();
+        if (next1->type == T_IDENT) {
+            consume();
+            token *next2 = peek();
+
+            if (next2->type == T_IDENT) {
+                // If we see 'struct <ident> <ident>', then this is a struct variable declaration.
+                backup();
+
+                retval = parse_var_decl();
+            } else if (next2->type == T_THEN) {
+                // If we see 'struct <ident> then', then this is a struct declaration.
+                backup();
+
+                retval = parse_struct_decl();
+            } else {
+                // Some other case, which is an error
+                syntax_error(__FUNCTION__, "identifier or 'then'", lookahead);
+            }
+        }
+        break;
+    }
+    case T_LPAREN:
+        retval = parse_expression();
+        break;
+    case T_RETURN:
+        retval = parse_return_stmt();
+        break;
+    case T_SEMICOLON:
+        // If we see a lone semicolon, just consume it and move on. Empty statement.
+        consume();
+        break;
+    case T_END: // This should be the end of most bodies (conditionals, functions, etc)
+    case T_EOF: // End of file, we're done
     default:
         *more = false;
     }
@@ -295,185 +395,743 @@ node *parse_statement(bool *more) {
     return retval;
 }
 
-// <function-decl> := 'func' <ident> '(' <formal-list> ')' '->' <type> <statements> 'end'
-//                  | 'func' <ident> '(' ')' '->' <type> <statements> 'end'
-node *parse_function_decl() {
-    node *retval = mk_node(N_FUNC_DECL);
-    bool more    = true;
+// <block-stmt> := 'then' <statements>
+static node *parse_block_stmt() {
+    node *retval = mk_node(N_BLOCK_STMT);
 
     if (retval != NULL) {
-        consume();
-        // Add function name to node
-        if (lookahead.type == T_IDENT) {
-            memset(retval->data.function_decl.name, 0, MAX_LITERAL);
-            sprintf(retval->data.function_decl.name, "%s", lookahead.literal);
-        } else {
-            syntax_error("identifier", lookahead);
-        }
-
-        consume();
-        if (lookahead.type != T_LPAREN) {
-            syntax_error("(", lookahead);
-        }
-
-        token *tmp = peek();
-
-        // List of formal args
-        if (tmp->type != T_RPAREN) {
-            retval->data.function_decl.formal = parse_formals();
-            consume();
-            tmp = peek();
-        }
-
-        // No formal args, expect a )
-        else if (tmp->type == T_RPAREN) {
+        // Look for 'then'
+        if (lookahead.type == T_THEN) {
+            // Consume it
             consume();
         } else {
-            syntax_error("function arguments or ')'", lookahead);
+            syntax_error(__FUNCTION__, "then", lookahead);
         }
 
-        consume();
-        if (lookahead.type != T_OFTYPE) {
-            syntax_error("->", lookahead);
-        }
-
-        consume();
-        switch (lookahead.type) {
-        case T_INT:
-            retval->data.function_decl.type = D_INTEGER;
-            break;
-        case T_BOOL:
-            retval->data.function_decl.type = D_BOOLEAN;
-            break;
-        case T_STRING:
-            retval->data.function_decl.type = D_STRING;
-            break;
-        case T_FLOAT:
-            retval->data.function_decl.type = D_FLOAT;
-            break;
-        case T_VOID:
-            retval->data.function_decl.type = D_VOID;
-            break;
-        default:
-            // Expected a type, but didn't get one
-            syntax_error("a data type", lookahead);
-        }
-
-        consume();
-
-        // Parse body
-        retval->data.function_decl.body = parse_body();
-
-
-        // Begin parsing declarations
-        //parse_declarations(retval);
-
-        // // Begin parsing statements
-        // parse_statements(retval);
-
-        // Parse return statement
-        // For now, we will not expect returns in void functions
-        if (retval->data.function_decl.type != D_VOID) {
-            if (lookahead.type != T_RETURN) {
-                syntax_error("'return'", lookahead);
-            } else {
-                consume();
-                retval->data.function_decl.return_expr = parse_expression();
-            }
-        }
-
-        // Parse the end of the function
-        if (lookahead.type != T_END) {
-            syntax_error("end", lookahead);
-            printf("this one\n");
-        } else {
-            // Consume 'end'
-            consume();
-        }
-    } else {
-        printf("mk_node failed for N_FUNC_DECL\n");
+        // Parse statements until we hit 'end'
+        // NOTE: There will be nested 'end's (if's, loops)
+        retval->data.block_stmt.statements = parse_statements();
     }
 
     return retval;
 }
 
-// <formal-list> := <formal> ',' <formal-list>
-//                | <formal>
-//
-// <formal> := <type> <ident>
-//
-// I am cheating a bit here and parsing the list all in one go, instead of creating
-// a separate function for the <formal-list> non-terminal.
-node *parse_formals() {
+static node *parse_for_stmt() { assert(0 && "Not yet implemented"); }
+
+// <while-stmt> := 'while' '(' <expression> ')' <block-stmt> 'end'
+static node *parse_while_stmt() {
+    node *retval = mk_node(N_WHILE_STMT);
+
+    if (retval != NULL) {
+        // Parse 'while'
+        if (lookahead.type != T_WHILE) {
+            syntax_error(__FUNCTION__, "while", lookahead);
+        }
+        // Consume while
+        consume();
+
+        // Parse beginning of test '('
+        if (lookahead.type != T_LPAREN) {
+            syntax_error(__FUNCTION__, "(", lookahead);
+        }
+        // Consume (
+        consume();
+
+        // Parse expression
+        retval->data.while_stmt.test = parse_expression();
+
+        // Parse ending ')'
+        if (lookahead.type != T_RPAREN) {
+            syntax_error(__FUNCTION__, ")", lookahead);
+        }
+        // Consume )
+        consume();
+
+        // Parse body
+        retval->data.while_stmt.body = parse_block_stmt();
+
+        // Look for 'end'
+        if (lookahead.type != T_END) {
+            syntax_error(__FUNCTION__, "end", lookahead);
+        } else {
+            consume();
+        }
+    }
+
+    return retval;
+}
+
+// <if-stmt> := 'if' '(' <expression> ')' <block-stmt> ('else' 'then' <block-stmt>)? 'end'
+static node *parse_if_stmt() {
+    node *retval = mk_node(N_IF_STMT);
+
+    if (retval != NULL) {
+        // Parse 'if'
+        if (lookahead.type != T_IF) {
+            syntax_error(__FUNCTION__, "if", lookahead);
+        }
+        // Consume if
+        consume();
+
+        // Parse beginning of test '('
+        if (lookahead.type != T_LPAREN) {
+            syntax_error(__FUNCTION__, "(", lookahead);
+        }
+        // Consume (
+        consume();
+
+        // Parse expression
+        retval->data.if_stmt.test = parse_expression();
+
+        // Parse ending ')'
+        if (lookahead.type != T_RPAREN) {
+            syntax_error(__FUNCTION__, ")", lookahead);
+        }
+        // Consume )
+        consume();
+
+        // Parse body
+        retval->data.if_stmt.body = parse_block_stmt();
+
+        // If we see an 'end' token, there will be no 'else'
+        if (lookahead.type == T_END) {
+            retval->data.if_stmt.else_stmt = NULL;
+            consume();
+        } else if (lookahead.type == T_ELSE) {
+            consume();
+            retval->data.if_stmt.else_stmt = parse_block_stmt();
+
+            if (lookahead.type == T_END) {
+                consume();
+            } else {
+                syntax_error(__FUNCTION__, "end", lookahead);
+            }
+        } else {
+            syntax_error(__FUNCTION__, "else or end", lookahead);
+        }
+    }
+
+    return retval;
+}
+
+// <if-stmt> := 'if' '(' <expression> ')' 'then' <stmts> ('else' <if-stmt>)* <end>
+// To handle the else-if we have to do this a bit differently
+
+// And and Or
+static node *parse_and_expr() {
+    print_lookahead_debug("begin and_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_not_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_AND:
+    case T_OR:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_not_expr(); // "Term"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_and_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_and_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
+
+// Negation and unary minus
+static node *parse_not_expr() {
+    print_lookahead_debug("begin not_expr");
+
+    node *retval = NULL;
+
+    // Look for !
+    if (lookahead.type == T_BANG) {
+        print_lookahead_debug("found !");
+        // Consume it
+        consume();
+
+        // Parse the expression
+        retval = mk_node(N_NOT_EXPR);
+        if (retval != NULL) {
+            retval->data.not_expr.expr = parse_expression();
+        } else {
+            log_error("Unable to create N_NOT_EXPR node");
+        }
+    } else if (lookahead.type == T_MINUS) {
+        consume();
+        print_lookahead_debug("found -");
+        // Parse the expr
+        retval = mk_node(N_NEG_EXPR);
+        if (retval != NULL) {
+            retval->data.neg_expr.expr = parse_expression();
+        } else {
+            log_error("Unable to create N_NEG_EXPR node");
+        }
+    } else {
+        print_lookahead_debug("did not find !");
+        // If we didn't find a !, continue to parse.
+        retval = parse_compare_expr();
+    }
+
+    return retval;
+}
+
+// Comparisons (relational)
+static node *parse_compare_expr() {
+    print_lookahead_debug("begin compare_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_add_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_EQ:
+    case T_NE:
+    case T_GT:
+    case T_GE:
+    case T_LT:
+    case T_LE:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_add_expr(); // "Term"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_add_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_add_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
+
+// Addition and subtraction
+static node *parse_add_expr() {
+    print_lookahead_debug("begin add_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_mult_expr(); // "Term"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_PLUS:
+    case T_MINUS:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_mult_expr(); // "Term"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_add_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_add_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
+
+// Multiplication, division, and modulus
+static node *parse_mult_expr() {
+    print_lookahead_debug("begin mult_expr");
+
+    // Try to parse the "left hand side"
+    node *retval     = NULL;
+    node *e1         = parse_primary_expr(); // "Factor"
+    node *e2         = NULL;
+    token_type ttype = -1;
+
+    switch (lookahead.type) {
+    case T_MUL:
+    case T_DIV:
+    case T_MOD:
+        ttype = lookahead.type;
+        break;
+    }
+
+    // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
+    if (ttype == -1) {
+        retval = e1;
+    } else {
+        // Consume the operator
+        consume();
+        e2 = parse_primary_expr(); // "Factor"
+
+        if (e1 != NULL) {
+            if (e2 != NULL) {
+                retval = mk_node(N_BINOP_EXPR);
+                if (retval != NULL) {
+                    retval->data.bin_op_expr.lhs     = e1;
+                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.operator= ttype;
+                }
+            } else {
+                log_error("parse_mult_expr(): e2 is NULL");
+            }
+        } else {
+            log_error("parse_mult_expr(): e1 is NULL");
+        }
+    }
+
+    return retval;
+}
+
+// Literals and grouping expressions
+static node *parse_primary_expr() {
+    node *retval;
+    bool parsed_func_call = false;
+    print_lookahead_debug("begin primary_expr");
+
+    // Move past assignment operator
+    //    consume();
+
+    switch (lookahead.type) {
+    case L_INTEGER:
+        retval = parse_integer_literal();
+        break;
+    case L_FLOAT:
+        retval = parse_float_literal();
+        break;
+    case L_STR:
+        retval = parse_string_literal();
+        break;
+    case T_TRUE:
+    case T_FALSE:
+        retval = parse_bool_literal();
+        break;
+    case T_IDENT: {
+        print_lookahead_debug("checking primary_expr ident cases");
+        // We need to check if this is a regular variable, a function call, a struct access, or an
+        // array access
+        token *tmp = peek();
+        if ((tmp != NULL) && (tmp->type == T_LPAREN)) {
+            // This is a function call
+            retval = parse_call_expr();
+            print_lookahead_debug("returned from call_expr");
+            return retval;
+
+        } else if ((tmp != NULL) && (tmp->type == T_DOT)) {
+            // In this case, we need to lookahead 3 (NOT GREAT I KNOW)
+            consume();
+
+            token *tmp2 = peek();
+            if (tmp2->type == T_IDENT) {
+                consume();
+                token *tmp3 = peek();
+                // We must check if we are part of an assignment or a regular struct access
+                if (tmp3->type == T_ASSIGN) {
+                    backup(); // Backup the ident, lookahead should be the dot
+                    backup(); // Backup the dot, lookahead should be the ident
+                    retval = parse_assign_expr();
+                } else {
+                    backup(); // Backup the ident, lookahead should be the dot
+                    backup(); // Backup the dot, lookahead should be the ident
+                    retval = parse_struct_access_expr();
+                }
+            }
+            return retval;
+        } else if ((tmp != NULL) && (tmp->type == T_LBRACKET)) {
+            // This is an array access
+
+            // First, try to figure out if we ever hit an assignment operator
+            // Token lookahead buffer (does not consume from real token stream)
+            t_list *curr_tok = toks;
+            token tmp_tok    = get_token(curr_tok);
+
+            // Now get next token
+            curr_tok = curr_tok->next;
+            tmp_tok  = get_token(curr_tok);
+
+            bool more = false;
+            do {
+                if (tmp_tok.type != T_LBRACKET) {
+                    // At this point, this shouldn't happen, but if it does, break out
+                    break;
+                } else {
+                    curr_tok = curr_tok->next;
+                    tmp_tok  = get_token(curr_tok);
+
+                    // Read chars until closing bracket
+                    while (tmp_tok.type != T_RBRACKET) {
+                        curr_tok = curr_tok->next;
+                        tmp_tok  = get_token(curr_tok);
+                    }
+
+                    // Look for closing bracket
+                    if (tmp_tok.type != T_RBRACKET) {
+                        // If we don't find it, break out
+                        break;
+                    } else {
+                        curr_tok = curr_tok->next;
+                        tmp_tok  = get_token(curr_tok);
+                    }
+
+                    // See if we have another dimension
+                    if (tmp_tok.type == T_LBRACKET) {
+                        more = true;
+                    } else {
+                        break;
+                    }
+                }
+            } while (more);
+
+            if (tmp_tok.type == T_ASSIGN) {
+                // This is an assignment (eventually)
+                retval = parse_assign_expr();
+            } else {
+                retval = parse_array_access_expr();
+            }
+            return retval;
+        } else if ((tmp != NULL) && (tmp->type == T_ASSIGN)) {
+            retval = parse_assign_expr();
+            return retval;
+        } else if (tmp != NULL) {
+            // Treat this as a regular variable name
+            retval = parse_identifier();
+        }
+        break;
+    }
+    case T_NIL:
+        retval = parse_nil();
+        break;
+    case T_LPAREN:
+        consume();
+        retval = parse_expression();
+        consume();
+        return retval;
+        break;
+    }
+
+    // Consume the literal or ident
+    consume();
+    print_lookahead_debug("end primary_expr");
+
+    return retval;
+}
+
+// <assign-expr> := <struct-access-expr> ':=' <expression> ';'
+//                | <array-access-expr> ':=' <expression> ';'
+//                | <ident> ':=' <expression> ';'
+static node *parse_assign_expr() {
+    node *retval = mk_node(N_ASSIGN_EXPR);
+
+    if (retval != NULL) {
+        // Identifier should be live in
+        print_lookahead_debug("top of assign_expr");
+
+        if (lookahead.type == T_IDENT) {
+            token *tmp = peek();
+
+            if (tmp->type == T_DOT) {
+                retval->data.assign_expr.lhs = parse_struct_access_expr();
+            } else if (tmp->type == T_LBRACKET) {
+                retval->data.assign_expr.lhs = parse_array_access_expr();
+            } else {
+                retval->data.assign_expr.lhs = parse_identifier();
+                consume();
+            }
+        } else {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        }
+        //        retval->data.assign_expr.lhs = parse_expression();
+
+        // Consume identifier (ignoring arrays for now)
+        //        consume();
+
+        print_lookahead_debug("after consuming ident");
+
+        // Now we should be looking at an assignment operator
+        if (lookahead.type == T_ASSIGN) {
+            // Consume assignment
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, ":=", lookahead);
+        }
+
+        print_lookahead_debug("before parsing RHS");
+
+        // Right hand side is an expression
+        retval->data.assign_expr.rhs = parse_expression();
+
+        print_lookahead_debug("after parsing RHS");
+
+        if (lookahead.type == T_SEMICOLON) {
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, ";", lookahead);
+        }
+    }
+
+    return retval;
+}
+
+// <arg-list> := ( <expression> (',')? )*
+static vector *parse_arg_list() {
+    vector *retval = mk_vector();
+
+    if (retval == NULL) {
+        log_error("Unable to allocate vector for function call arguments");
+    }
+
+    print_lookahead_debug("inside parse_arg_list");
+
+    // Look for args (expressions)
     bool repeat = true;
+
+    node *new_arg_expr = NULL;
+
+    do {
+        new_arg_expr = parse_expression();
+        if (new_arg_expr != NULL) {
+            vector_add(retval, new_arg_expr);
+        } else {
+            log_error("Unable to parse argument expression");
+        }
+
+        print_lookahead_debug("after argument");
+
+        if (lookahead.type == T_RPAREN) {
+            repeat = false;
+        } else if (lookahead.type == T_COMMA) {
+            consume();
+            repeat = true;
+        }
+    } while (repeat);
+
+    return retval;
+}
+
+// <call-expr> := <identifier> '(' ( <arg-list> )? ')'
+static node *parse_call_expr() {
+    node *retval = mk_node(N_CALL_EXPR);
+
+    if (retval != NULL) {
+        print_lookahead_debug("inside call_expr");
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        }
+
+        memset(retval->data.call_expr.func_name, 0, sizeof(retval->data.call_expr.func_name));
+        snprintf(retval->data.call_expr.func_name, sizeof(retval->data.call_expr.func_name), "%s",
+                 lookahead.literal);
+
+        // Consume function name
+        consume();
+
+        if (lookahead.type != T_LPAREN) {
+            syntax_error(__FUNCTION__, "(", lookahead);
+        }
+
+        // Consume (
+        consume();
+
+        if (lookahead.type == T_RPAREN) {
+            // No args
+            retval->data.call_expr.args = NULL;
+        } else {
+            retval->data.call_expr.args = parse_arg_list();
+
+            if (lookahead.type != T_RPAREN) {
+                syntax_error(__FUNCTION__, ") after argument list", lookahead);
+            }
+            consume();
+        }
+
+        // Check for something that might indicate we are not a lone function call
+        bool found_follower = false;
+        switch (lookahead.type) {
+        case T_RPAREN:
+        case T_COMMA:
+        case T_PLUS:
+        case T_MINUS:
+        case T_MUL:
+        case T_DIV:
+        case T_MOD:
+        case T_LT:
+        case T_GT:
+        case T_EQ:
+        case T_LE:
+        case T_GE:
+        case T_NE:
+        case T_AND:
+        case T_OR:
+            found_follower = true;
+        }
+
+        // If we don't find any followers, check for a semicolon
+        if (!found_follower) {
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error(__FUNCTION__, "; after function call", lookahead);
+            } else {
+                consume();
+            }
+        }
+    }
+
+    print_lookahead_debug("end of call_expr");
+
+    return retval;
+}
+
+// TODO: Allow this to accept arrays and structs
+// <formal> := ( 'struct' )? <type> ( '[' ']' )* <identifier>
+// <formal-list> := <formal> ( ',' <formal> )*
+static vector *parse_formals() {
+    print_lookahead_debug("inside parse_formals()");
+    bool repeat = false;
     bool first  = true;
 
-    node *retval = mk_node(N_FORMAL);
+    vector *retval = mk_vector();
+
+    node *formal = mk_node(N_FORMAL);
     node *new    = {0};
+
+    node *current = formal;
 
     // TODO: Optimize this do-while loop, like when parsing struct member decls.
     do {
         if (!first) {
-            new = mk_node(N_FORMAL);
+            new     = mk_node(N_FORMAL);
+            current = new;
         }
 
-        // Lookahead should be a type
+        consume();
+        // Lookahead is now a type
+
+        // Look for the optional 'struct' keyword
+        if (lookahead.type == T_STRUCT) {
+            current->data.formal.is_struct = true;
+
+            // consume it
+            consume();
+        }
+
+        if (current->data.formal.is_struct) {
+            // If we're a struct, our data type is 'struct' and our struct type is the
+            // identifier after the 'struct' keyword
+            current->data.formal.type = D_STRUCT;
+            memset(current->data.formal.struct_type, 0, sizeof(current->data.formal.struct_type));
+            snprintf(current->data.formal.struct_type, sizeof(current->data.formal.struct_type),
+                     "%s", lookahead.literal);
+        } else {
+            // If no 'struct', then just get the type
+            switch (lookahead.type) {
+            case T_INT:
+            case T_BOOL:
+            case T_STRING:
+            case T_FLOAT:
+                break;
+            default:
+                syntax_error(__FUNCTION__, "int, bool, string, or float", lookahead);
+            }
+
+            current->data.formal.type = keyword_to_type(lookahead.type);
+        }
+
+        // consume type
         consume();
 
-        // Expecting an identifier
-        token *tmp = peek();
+        print_lookahead_debug("before checking array");
 
-        switch (lookahead.type) {
-        case T_INT:
-        case T_BOOL:
-        case T_STRING:
-        case T_FLOAT:
-            if (tmp->type != T_IDENT) {
-                syntax_error("identifier", *tmp);
+        // Check to see if the formal is an array
+        if (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                current->data.formal.is_array       = true;
+                current->data.formal.num_dimensions = 1;
+                consume();
             }
-            break;
-        default:
-            // Didn't get a type
-            syntax_error("type", lookahead);
         }
 
-        if (first) {
-            retval->data.formal.type = keyword_to_type(lookahead.type);
-        } else {
-            new->data.formal.type = keyword_to_type(lookahead.type);
+        while (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                current->data.formal.num_dimensions += 1;
+                consume();
+            }
         }
 
         // Now should be the identifier itself
-        consume();
-
-        if (first) {
-            memset(retval->data.formal.name, 0, MAX_LITERAL);
-            sprintf(retval->data.formal.name, "%s", lookahead.literal);
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
         } else {
-            memset(new->data.formal.name, 0, MAX_LITERAL);
-            sprintf(new->data.formal.name, "%s", lookahead.literal);
-        }
-
-        if (first) {
-            retval->next = NULL;
-        } else {
-            node *f = retval;
-
-            // Seek to end of list
-            while (f->next != NULL) {
-                f = f->next;
-            }
-
-            // Append new formal to end of list
-            f->next   = new;
-            new->next = NULL;
+            memset(current->data.formal.name, 0, MAX_LITERAL);
+            sprintf(current->data.formal.name, "%s", lookahead.literal);
+            vector_add(retval, current);
         }
 
         // Look for a ',' or ')'
-        tmp = peek();
+        token *tmp = peek();
 
         // End of formals
         if (tmp->type == T_RPAREN) {
+            consume();
             repeat = false;
             break;
         }
@@ -490,67 +1148,393 @@ node *parse_formals() {
     return retval;
 }
 
-node *parse_var_decl() {
+// TODO: Allow this to return structs and arrays
+// <function-decl> := 'func' <ident> '(' <formals> ')' '->' ( 'struct' )? <type> ( '[' ']' )* 'then'
+// <block-stmt> 'end'
+static node *parse_function_decl() {
+    node *retval = mk_node(N_FUNC_DECL);
+
+    if (retval != NULL) {
+        // Look for 'func'
+        if (lookahead.type == T_FUNC) {
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, "func", lookahead);
+        }
+
+        // Look for identifier
+        if (lookahead.type == T_IDENT) {
+            snprintf(retval->data.function_decl.name, sizeof(retval->data.function_decl.name), "%s",
+                     lookahead.literal);
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, "function name", lookahead);
+        }
+
+        // Look for formal args
+        if (lookahead.type == T_LPAREN) {
+            token *tok = peek();
+            if ((tok != NULL) && (tok->type == T_RPAREN)) {
+                // No args
+                retval->data.function_decl.formals = NULL;
+
+                // Consume '('
+                consume();
+
+                // Consume ')'
+                consume();
+            } else if (tok != NULL) {
+                // Maybe we have some formals
+
+                // consume the (
+                // consume();
+                retval->data.function_decl.formals = parse_formals();
+
+                // Consume the ')' at the end of the formals list
+                consume();
+            }
+        } else {
+            syntax_error(__FUNCTION__, "(", lookahead);
+        }
+
+        // Look for type arrow
+        if (lookahead.type == T_OFTYPE) {
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, "->", lookahead);
+        }
+
+        // Look for type
+
+        // Is it a struct?
+        if (lookahead.type == T_STRUCT) {
+            retval->data.function_decl.is_struct = true;
+            consume();
+        }
+
+        if (retval->data.function_decl.is_struct) {
+            if (lookahead.type != T_IDENT) {
+                syntax_error(__FUNCTION__, "struct type", lookahead);
+            } else {
+                memset(retval->data.function_decl.struct_type, 0,
+                       sizeof(retval->data.function_decl.struct_type));
+                snprintf(retval->data.function_decl.struct_type,
+                         sizeof(retval->data.function_decl.struct_type), "%s", lookahead.literal);
+                retval->data.function_decl.type = D_STRUCT;
+            }
+        } else {
+            switch (lookahead.type) {
+            case T_INT:
+            case T_FLOAT:
+            case T_BOOL:
+            case T_STRING:
+            case T_VOID:
+                retval->data.function_decl.type = keyword_to_type(lookahead.type);
+                break;
+            default:
+                syntax_error(__FUNCTION__, "type declaration", lookahead);
+                break;
+            }
+        }
+
+        consume();
+
+        // Is it an array?
+        if (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.function_decl.is_array       = true;
+                retval->data.function_decl.num_dimensions = 1;
+                consume();
+            }
+        }
+
+        while (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.function_decl.num_dimensions += 1;
+                consume();
+            }
+        }
+
+        // Look for 'then'
+        if (lookahead.type == T_THEN) {
+            // If we have one, parse the function body
+            retval->data.function_decl.body = parse_block_stmt();
+        } else {
+            syntax_error(__FUNCTION__, "then", lookahead);
+        }
+
+        // Parse the end token and we're done
+        if (lookahead.type == T_END) {
+            consume();
+        } else {
+            syntax_error(__FUNCTION__, "end", lookahead);
+        }
+
+        print_lookahead_debug("here");
+    }
+
+    return retval;
+}
+
+static node *parse_expression() {
+    struct node *retval;
+    print_lookahead_debug("begin parse_expr()");
+
+    switch (lookahead.type) {
+    case T_IDENT:
+    case L_INTEGER:
+    case L_FLOAT:
+    case L_STR:
+    case T_TRUE:
+    case T_FALSE:
+    case T_LPAREN:
+    case T_BANG:
+    case T_MINUS:
+        // Entry point into arithmetic expressions and booleans
+        retval = parse_and_expr();
+        break;
+    case T_ASSIGN:
+        // This case might be dead code
+        retval = parse_assign_expr();
+        break;
+    case T_LBRACE:
+        retval = parse_array_init_expr();
+        break;
+    default: {
+        char str[1024] = {'\0'};
+        snprintf(str, sizeof(str),
+                 "Unknown token at beginning of expression: %s (line %d, col: %d)\n%s",
+                 lookahead.literal, lookahead.line, lookahead.col, lookahead.line_str);
+        log_error(str);
+    }
+    }
+
+    return retval;
+}
+
+// <label-decl> := <identifier> ':'
+static node *parse_label_decl() {
+    node *retval = mk_node(N_LABEL_DECL);
+
+    if (retval != NULL) {
+        // Look for label name
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        } else {
+            memset(retval->data.label_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.label_decl.name, sizeof(retval->data.label_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+
+        // Look for colon
+        if (lookahead.type != T_COLON) {
+            syntax_error(__FUNCTION__, ":", lookahead);
+        }
+
+        // Consume it
+        consume();
+    }
+
+    return retval;
+}
+
+// <goto-stmt> := 'goto' <identifier> ';'
+static node *parse_goto_stmt() {
+    node *retval = mk_node(N_GOTO_STMT);
+
+    if (retval != NULL) {
+        // Look for goto
+        if (lookahead.type != T_GOTO) {
+            syntax_error(__FUNCTION__, "goto", lookahead);
+        }
+
+        // Otherwise, consume it
+        consume();
+
+        // Look for identifier
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        } else {
+            memset(retval->data.goto_stmt.label, 0, MAX_LITERAL);
+            snprintf(retval->data.goto_stmt.label, sizeof(retval->data.goto_stmt.label), "%s",
+                     lookahead.literal);
+
+            consume();
+        }
+
+        // Look for semicolon
+        if (lookahead.type != T_SEMICOLON) {
+            syntax_error(__FUNCTION__, ";", lookahead);
+        }
+
+        consume();
+    }
+
+    return retval;
+}
+
+// <var-decl> := ( 'struct' )? <type> ( '[' ']' )* <identifier> ( ':=' <expression> )? ';'
+static node *parse_var_decl() {
     node *retval = mk_node(N_VAR_DECL);
 
     if (retval != NULL) {
-        retval->data.var_decl.type = keyword_to_type(lookahead.type);
+        print_lookahead_debug("top of var_decl");
+
+        // Look for the optional 'struct' keyword
+        if (lookahead.type == T_STRUCT) {
+            retval->data.var_decl.is_struct = true;
+            // consume it
+            consume();
+        }
+
+        // Get type
+        if (retval->data.var_decl.is_struct) {
+            // If we're a struct, our data type is 'struct' and our struct type is the identifier
+            // after the 'struct' keyword
+            retval->data.var_decl.type = D_STRUCT;
+            memset(retval->data.var_decl.struct_type, 0, sizeof(retval->data.var_decl.struct_type));
+            snprintf(retval->data.var_decl.struct_type, sizeof(retval->data.var_decl.struct_type),
+                     "%s", lookahead.literal);
+        } else {
+            // Otherwise, we're a primitive data type
+            retval->data.var_decl.type = keyword_to_type(lookahead.type);
+        }
+
+        // Consume the type declaration
+        consume();
+
+        // Look for the optional array declaration
+        if (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.var_decl.is_array       = true;
+                retval->data.var_decl.num_dimensions = 1;
+                consume();
+            }
+        }
+
+        while (lookahead.type == T_LBRACKET) {
+            consume();
+
+            if (lookahead.type != T_RBRACKET) {
+                syntax_error(__FUNCTION__, "]", lookahead);
+            } else {
+                retval->data.var_decl.num_dimensions += 1;
+                consume();
+            }
+        }
+
+        // Look for the variable name
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier name", lookahead);
+        } else {
+            memset(retval->data.var_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.var_decl.name, sizeof(retval->data.var_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+
+        // Look for the assignment
+        if (lookahead.type == T_ASSIGN) {
+
+            // Consume assignment
+            consume();
+            retval->data.var_decl.value = parse_expression();
+
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error(__FUNCTION__, "; after expression", lookahead);
+            }
+            // Consume the semicolon
+            consume();
+        } else {
+            // If we don't immediately assign a value, set a default based upon the type
+            if (lookahead.type == T_SEMICOLON) {
+                node *val_default = NULL;
+                switch (retval->data.var_decl.type) {
+                case D_INTEGER:
+                    val_default                             = mk_node(N_INTEGER_LITERAL);
+                    val_default->data.integer_literal.value = 0;
+                    break;
+                case D_FLOAT:
+                    val_default                           = mk_node(N_FLOAT_LITERAL);
+                    val_default->data.float_literal.value = 0.0;
+                    break;
+                case D_STRING:
+                    val_default = mk_node(N_STRING_LITERAL);
+                    // Empty string
+                    memset(val_default->data.string_literal.value, 0,
+                           sizeof(val_default->data.string_literal.value));
+                    snprintf(val_default->data.string_literal.value,
+                             sizeof(val_default->data.string_literal.value), "%s", "");
+                    break;
+                case D_BOOLEAN:
+                    val_default                          = mk_node(N_BOOL_LITERAL);
+                    val_default->data.bool_literal.value = 0; // false
+                    strncpy(val_default->data.bool_literal.str_val, "false", sizeof("false"));
+                    break;
+                case D_STRUCT:
+                    // For structs, don't assign a default value. We'll handle this at codegen time
+                    // by allocating memory.
+                    val_default = NULL;
+                    break;
+                default:
+                    syntax_error(__FUNCTION__, "Unknown literal type", lookahead);
+                }
+
+                retval->data.var_decl.value = val_default;
+
+                // Consume next token and we're done
+                consume();
+            } else {
+                syntax_error(__FUNCTION__, "; after empty declaration", lookahead);
+            }
+        }
+    }
+
+    return retval;
+}
+
+static node *parse_member_decl() {
+    node *retval = mk_node(N_MEMBER_DECL);
+
+    if (retval != NULL) {
+        switch (lookahead.type) {
+        case T_INT:
+        case T_BOOL:
+        case T_STRING:
+        case T_FLOAT:
+            retval->data.member_decl.type = keyword_to_type(lookahead.type);
+            break;
+        default:
+            syntax_error(__FUNCTION__, "type", lookahead);
+        }
 
         consume();
         if (lookahead.type != T_IDENT) {
-            syntax_error("type", lookahead);
+            syntax_error(__FUNCTION__, "identifier", lookahead);
         } else {
-            memset(retval->data.var_decl.name, 0, MAX_LITERAL);
-            sprintf(retval->data.var_decl.name, "%s", lookahead.literal);
+            memset(retval->data.member_decl.name, 0, MAX_LITERAL);
+            snprintf(retval->data.member_decl.name, sizeof(retval->data.member_decl.name), "%s",
+                     lookahead.literal);
         }
 
         consume();
-        if (lookahead.type == T_ASSIGN) {
-            retval->data.var_decl.value = parse_expression();
-        }
-
-        printf("before semicolon\n");
-        if (lookahead.type == T_SEMICOLON) {
-            // Consume semicolon and we're done
-            printf("inside here\n");
-            print_lookahead_debug("inside_here");
-            consume();
-        } else {
-            syntax_error("';'", lookahead);
-        }
-    }
-
-    printf("left var decl\n");
-
-    return retval;
-}
-
-node *parse_for_stmt() { return NULL; }
-node *parse_ifthen_stmt() { return NULL; }
-node *parse_ifthenelse_stmt() { return NULL; }
-node *parse_label_decl() { return NULL; }
-node *parse_call_expr() { return NULL; }
-node *parse_struct_access_expr() { return NULL; }
-node *parse_goto_expr() { return NULL; }
-
-// <assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
-node *parse_assign_stmt() {
-    printf("inside assign\n");
-    node *retval = mk_node(N_ASSIGN);
-
-    if (retval != NULL) {
-
-        // Identifier is either a normal variable or an array access
-        // NOTE: Arrays not yet supported
-        if (lookahead.type == '[') {
-            printf("Parser Error: Arrays not yet supported!");
-            exit(1);
-        }
-
-        consume();
-
-        if (lookahead.type != T_ASSIGN) {
-            syntax_error("':='", lookahead);
+        if (lookahead.type != T_SEMICOLON) {
+            syntax_error(__FUNCTION__, ";", lookahead);
         }
 
         consume();
@@ -559,125 +1543,47 @@ node *parse_assign_stmt() {
     return retval;
 }
 
-// <while-stmt> := 'while' '(' <expr-lst> ')' <statements> 'end'
-node *parse_while_stmt() {
-    node *retval = mk_node(N_WHILE_STMT);
-
-    if (retval != NULL) {
-        printf("here\n");
-        print_lookahead_debug("");
-
-        consume();
-        if (lookahead.type != T_LPAREN) {
-            syntax_error("'('", lookahead);
-        } else {
-            print_lookahead_debug("");
-            retval->data.while_stmt.test = parse_expression();
-            print_lookahead_debug("after parse_expression()");
-        }
-
-        if (lookahead.type != T_RPAREN) {
-            syntax_error("')'", lookahead);
-        }
-        consume();
-        printf("i am here\n");
-
-        // Decls contained within while stmt children
-        parse_declarations(retval);
-
-        print_lookahead_debug("after decls");
-
-        while (1)
-            ;
-
-        // Stmts contained within while stmt children
-        parse_statements(retval);
-        printf("end of while's stmts\n");
-
-        consume();
-        if (lookahead.type != T_END) {
-            syntax_error("'end'", lookahead);
-        } else {
-            // Consume past 'end'
-            consume();
-        }
-    }
-
-    return retval;
-}
-
-// <struct-decl> := 'struct' <ident> <member-decls> 'end'
-node *parse_struct_decl() {
+// <struct-decl> := 'struct' <ident> 'then' <member-decls> 'end'
+static node *parse_struct_decl() {
     node *retval = mk_node(N_STRUCT_DECL);
 
     if (retval != NULL) {
-        retval->data.struct_decl.member = NULL;
+        retval->data.struct_decl.members = mk_vector();
         if (lookahead.type != T_STRUCT) {
-            syntax_error("'struct'", lookahead);
+            syntax_error(__FUNCTION__, "struct", lookahead);
         } else {
             retval->data.struct_decl.type = D_STRUCT;
         }
 
         consume();
         if (lookahead.type != T_IDENT) {
-            syntax_error("identifier", lookahead);
+            syntax_error(__FUNCTION__, "identifier", lookahead);
         } else {
             memset(retval->data.struct_decl.name, 0, MAX_LITERAL);
-            sprintf(retval->data.struct_decl.name, "%s", lookahead.literal);
+            snprintf(retval->data.struct_decl.name, sizeof(retval->data.struct_decl.name), "%s",
+                     lookahead.literal);
+        }
+
+        consume();
+        if (lookahead.type != T_THEN) {
+            syntax_error(__FUNCTION__, "then", lookahead);
         }
 
         // Parse member declarations
         consume();
         do {
-            node *member = mk_node(N_MEMBER_DECL);
-            switch (lookahead.type) {
-            case T_INT:
-            case T_BOOL:
-            case T_STRING:
-            case T_FLOAT:
-                member->data.member_decl.type = keyword_to_type(lookahead.type);
-                break;
-            default:
-                syntax_error("type", lookahead);
-            }
+            node *member = parse_member_decl();
 
-            consume();
-            if (lookahead.type != T_IDENT) {
-                syntax_error("identifier", lookahead);
+            if (member != NULL) {
+                vector_add(retval->data.struct_decl.members, member);
             } else {
-                memset(member->data.member_decl.name, 0, MAX_LITERAL);
-                sprintf(member->data.member_decl.name, "%s", lookahead.literal);
+                log_error("Unable to add NULL member decl to vector");
             }
-
-            consume();
-            if (lookahead.type != T_SEMICOLON) {
-                syntax_error("';'", lookahead);
-            } else {
-
-                // Seek to end of member list
-                node *m = retval->data.struct_decl.member;
-
-                // First member
-                if (m == NULL) {
-                    retval->data.struct_decl.member       = member;
-                    retval->data.struct_decl.member->next = NULL;
-                } else {
-                    while (m->next != NULL) {
-                        m = m->next;
-                    }
-
-                    // Append member to decl
-                    m->next      = member;
-                    member->next = NULL;
-                }
-            }
-
-            consume();
-
         } while (lookahead.type != T_END);
 
+        // Check for the 'end' token
         if (lookahead.type != T_END) {
-            syntax_error("'end", lookahead);
+            syntax_error(__FUNCTION__, "end", lookahead);
         } else {
             // Consume 'end'
             consume();
@@ -687,183 +1593,253 @@ node *parse_struct_decl() {
     return retval;
 }
 
-// <value> := '(' <expression> ')'
-//          | <ident>
-//          | <ident> '(' <expr-list> ')'
-//          | <constant>
-node *parse_value() {
-    node *retval = mk_node(N_VALUE);
+// <struct-access-expr> := <ident> '.' <ident>
+static node *parse_struct_access_expr() {
+    node *retval = mk_node(N_STRUCT_ACCESS_EXPR);
 
     if (retval != NULL) {
-        switch (lookahead.type) {
-        case T_IDENT:
-            retval = parse_identifier();
-            break;
-        case T_LPAREN:
-            retval = parse_expression();
+        print_lookahead_debug("top of parse_struct_access");
 
-            consume();
-            if (lookahead.type != T_RPAREN) {
-                syntax_error("')'", lookahead);
-            }
-            break;
-        case L_STR:
-        case L_NUM:
-        case T_TRUE:
-        case T_FALSE:
-        case T_NIL:
-            retval = parse_constant();
-            break;
-        default:
-            syntax_error("value", lookahead);
-        }
-    }
-
-    return retval;
-}
-
-// <constant> := <int-literal>
-//             | <float-literal>
-//			   | <string-literal>
-//			   | 'true'
-//			   | 'false'
-//			   | 'nil'
-node *parse_constant() {
-    node *retval = mk_node(N_LITERAL);
-
-    if (retval != NULL) {
-
-        switch (lookahead.type) {
-        case L_STR:
-            retval->data.literal.type = D_STRING;
-            memset(retval->data.literal.value.stringval, 0, MAX_LITERAL);
-            sprintf(retval->data.literal.value.stringval, "%s", lookahead.literal);
-            break;
-        case L_NUM:
-            // Only doing integers for now
-            retval->data.literal.type         = D_INTEGER;
-            retval->data.literal.value.intval = atoi(lookahead.literal);
-            break;
-        case T_TRUE:
-        case T_FALSE:
-            retval->data.literal.type = D_BOOLEAN;
-            if (strcmp(lookahead.literal, "true") == 0) {
-                retval->data.literal.value.boolval = true;
-            } else if (strcmp(lookahead.literal, "false") == 0) {
-                retval->data.literal.value.boolval = false;
-            } else {
-                syntax_error("boolean value ('true' or 'false')", lookahead);
-            }
-            break;
-        case T_NIL:
-            retval->data.literal.type = D_NIL;
-            if (strcmp(lookahead.literal, "nil") == 0) {
-                // Like C, we'll consider NIL (NULL) to be zero.
-                retval->data.literal.value.intval = 0;
-            }
-            break;
-        default:
-            syntax_error("some literal value", lookahead);
-        }
-        consume();
-    }
-
-    return retval;
-}
-
-node *parse_identifier() {
-    node *retval = mk_node(N_IDENT);
-
-    if (retval != NULL) {
-        memset(retval->data.identifier.name, 0, MAX_LITERAL);
-        sprintf(retval->data.identifier.name, "%s", lookahead.literal);
-    }
-
-    consume();
-
-    return retval;
-}
-
-// <expression> := <bin-op-expr>
-//               | <goto-expr>
-//               | <call-expr>
-//               | <struct-access-expr>
-node *parse_expression() {
-    node *retval;
-
-    consume();
-    print_lookahead_debug("inside parse_expression()");
-
-    switch (lookahead.type) {
-    case T_GOTO:
-        retval = parse_goto_expr();
-        break;
-    case T_IDENT:
-        // On my 32 bit intel system, an empty statement must be here to avoid a compiler error.
-        // This error does not occur on my 64 bit system
-        ;
-        token *tmp = peek();
-
-        // Assignment to a variable
-        if (tmp->type == T_SEMICOLON) {
-            printf("parsing value\n");
-            retval = parse_value();
-            break;
-        }
-
-        consume();
-        if (lookahead.type == T_LPAREN) {
-            retval = parse_call_expr();
-        } else if (lookahead.type == T_DOT) {
-            retval = parse_struct_access_expr();
-        } else if (lookahead.type == T_ASSIGN) {
-            printf("parsing assignment\n");
-            retval = parse_assign_stmt(); // is this the best place?
+        // Get struct name
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
         } else {
-            syntax_error("'(' or '.'", lookahead);
-        }
-        break;
-    // Cheat here to parse constants
-    case L_STR:
-    case L_NUM:
-    case T_TRUE:
-    case T_FALSE:
-    case T_NIL:
-        retval = parse_value();
-        break;
-    default:
-        printf("Other expression types not yet implemented\n");
-        exit(1);
-        break;
-    }
+            memset(retval->data.struct_access.name, 0, sizeof(retval->data.struct_access.name));
+            snprintf(retval->data.struct_access.name, sizeof(retval->data.struct_access.name), "%s",
+                     lookahead.literal);
 
-    printf("leaving parse_expression()\n");
-    print_lookahead_debug("liam");
+            // Consume struct name
+            consume();
+        }
+
+        print_lookahead_debug("looking for dot");
+        if (lookahead.type != T_DOT) {
+            syntax_error(__FUNCTION__, ".", lookahead);
+        } else {
+            // Consume dot
+            consume();
+        }
+
+        print_lookahead_debug("looking for ident");
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "member identifier", lookahead);
+        } else {
+            memset(retval->data.struct_access.member_name, 0,
+                   sizeof(retval->data.struct_access.member_name));
+            snprintf(retval->data.struct_access.member_name,
+                     sizeof(retval->data.struct_access.member_name), "%s", lookahead.literal);
+
+            // Consume member name
+            consume();
+        }
+
+        print_lookahead_debug("end of parse_struct_access");
+    }
 
     return retval;
 }
 
-// Parse the "body" of loops and functions
-vector *parse_body() {
-    vector *retval = mk_vector();
-    
+// 'return' <expression> ';'
+static node *parse_return_stmt() {
+    node *retval = mk_node(N_RETURN_STMT);
+
     if (retval != NULL) {
-        // The body could contain statements and expressions, terminated by and "end" token
-        while (lookahead.type != T_END) {
+        // Look for 'return'
+        if (lookahead.type != T_RETURN) {
+            syntax_error(__FUNCTION__, "return", lookahead);
+        } else {
+            consume();
 
+            retval->data.return_stmt.expr = parse_expression();
+            print_lookahead_debug("after return expr");
 
-            print_lookahead_debug("parse_body");
-            break;
+            // Look for ;
+            if (lookahead.type != T_SEMICOLON) {
+                syntax_error(__FUNCTION__, "; after return expression", lookahead);
+            }
+
+            // Consume it
+            consume();
         }
     }
 
     return retval;
 }
 
-static void print_indent(int indent) {
-    for (int i = 0; i < indent; i++) {
-        printf(" ");
+// <array-init-expr> := '{' ( <expr> ( ',' )? )? '}'
+static node *parse_array_init_expr() {
+    node *retval = mk_node(N_ARRAY_INIT_EXPR);
+
+    if (retval != NULL) {
+        if (lookahead.type != T_LBRACE) {
+            syntax_error(__FUNCTION__, "{", lookahead);
+        } else {
+            retval->data.array_init_expr.expressions = mk_vector();
+            consume();
+
+            if (lookahead.type == T_RBRACE) {
+                // Empty intializer
+                consume();
+            } else {
+                // Look for expressions, separated by commas.
+                bool more = false;
+
+                do {
+                    node *expr = parse_expression();
+                    vector_add(retval->data.array_init_expr.expressions, expr);
+
+                    print_lookahead_debug("after adding expr");
+
+                    if (lookahead.type == T_COMMA) {
+                        consume();
+                        more = true;
+                    } else if (lookahead.type == T_RBRACE) {
+                        consume();
+                        more = false;
+                    }
+                } while (more);
+            }
+        }
     }
+
+    return retval;
+}
+
+// <array-access-expr> := <ident> ( '[' <expression> ']' )+
+static node *parse_array_access_expr() {
+    node *retval = mk_node(N_ARRAY_ACCESS_EXPR);
+
+    if (retval != NULL) {
+        print_lookahead_debug("top of parse_array_access_expr()");
+        if (lookahead.type != T_IDENT) {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        } else {
+            memset(retval->data.array_access_expr.name, 0,
+                   sizeof(retval->data.array_access_expr.name));
+            snprintf(retval->data.array_access_expr.name,
+                     sizeof(retval->data.array_access_expr.name), "%s", lookahead.literal);
+
+            retval->data.array_access_expr.expressions = mk_vector();
+            consume();
+        }
+
+        // Look for indexing
+        bool more = false;
+        do {
+            if (lookahead.type != T_LBRACKET) {
+                syntax_error(__FUNCTION__, "[", lookahead);
+            } else {
+                consume();
+
+                // Read expression
+                node *expr = parse_expression();
+                vector_add(retval->data.array_access_expr.expressions, expr);
+
+                // Look for closing bracket
+                if (lookahead.type != T_RBRACKET) {
+                    syntax_error(__FUNCTION__, "]", lookahead);
+                } else {
+                    consume();
+                }
+
+                if (lookahead.type == T_LBRACKET) {
+                    more = true;
+                } else {
+                    more = false;
+                }
+            }
+        } while (more);
+    }
+
+    return retval;
+}
+
+static node *parse_identifier() {
+    node *retval = mk_node(N_IDENT);
+    print_lookahead_debug("parse_identifier");
+
+    if (retval != NULL) {
+        if (lookahead.type == T_IDENT) {
+            // Assume the current lookahead is an identifier token
+            memset(retval->data.identifier.name, 0, sizeof(retval->data.identifier.name));
+            snprintf(retval->data.identifier.name, sizeof(retval->data.identifier.name), "%s",
+                     lookahead.literal);
+
+        } else {
+            syntax_error(__FUNCTION__, "identifier", lookahead);
+        }
+    }
+
+    return retval;
+}
+static node *parse_string_literal() {
+    node *retval = mk_node(N_STRING_LITERAL);
+
+    if (retval != NULL) {
+        if (lookahead.type == L_STR) {
+            print_lookahead_debug("inside parse_string_literal");
+            retval->data.string_literal.type = D_STRING;
+            memset(retval->data.string_literal.value, 0, sizeof(retval->data.string_literal.value));
+            snprintf(retval->data.string_literal.value,
+                     sizeof(retval->data.string_literal.value) - 1, "%s", lookahead.literal);
+            // Size is MAX_LITERAL + 1, but we want to write the null terminator to the
+            // MAX_LITERAL'th byte (ie. 0-1024)
+            retval->data.string_literal.value[MAX_LITERAL] = '\0';
+        } else {
+            syntax_error(__FUNCTION__, "string literal", lookahead);
+        }
+    }
+
+    return retval;
+}
+static node *parse_integer_literal() {
+    node *retval = mk_node(N_INTEGER_LITERAL);
+
+    if (retval != NULL) {
+        retval->data.integer_literal.type  = D_INTEGER;
+        retval->data.integer_literal.value = atoi(lookahead.literal);
+    }
+
+    return retval;
+}
+
+static node *parse_float_literal() {
+    node *retval = mk_node(N_FLOAT_LITERAL);
+
+    if (retval != NULL) {
+        retval->data.float_literal.type  = D_FLOAT;
+        retval->data.float_literal.value = atof(lookahead.literal);
+    }
+
+    return retval;
+}
+static node *parse_bool_literal() {
+    node *retval = mk_node(N_BOOL_LITERAL);
+
+    if (retval != NULL) {
+        if (lookahead.type == T_TRUE || lookahead.type == T_FALSE) {
+            retval->data.bool_literal.type = D_BOOLEAN;
+            memset(retval->data.bool_literal.str_val, 0, sizeof(retval->data.bool_literal.str_val));
+            snprintf(retval->data.bool_literal.str_val, sizeof(retval->data.bool_literal.str_val),
+                     "%s", lookahead.literal);
+            retval->data.bool_literal.value = (lookahead.type == T_TRUE) ? 1 : 0;
+        } else {
+            syntax_error(__FUNCTION__, "true or false", lookahead);
+        }
+    }
+}
+static node *parse_nil() {
+    node *retval = mk_node(N_NIL);
+
+    if (retval != NULL) {
+        if (lookahead.type == T_NIL) {
+            retval->data.nil.value = 0; // ALWAYS zero
+        } else {
+            syntax_error(__FUNCTION__, "nil", lookahead);
+        }
+    }
+
+    return retval;
 }
 
 static data_type keyword_to_type(token_type t) {
@@ -882,6 +1858,9 @@ static data_type keyword_to_type(token_type t) {
         break;
     case T_VOID:
         return D_VOID;
+        break;
+    case T_STRUCT:
+        return D_STRUCT;
         break;
     default:
         return D_UNKNOWN;
@@ -909,20 +1888,66 @@ static const char *type_to_str(data_type t) {
     case D_NIL:
         return "NIL";
         break;
+    case D_STRUCT:
+        return "STRUCT";
+        break;
     default:
         return "UNKNOWN";
         break;
     }
 }
 
-static void print_lookahead_debug(const char *msg) {
-    if (strlen(msg) > 0) {
-        printf("Msg: %s\n", msg);
+static const char *binop_to_str(token_type t) {
+    switch (t) {
+    case T_PLUS:
+        return "+";
+        break;
+    case T_MINUS:
+        return "-";
+        break;
+    case T_MUL:
+        return "*";
+        break;
+    case T_DIV:
+        return "/";
+        break;
+    case T_MOD:
+        return "%";
+        break;
+    case T_AND:
+        return "and";
+        break;
+    case T_OR:
+        return "or";
+        break;
+    case T_EQ:
+        return "==";
+        break;
+    case T_NE:
+        return "!=";
+        break;
+    case T_GT:
+        return ">";
+        break;
+    case T_GE:
+        return ">=";
+        break;
+    case T_LT:
+        return "<";
+        break;
+    case T_LE:
+        return "<=";
+        break;
+    default:
+        return "UNKNOWN";
+        break;
     }
-    printf("Lookahead type: %d\n", lookahead.type);
-    printf("Lookahead literal: %s\n", lookahead.literal);
-    printf("Line: %d\n", lookahead.line);
-    printf("Column: %d\n", lookahead.col);
+}
+
+static void print_indent(int indent) {
+    for (int i = 0; i < indent; i++) {
+        printf(" ");
+    }
 }
 
 static void print_node(node *n, int indent) {
@@ -936,12 +1961,36 @@ static void print_node(node *n, int indent) {
     case N_PROGRAM:
         printf("Program (\n");
         break;
+    case N_BLOCK_STMT:
+        printf("BlockStmt (\n");
+
+        indent += INDENT_WIDTH;
+        vecnode *bn = n->data.block_stmt.statements->head;
+        while (bn != NULL) {
+            node *n = bn->data;
+            print_node(n, indent);
+
+            bn = bn->next;
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("),\n");
+        break;
     case N_VAR_DECL:
         printf("VarDecl (\n");
         print_indent(indent + INDENT_WIDTH);
-        printf("Name: %s\n", n->data.formal.name);
+        printf("Name: %s\n", n->data.var_decl.name);
         print_indent(indent + INDENT_WIDTH);
-        printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        printf("IsStruct: %s\n", (n->data.var_decl.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsArray: %s\n", (n->data.var_decl.is_array ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Dimensions: %d\n", n->data.var_decl.num_dimensions);
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.var_decl.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("StructType: %s\n", n->data.var_decl.struct_type);
         print_indent(indent + INDENT_WIDTH);
         printf("Value: ");
 
@@ -958,6 +2007,20 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_LABEL_DECL:
+        printf("LabelDecl (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Name: %s\n", n->data.label_decl.name);
+        print_indent(indent);
+        printf("), \n");
+        break;
+    case N_GOTO_STMT:
+        printf("GotoStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Label: %s\n", n->data.goto_stmt.label);
+        print_indent(indent);
+        printf("), \n");
+        break;
     case N_FUNC_DECL:
         printf("FuncDecl (\n");
         print_indent(indent + INDENT_WIDTH);
@@ -965,42 +2028,71 @@ static void print_node(node *n, int indent) {
         print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.function_decl.type));
         print_indent(indent + INDENT_WIDTH);
-        printf("Formals: ");
-
+        printf("StructType: %s\n", n->data.function_decl.struct_type);
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsStruct: %s\n", (n->data.function_decl.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsArray: %s\n", (n->data.function_decl.is_array ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Dimensions: %d\n", n->data.function_decl.num_dimensions);
+        print_indent(indent + INDENT_WIDTH);
+        printf("Formals ( ");
         indent += INDENT_WIDTH;
-        node *f = n->data.function_decl.formal;
-        if (f != NULL) {
-            printf("\n");
-            while (f != NULL) {
-                print_node(f, indent + INDENT_WIDTH);
-                f = f->next;
-            }
+        if (n->data.function_decl.formals == NULL) {
+            printf("None )\n");
         } else {
-            printf("None\n");
+            printf("\n");
+            vecnode *fn = n->data.function_decl.formals->head;
+
+            while (fn != NULL) {
+                node *n = fn->data;
+                print_node(n, indent + INDENT_WIDTH);
+                fn = fn->next;
+            }
+
+            print_indent(indent);
+            printf(")\n");
         }
+        // Print FuncDecl body
+        print_indent(indent);
+        printf("Body:\n");
+
+        print_node(n->data.function_decl.body, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
-        // Print FuncDecl children
-        vecnode *vn = n->data.function_decl.body->head;
-        while (vn != NULL) {
-            print_node(vn->data, indent + INDENT_WIDTH);
-
-            vn = vn->next;
-        }
-/*
-        for (int idx = 0; idx < n->num_children; idx++) {
-            print_node(n->children[idx], indent + INDENT_WIDTH);
-        }
-*/
-
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_RETURN_STMT:
+        printf("ReturnStmt (\n");
         print_indent(indent + INDENT_WIDTH);
-        printf("Return: ");
-        if (n->data.function_decl.return_expr == NULL) {
+        printf("Expression: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.return_stmt.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_CALL_EXPR:
+        printf("CallExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Function name: %s\n", n->data.call_expr.func_name);
+        print_indent(indent + INDENT_WIDTH);
+        printf("Args: ");
+        if (n->data.call_expr.args == NULL) {
             printf("None\n");
         } else {
-            print_node(n->data.function_decl.return_expr, indent + INDENT_WIDTH);
-        }
+            indent += INDENT_WIDTH;
+            printf("\n");
+            vecnode *an = n->data.call_expr.args->head;
 
+            while (an != NULL) {
+                node *n = an->data;
+                print_node(n, indent + INDENT_WIDTH);
+                an = an->next;
+            }
+            indent -= INDENT_WIDTH;
+        }
         print_indent(indent);
         printf("),\n");
         break;
@@ -1012,11 +2104,11 @@ static void print_node(node *n, int indent) {
         printf("Members: ");
 
         indent += INDENT_WIDTH;
-        node *m = n->data.struct_decl.member;
+        vecnode *m = n->data.struct_decl.members->head;
         if (m != NULL) {
             printf("\n");
             while (m != NULL) {
-                print_node(m, indent + INDENT_WIDTH);
+                print_node(m->data, indent + INDENT_WIDTH);
                 m = m->next;
             }
         } else {
@@ -1027,12 +2119,73 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_STRUCT_ACCESS_EXPR:
+        printf("StructAccessExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Name: %s\n", n->data.struct_access.name);
+        print_indent(indent + INDENT_WIDTH);
+        printf("Member Name: %s\n", n->data.struct_access.member_name);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_ARRAY_INIT_EXPR:
+        printf("ArrayInitExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expressions: \n");
+
+        indent += INDENT_WIDTH;
+        vecnode *e = n->data.array_init_expr.expressions->head;
+        print_indent(indent + INDENT_WIDTH);
+        printf("NumElements: %d\n", n->data.array_init_expr.expressions->count);
+
+        if (e != NULL) {
+            printf("\n");
+            while (e != NULL) {
+                print_node(e->data, indent + INDENT_WIDTH);
+                e = e->next;
+            }
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("), \n");
+        break;
+    case N_ARRAY_ACCESS_EXPR:
+        printf("ArrayAccessExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expressions: \n");
+
+        indent += INDENT_WIDTH;
+        vecnode *el = n->data.array_access_expr.expressions->head;
+        print_indent(indent + INDENT_WIDTH);
+        printf("NumElements: %d\n", n->data.array_access_expr.expressions->count);
+
+        if (el != NULL) {
+            printf("\n");
+            while (el != NULL) {
+                print_node(el->data, indent + INDENT_WIDTH);
+                el = el->next;
+            }
+        }
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("), \n");
+        break;
     case N_FORMAL:
         printf("Formal (\n");
         print_indent(indent + INDENT_WIDTH);
         printf("Name: %s\n", n->data.formal.name);
         print_indent(indent + INDENT_WIDTH);
+        printf("IsStruct: %s\n", (n->data.formal.is_struct ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("IsArray: %s\n", (n->data.formal.is_array ? "true" : "false"));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Dimensions: %d\n", n->data.formal.num_dimensions);
+        print_indent(indent + INDENT_WIDTH);
         printf("Type: %s\n", type_to_str((data_type)n->data.formal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("StructType: %s\n", n->data.formal.struct_type);
         print_indent(indent);
         printf("),\n");
         break;
@@ -1070,6 +2223,51 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_INTEGER_LITERAL:
+        printf("IntegerLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.integer_literal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Value: %d\n", n->data.integer_literal.value);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_FLOAT_LITERAL:
+        printf("FloatLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.float_literal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Value: %f\n", n->data.float_literal.value);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_STRING_LITERAL:
+        printf("StringLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.string_literal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Value: %s\n", n->data.string_literal.value);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_BOOL_LITERAL:
+        printf("BoolLiteral (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Type: %s\n", type_to_str((data_type)n->data.bool_literal.type));
+        print_indent(indent + INDENT_WIDTH);
+        printf("Value: %d\n", n->data.bool_literal.value);
+        print_indent(indent + INDENT_WIDTH);
+        printf("StringValue: %s\n", n->data.bool_literal.str_val);
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_NIL:
+        printf("Nil (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Value: %d\n", n->data.nil.value);
+        print_indent(indent);
+        printf("),\n");
+        break;
     case N_IDENT:
         printf("Identifier (\n");
         print_indent(indent + INDENT_WIDTH);
@@ -1077,13 +2275,117 @@ static void print_node(node *n, int indent) {
         print_indent(indent);
         printf("),\n");
         break;
+    case N_IF_STMT:
+        printf("IfStmt (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Test: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.if_stmt.test, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Body: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.if_stmt.body, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Else: ");
+
+        if (n->data.if_stmt.else_stmt == NULL) {
+            printf("None \n");
+        } else {
+            printf("\n");
+            indent += INDENT_WIDTH;
+            print_node(n->data.if_stmt.else_stmt, indent + INDENT_WIDTH);
+            indent -= INDENT_WIDTH;
+        }
+
+        print_indent(indent);
+        printf("),\n");
+        break;
     case N_WHILE_STMT:
         printf("WhileStmt (\n");
         print_indent(indent + INDENT_WIDTH);
-        printf("Expression: \n");
+        printf("Test: \n");
 
         indent += INDENT_WIDTH;
         print_node(n->data.while_stmt.test, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Body: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.while_stmt.body, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_EMPTY_EXPR:
+        printf("EmptyExpr (),\n");
+        break;
+    case N_NEG_EXPR:
+        printf("NegExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expr: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.neg_expr.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf(")\n");
+        break;
+    case N_NOT_EXPR:
+        printf("NotExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("Expr: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.not_expr.expr, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf(")\n");
+        break;
+    case N_BINOP_EXPR:
+        printf("BinOpExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("LHS: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.bin_op_expr.lhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("Operator: %s\n", binop_to_str(n->data.bin_op_expr.operator));
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("RHS: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.bin_op_expr.rhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent);
+        printf("),\n");
+        break;
+    case N_ASSIGN_EXPR:
+        printf("AssignExpr (\n");
+        print_indent(indent + INDENT_WIDTH);
+        printf("LHS: \n");
+
+        indent += INDENT_WIDTH;
+        print_node(n->data.assign_expr.lhs, indent + INDENT_WIDTH);
+        indent -= INDENT_WIDTH;
+
+        print_indent(indent + INDENT_WIDTH);
+        printf("RHS: \n");
+        indent += INDENT_WIDTH;
+        print_node(n->data.assign_expr.rhs, indent + INDENT_WIDTH);
         indent -= INDENT_WIDTH;
 
         print_indent(indent);
@@ -1103,23 +2405,28 @@ void print_ast(node *ast) {
         indent += INDENT_WIDTH;
 
         // Print children
-        vecnode *vn = ast->data.program.children->head;
-        while (vn != NULL) {
-            node *n = vn->data;
-            print_node(n, indent);
+        print_indent(indent);
+        printf("Statements (");
+        if (ast->data.program.statements->head != NULL) {
+            printf("\n");
+            indent += INDENT_WIDTH;
+            vecnode *vn = ast->data.program.statements->head;
+            while (vn != NULL) {
+                node *n = vn->data;
+                print_node(n, indent);
 
-            vn = vn->next;
+                vn = vn->next;
+            }
+
+            indent -= INDENT_WIDTH;
+            print_indent(indent);
+        } else {
+            printf("None");
         }
-
-/*        
-        for (int idx = 0; idx < ast->num_children; idx++) {
-            node *n = ast->children[idx];
-            print_node(n, indent);
-        }
-*/
-
+        printf(")\n");
     }
 
+    indent -= INDENT_WIDTH;
     printf(")\n");
     return;
 }

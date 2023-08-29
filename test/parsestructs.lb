@@ -1,0 +1,36 @@
+func main(string[] args, int argc, struct data data, struct info[][][][] infos) -> void
+then
+    struct person then
+        string name;
+        int age;
+        string uid;
+        bool is_employed;
+    end
+
+    struct person liam;
+
+    bool is_cool := false;
+    is_cool := true;
+
+    liam.name := "Liam";
+    liam.age := 25;
+
+    string newname := liam.name;
+
+    struct person joe;
+
+    joe.age := liam.age;
+
+    if (joe.age > liam.age) then
+        println("Joe is older!");
+        return joe.age;
+    else then
+        return liam.age;
+    end
+end
+
+func whatever(int bla, struct person p) -> float[][][]
+then
+    println("blah");
+    return -15;
+end

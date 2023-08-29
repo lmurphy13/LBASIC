@@ -20,6 +20,7 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 			 | <if-then-else-stmt>
 			 | <assign-stmt>
 			 | <expression>
+             | <block-stmt>
 
 <function-decl> := 'func' <ident> '(' <formal-list> ') '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
 				 | 'func' <ident> '(' ')' '->' <type> <var-decls> <statements> 'return' <expression> ';' 'end'
@@ -36,13 +37,15 @@ https://rosettacode.org/wiki/BNF_Grammar#BASIC
 
 <struct-decl> := 'struct' <ident> <member-decls> 'end'
 
-<for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <statements> 'end'
+<block-stmt> := 'then' <statements> 'end'
 
-<while-stmt> := 'while' '(' <expression> ')' <statements> 'end'
+<for-stmt> := 'for' <ident> ':=' <constant> 'to' <constant> <block-stmt>
 
-<if-then-stmt> := 'if' '(' <expression> ')' 'then' <statements> 'end'
+<while-stmt> := 'while' '(' <expression> ')' <block-stmt>
 
-<if-then-else-stmt> := 'if '(' <expression> ')' 'then' <statements> 'else' <statements> 'end'
+<if-stmt> := 'if' '(' <expression> ')' <block-stmt>
+
+<if-else-stmt> := 'if '(' <expression> ')' <block-stmt> 'else' <block-stmt>
 
 <assign-stmt> := <ident> ( '[' <expression> ']' )? :=' <expression> ';'
 

@@ -1,0 +1,13 @@
+if (x == true) then
+    int b := x;
+
+    if (b == x) then
+        string liam := "liam";
+
+        if (liam != nil) then
+            liam := "hello";
+        else then
+            liam := "ERROR";
+        end
+    end
+end

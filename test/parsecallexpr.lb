@@ -1,0 +1,27 @@
+func foo() -> void
+then
+    int x := 4;
+    return x;
+end
+
+'foo(n + 1, b, c + 2.1, false, bar(1, 2, 3));
+
+func fib(int n) -> int
+then
+    if (n == 0 or n == 1) then
+        return n;
+    else then
+        return (fib(n - 1) + fib(n - 2));
+        return retval;
+    end
+end
+
+func main(string args) -> void
+then
+
+    fib(10, 20, "liam");
+
+    if (liam == "hello") then
+       return 0;
+    end
+end

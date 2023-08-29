@@ -13,6 +13,7 @@
 #include "error.h"
 #include "lexer.h"
 #include "token.h"
+#include "utils.h"
 
 #define N_KEYWORDS 21
 #define MAX_KEYWORD_LEN 20
@@ -26,6 +27,7 @@ static bool is_keyword(char *lexeme, token_type *type);
 
 // Globals
 t_list *token_list;
+vector *line_map;
 static int char_num = -1;
 static int line_num = 1;
 static int col_num  = 1;
@@ -35,14 +37,54 @@ static char keywords[N_KEYWORDS][MAX_KEYWORD_LEN] = {
     "and", "or",   "func",   "for",   "while", "to",   "end", "struct", "true", "false", "nil",
     "int", "bool", "string", "float", "void",  "goto", "if",  "then",   "else", "return"};
 
+void split_into_lines(const char *path) {
+    line_map = mk_vector();
+
+    if (line_map == NULL) {
+        log_error("Unable to allocate a line_map vector");
+    }
+
+    FILE *fp = fopen(path, "r");
+    if (fp != NULL) {
+
+        char line_buff[MAX_LINE] = {'\0'};
+        while (fgets(line_buff, MAX_LINE, fp) != NULL) {
+            line_t *newline = (line_t *)malloc(sizeof(line_t));
+            memset(newline, 0, sizeof(newline));
+
+            snprintf(newline->text, sizeof(newline->text), "%s", line_buff);
+            vector_add(line_map, newline);
+        }
+
+        fclose(fp);
+    }
+
+    printf("Lines:\n");
+
+    vecnode *ln = line_map->head;
+    int i       = 1;
+    while (ln != NULL) {
+        line_t *line = (line_t *)ln->data;
+        printf("%3d. %s", i, line->text);
+        i++;
+
+        ln = ln->next;
+    }
+}
+
 // See lexer.h
 t_list *lex(const char *path) {
     char *prog_buff = input_file(path);
 
     if (prog_buff != NULL) {
-        debug_msg(prog_buff);
+        split_into_lines(path);
+        printf("=================================\n");
 
         token_list = t_list_new();
+
+        if (token_list == NULL) {
+            log_error("Unable to allocate memory for token_list");
+        }
 
         tokenize(prog_buff);
     }
@@ -57,24 +99,27 @@ t_list *lex(const char *path) {
 // Takes a file path and returns a buffer containing the contents of the file at path
 static char *input_file(const char *path) {
     FILE *fp     = fopen(path, "r");
-    char *buffer = {"\0"};
+    char *buffer = NULL;
 
     if (fp != NULL) {
         // Get file size
         fseek(fp, 0, SEEK_END);
         const size_t file_size = ftell(fp);
+        printf("file size: %d\n", file_size);
 
         // Seek back to the beginning of the file
-        fseek(fp, 0, SEEK_SET);
+        rewind(fp);
 
         // Allocate the buffer. Freed in lex()
-        buffer = (char *)malloc(sizeof(char) * file_size);
+        buffer = (char *)malloc(file_size + 1);
 
-        // Copy the file contents into the buffer
-        fread(buffer, file_size, 1, fp);
+        if (buffer != NULL) {
+            // Copy the file contents into the buffer
+            fread(buffer, 1, file_size, fp);
 
-        // Append \0 to end of buffer
-        strncat(buffer, "\0", strlen("\0"));
+            // Append \0 to end of buffer
+            buffer[file_size] = '\0';
+        }
 
         fclose(fp);
     } else {
@@ -97,6 +142,18 @@ static void emit_token(t_list *lst, token_type type, const char *literal) {
     tok->col  = col_num;
     strncpy(tok->literal, literal, strlen(literal));
 
+    if (tok->type != T_EOF) {
+        // Get token's line from line_map
+        vecnode *vn = get_nth_node(line_map, line_num);
+        if (vn != NULL) {
+            line_t *line = (line_t *)vn->data;
+
+            if (line != NULL) {
+                snprintf(tok->line_str, sizeof(tok->line_str), "%s", line->text);
+            }
+        }
+    }
+
     if (new_tok != NULL) {
         if (tok != NULL) {
             new_tok->tok = tok;
@@ -118,6 +175,18 @@ static bool check_singles(char c) {
         break;
     case ')':
         emit_token(token_list, T_RPAREN, ")");
+        break;
+    case '[':
+        emit_token(token_list, T_LBRACKET, "[");
+        break;
+    case ']':
+        emit_token(token_list, T_RBRACKET, "]");
+        break;
+    case '{':
+        emit_token(token_list, T_LBRACE, "{");
+        break;
+    case '}':
+        emit_token(token_list, T_RBRACE, "}");
         break;
     case ';':
         emit_token(token_list, T_SEMICOLON, ";");
@@ -143,6 +212,7 @@ static bool check_singles(char c) {
     // Intentional fallthrough
     case '<':
     case '>':
+    case '=':
     case '!':
     case ':':
     case '-':
@@ -181,7 +251,7 @@ static void unget_char() { char_num--; }
 
 static void tokenize(char *prog_buff) {
     static int state = 0;
-    char c;
+    char c           = 0;
     char lexeme[MAX_LITERAL];
     token_type tmp;
 
@@ -247,31 +317,69 @@ static void tokenize(char *prog_buff) {
 
             else {
                 switch (c) {
+                case '=':
+                    c = get_char(prog_buff);
+                    if (c == '=') {
+                        col_num++;
+                        emit_token(token_list, T_EQ, "==");
+                    } else {
+                        unget_char();
+                        unget_char();
+                        c = get_char(prog_buff);
+                        printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
+                               line_num, col_num, c, char_num);
+                        exit(LEXER_ERROR_UNKNOWN_CHARACTER);
+                    }
+                    break;
                 case '<':
                     c = get_char(prog_buff);
                     if (c == '=') {
+                        col_num++;
                         emit_token(token_list, T_LE, "<=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_LT, "<");
                     }
                     break;
                 case '>':
                     c = get_char(prog_buff);
                     if (c == '=') {
+                        col_num++;
                         emit_token(token_list, T_GE, ">=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_GT, ">");
                     }
                     break;
                 case '!':
                     c = get_char(prog_buff);
                     if (c == '=') {
+                        col_num++;
                         emit_token(token_list, T_NE, "!=");
+                    } else {
+                        unget_char();
+                        emit_token(token_list, T_BANG, "!");
                     }
                     break;
                 case '-':
                     c = get_char(prog_buff);
-                    if (c == '>') {
-                        emit_token(token_list, T_OFTYPE, "->");
+                    // Are we a number?
+                    if (is_digit(c)) {
+                        // Append '-' to lexeme
+                        col_num++;
+                        sprintf(lexeme, "%s%c", lexeme, '-');
+                        goto lex_num;
+                        // Yes, using a goto is bad, but it's the easiest way to
+                        // directly parse a negative number with atoi or atof if we
+                        // encode the - within the token
                     } else {
-                        unget_char();
-                        emit_token(token_list, T_MINUS, "-");
+                        if (c == '>') {
+                            col_num++;
+                            emit_token(token_list, T_OFTYPE, "->");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_MINUS, "-");
+                        }
                     }
                     break;
                 }
@@ -287,7 +395,7 @@ static void tokenize(char *prog_buff) {
         else if (isalpha(c)) {
             char tmp_delim = 0;
             bool inc_line  = false;
-            // Read until newline, space, colon, semicolon, or lparen
+            // Read until newline, space, colon, semicolon, period, or lparen
             while ((c != '\n') && (c != ' ')) {
                 col_num++;
                 // Append to lexeme
@@ -298,11 +406,14 @@ static void tokenize(char *prog_buff) {
                     inc_line = true;
                 }
 
-                if (c == '(' || c == ')' || c == ':' || c == ';' || c == ',') {
+                // Delimiters
+                if (c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
+                    c == ':' || c == ';' || c == ',' || c == '.') {
                     tmp_delim = c;
                     break;
                 }
             }
+            col_num++;
 
             if (is_keyword(lexeme, &tmp)) {
                 emit_token(token_list, tmp, lexeme);
@@ -318,6 +429,7 @@ static void tokenize(char *prog_buff) {
                 if (check_singles(tmp_delim)) {
                     if (tmp_delim == ':') {
                         c = get_char(prog_buff);
+                        col_num++;
                         if (c == '=') {
                             unget_char();
                             continue;
@@ -343,14 +455,43 @@ static void tokenize(char *prog_buff) {
         // Number?
         else if (is_digit(c)) {
             // Read until not a digit
+        lex_num:
             while (is_digit(c)) {
                 // Append to lexeme
                 sprintf(lexeme, "%s%c", lexeme, c);
                 c = get_char(prog_buff);
+                col_num++;
             }
-            unget_char();
-            emit_token(token_list, L_NUM, lexeme);
-            memset(lexeme, 0, sizeof(lexeme));
+
+            // Are we a float?
+            if (c == '.') {
+                // Append dot to lexeme
+                sprintf(lexeme, "%s%c", lexeme, c);
+                // Advance lexeme
+                c = get_char(prog_buff);
+                col_num++;
+
+                if (!is_digit(c)) {
+                    printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
+                           line_num, col_num, c, char_num);
+                    exit(LEXER_ERROR_UNKNOWN_CHARACTER);
+                }
+
+                // Read until we hit another non-digit character
+                while (is_digit(c)) {
+                    sprintf(lexeme, "%s%c", lexeme, c);
+                    c = get_char(prog_buff);
+                    col_num++;
+                }
+
+                unget_char();
+                emit_token(token_list, L_FLOAT, lexeme);
+                memset(lexeme, 0, sizeof(lexeme));
+            } else {
+                unget_char();
+                emit_token(token_list, L_INTEGER, lexeme);
+                memset(lexeme, 0, sizeof(lexeme));
+            }
         }
 
         else {
