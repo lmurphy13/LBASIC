@@ -8,7 +8,7 @@ A simple, compiled language with syntax inspired by C and BASIC
 
 ### Progress:
 - [x] Lexer
-- [ ] Parser (in-progress)
+- [x] Parser (in-progress)
 - [ ] Type Checker
 - [ ] Code Generator
 
