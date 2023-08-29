@@ -62,7 +62,7 @@ static node *parse_struct_decl(void);        // done
 static node *parse_struct_access_expr(void); // done
 static node *parse_return_stmt(void);        // done
 static node *parse_array_init_expr(void);    // done
-static node *parse_array_access_expr(void);  // TBD
+static node *parse_array_access_expr(void);  // done
 
 /* Precedence rules, lowest to highest
  * && ||
@@ -384,7 +384,6 @@ static node *parse_statement(bool *more) {
         break;
     case T_SEMICOLON:
         // If we see a lone semicolon, just consume it and move on. Empty statement.
-        printf("FOUND LONE SEMICOLON\n");
         consume();
         break;
     case T_END: // This should be the end of most bodies (conditionals, functions, etc)
