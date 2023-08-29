@@ -13,6 +13,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
+#include "typechecker.h"
 
 #if defined(DEBUG)
 #include "test.h"
@@ -69,6 +70,9 @@ int main(int argc, char *argv[]) {
 #endif
                 // Cleanup token_list
                 t_list_free(token_list);
+
+                // Semantic analysis
+                typecheck(program);
             } else {
                 log_error("Invalid AST generated during parsing.");
                 exit(COMPILER_ERROR_BAD_AST);

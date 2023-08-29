@@ -9,7 +9,7 @@ A simple, compiled language with syntax inspired by C and BASIC
 ### Progress:
 - [x] Lexer
 - [x] Parser
-- [ ] Type Checker
+- [ ] Type Checker (in-progress)
 - [ ] Code Generator
 
 ### Planned Features:
