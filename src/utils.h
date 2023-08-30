@@ -7,6 +7,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <stdbool.h>
+
 #define MAX_LINE 4096
 #define MAX_SLOTS 1024
 
@@ -66,7 +68,7 @@ void ht_free(hashtable *ht);
 void ht_insert(hashtable *ht, void *key, void *data);
 
 // Lookup an element
-void *ht_lookup(hashtable *ht, void *key);
+void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *key));
 
 // Remove an element
 void ht_remove(hashtable *ht, void *key);

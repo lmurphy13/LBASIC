@@ -8,6 +8,7 @@
 #define SYMTAB_H
 
 #include "token.h"
+#include "utils.h"
 #include <stdlib.h>
 
 typedef enum sym_data_type {
@@ -37,5 +38,8 @@ typedef struct binding_s {
 } binding_t;
 
 binding_t *mk_binding(void);
+
+// Hashtable comparison callback. Tries to find match using binding_t*
+bool ht_compare_binding(vecnode *vn, void *key);
 
 #endif // SYMTAB_H

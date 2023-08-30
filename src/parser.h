@@ -12,6 +12,5 @@
 
 // Prototypes
 node *parse(t_list *tokens);
-void print_ast(node *ast);
 
 #endif // PARSER_H

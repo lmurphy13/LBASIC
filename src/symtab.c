@@ -22,3 +22,12 @@ binding_t *mk_binding() {
 
     return retval;
 }
+
+bool ht_compare_binding(vecnode *vn, void *key) {
+    bool retval = false;
+
+    binding_t *b = (binding_t *)vn->data;
+    retval       = (strcmp(b->name, (char *)key) == 0);
+
+    return retval;
+}

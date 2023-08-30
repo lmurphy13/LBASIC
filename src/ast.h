@@ -11,6 +11,8 @@
 #include "utils.h"
 #include <stdbool.h>
 
+#define INDENT_WIDTH 4
+
 // Node types
 typedef enum n_type {
     N_PROGRAM            = 0,
@@ -269,5 +271,12 @@ typedef struct node {
 
 // Prototypes
 node *mk_node(n_type type);
+
+data_type keyword_to_type(token_type t);
+char *binop_to_str(token_type t);
+char *type_to_str(data_type t);
+
+void print_ast(node *ast);
+void print_node(node *n, int indent);
 
 #endif // AST_H

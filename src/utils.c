@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "error.h"
+#include "symtab.h"
 #include "utils.h"
 
 vector *mk_vector() {
@@ -208,8 +209,14 @@ static unsigned int ht_hash(void *key) {
     // Cast key as a char *
     char *data = key;
 
+    // Size of key
+    const size_t keysize = (sizeof(data) / sizeof(char));
+#if defined(DEBUG)
+    printf("Key size: %d\n", sizeof(data) / sizeof(char));
+#endif
+
     // Sum each byte
-    for (size_t idx = 0; idx < strlen(data); idx += 1) {
+    for (size_t idx = 0; idx < keysize; idx += 1) {
         const unsigned int val = data[idx];
         accum += val;
     }
@@ -231,7 +238,7 @@ void ht_insert(hashtable *ht, void *key, void *data) {
                     if (ht->slots[index] != NULL) {
                         vector_add(ht->slots[index], data);
                     } else {
-                        char msg[1024] = {'\0'};
+                        char msg[MAX_ERROR_LEN] = {'\0'};
                         snprintf(msg, sizeof(msg),
                                  "Unable to create vector for hashtable insertion at index: %d",
                                  index);
@@ -252,7 +259,7 @@ void ht_insert(hashtable *ht, void *key, void *data) {
 }
 
 // Lookup an element
-void *ht_lookup(hashtable *ht, void *key) {
+void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *key)) {
     void *retval = NULL;
 
     if (ht != NULL) {
@@ -263,6 +270,7 @@ void *ht_lookup(hashtable *ht, void *key) {
             vector *slot_ptr = ht->slots[index];
             if (slot_ptr != NULL) {
                 if (slot_ptr->count == 1) {
+                    printf("here!\n");
                     vecnode *vn = slot_ptr->head;
                     if (vn != NULL) {
                         retval = vn->data;
@@ -270,9 +278,30 @@ void *ht_lookup(hashtable *ht, void *key) {
                         log_error("Unable to access vecnode at vector head for lookup");
                     }
                 } else {
+                    // Need to check each node in the vector for a match
+                    vecnode *vn = slot_ptr->head;
+                    if (vn != NULL) {
+                        int count = 0;
+
+                        while (vn != NULL) {
+                            // Use comparison callback to become generic
+                            if ((*ht_compare)(vn, key)) {
+                                retval = vn->data;
+                                break;
+                            }
+                            /*
+                                binding_t *b = (binding_t *)vn->data;
+                                if (strcmp(b->name, (char *)key) == 0) {
+                                    retval = vn->data;
+                                    break;
+                                }
+                            */
+                            vn = vn->next;
+                        }
+                    }
                 }
             } else {
-                char msg[1024] = {'\0'};
+                char msg[MAX_ERROR_LEN] = {'\0'};
                 snprintf(msg, sizeof(msg),
                          "Unable to access vector for hashtable lookup at index: %d", index);
                 log_error(msg);

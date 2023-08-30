@@ -109,12 +109,20 @@ void run_tests(void) {
         b2->data_type   = SYM_DTYPE_STRING;
         b2->object_type = SYM_OTYPE_VARIABLE;
 
+        binding_t *b3 = mk_binding();
+        snprintf(b3->name, sizeof(b3->name), "%s", "PENIS");
+        snprintf(b3->struct_type, sizeof(b3->struct_type), "%s", "PENISPENISPENISPENIS");
+        b3->data_type   = SYM_DTYPE_FLOAT;
+        b3->object_type = SYM_OTYPE_FUNCTION;
+
         ht_insert(ht, b1, b1);
         ht_insert(ht, b2, b2);
+        ht_insert(ht, b3, b3);
 
-        binding_t *lookup1 = (binding_t *)ht_lookup(ht, b1);
+        binding_t *lookup1 = (binding_t *)ht_lookup(ht, b2, ht_compare_binding);
         if (lookup1 != NULL) {
             printf("lookup1.name == %s\n", lookup1->name);
+            printf("lookup1.struct_type == %s\n", lookup1->struct_type);
         }
     }
 }
