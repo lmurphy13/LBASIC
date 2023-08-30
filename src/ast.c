@@ -386,6 +386,8 @@ void print_node(node *n, int indent) {
         case D_FLOAT:
             printf("Float literal not yet implemented\n");
             break;
+        default:
+            break;
         }
         print_indent(indent);
         printf("),\n");

@@ -22,7 +22,7 @@ vector *mk_vector() {
         return retval;
     }
 
-    memset(retval, 0, sizeof(retval));
+    memset(retval, 0, sizeof(*retval));
     retval->head  = NULL;
     retval->tail  = NULL;
     retval->count = 0;
@@ -51,7 +51,7 @@ void vector_add(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
             vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(node));
+            memset(node, 0, sizeof(*node));
 
             node->data = data;
             node->next = NULL;
@@ -70,11 +70,9 @@ void vector_add(vector *vec, void *data) {
 
         } else {
             log_error("Cannot add NULL data to vector");
-            exit(1);
         }
     } else {
         log_error("Cannot add element to NULL vector!");
-        exit(1);
     }
 }
 
@@ -82,7 +80,7 @@ void vector_prepend(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
             vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(node));
+            memset(node, 0, sizeof(*node));
 
             node->data = data;
 
@@ -116,7 +114,7 @@ void vector_pop(vector *vec) {
         } else if (vector_length(vec) == 1) {
             if (vec->head != NULL) {
                 free(vec->head);
-                vec->head == NULL;
+                vec->head = NULL;
                 vec->count--;
             }
         } else if (vector_length(vec) > 1) {
@@ -146,9 +144,13 @@ void vector_pop(vector *vec) {
 }
 
 int vector_length(vector *vec) {
+    int retval = -1;
+
     if (vec != NULL) {
-        return vec->count;
+        retval = vec->count;
     }
+
+    return retval;
 }
 
 vecnode *get_nth_node(vector *vec, const int n) {
@@ -210,9 +212,9 @@ static unsigned int ht_hash(void *key) {
     char *data = key;
 
     // Size of key
-    const size_t keysize = (sizeof(data) / sizeof(char));
+    const size_t keysize = strlen(data);
 #if defined(DEBUG)
-    printf("Key size: %d\n", sizeof(data) / sizeof(char));
+    printf("Key size: %d\n", sizeof(*data) / sizeof(char));
 #endif
 
     // Sum each byte

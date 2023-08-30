@@ -9,7 +9,7 @@ SOURCES = $(wildcard $(SRCDIR)/*.c)
 # Catchall sources -> objects
 OBJECTS = $(SOURCES:.c=.o)
 
-CFLAGS = -g -O0 -DDEBUG
+CFLAGS = -g -O0 -Wall -DDEBUG
 
 lbasic: $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) -o $@

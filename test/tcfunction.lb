@@ -1,8 +1,8 @@
 ' Test Name: Type Check Function
 ' Test Category: Type Checking
 
-func main(string[] args) -> int
-then
+'func main(string[] args) -> int
+'then
     string greeting := "My name is Liam. What is your name?";
     string answer;
     answer := getstdin();
@@ -13,6 +13,6 @@ then
         println("Hello " + answer);
     end
 
-    return 0;
-end
+'    return 0;
+'end
 

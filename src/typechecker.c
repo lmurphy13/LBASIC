@@ -79,13 +79,24 @@ static void typecheck_var_decl(node *n) {
     }
 }
 
+static void typecheck_func_decl(node *n) {
+    if (n != NULL) {
+        if (!is_duplicate(n->data.function_decl.name)) {
+            binding_t *b = mk_binding();
+
+            if (b != NULL) {
+                snprintf(b->name, sizeof(b->name), "%s", n->data.function_decl.name);
+                vector_add(idents, b);
+            }
+        }
+    }
+}
+
 /*
  * Pass 1: Build a symbol table
  * Pass 2: Verify types and scope
  */
 void typecheck(node *ast) {
-    binding_t *b = mk_binding();
-
     if (ast != NULL) {
         idents = mk_vector();
 
@@ -102,6 +113,8 @@ void typecheck(node *ast) {
         case N_LABEL_DECL:
         case N_GOTO_STMT:
         case N_FUNC_DECL:
+            typecheck_func_decl(ast);
+            break;
         case N_RETURN_STMT:
         case N_CALL_EXPR:
         case N_STRUCT_DECL:
@@ -144,6 +157,7 @@ static bool is_duplicate(const char *ident) {
 
     // Eventually a symbol table
     if (idents != NULL) {
+        printf("count: %d\n", vector_length(idents));
         // Search vector for symbols matching ident
         if (idents->count > 0) {
             vecnode *vn = idents->head;

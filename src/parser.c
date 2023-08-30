@@ -17,13 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define N_BUILTINS 1
-
 // Globals
 static token lookahead;
-
-// List of "builtin" functions (identifiers)
-static char builtins[N_BUILTINS][MAX_LITERAL] = {"println"};
 
 // Pointer to doubly-linked list of tokens
 static t_list *toks;
@@ -35,8 +30,6 @@ static void consume(void);
 static void backup(void);
 static void syntax_error(const char *func, const char *exp, token l);
 static void print_lookahead_debug(const char *msg);
-static bool is_builtin(const char *ident);
-static bool is_binop_symbol(token *t);
 
 // Grammar productions
 static vector *parse_statements(void);       // done
@@ -151,40 +144,6 @@ static void syntax_error(const char *func, const char *exp, token l) {
     }
     printf("^\n");
     exit(PARSER_ERROR_SYNTAX_ERROR);
-}
-
-// Check to see if an identifier (string) is a builtin function
-static bool is_builtin(const char *ident) {
-    bool found = false;
-
-    for (int i = 0; i < N_BUILTINS; i++) {
-        if (strcmp(ident, builtins[i]) == 0) {
-            found = true;
-            break;
-        }
-    }
-
-    return found;
-}
-
-static bool is_binop_symbol(token *t) {
-    bool ret = false;
-
-    if (t != NULL) {
-        switch (t->type) {
-        case T_PLUS:
-        case T_MINUS:
-        case T_MUL:
-        case T_DIV:
-        case T_MOD:
-            ret = true;
-            break;
-        default:
-            assert(0 && "Other binop symbol types not yet implemented");
-        }
-    }
-
-    return ret;
 }
 
 static void print_lookahead_debug(const char *msg) {
@@ -527,6 +486,8 @@ static node *parse_and_expr() {
     case T_OR:
         ttype = lookahead.type;
         break;
+    default:
+        break;
     }
 
     // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
@@ -613,6 +574,8 @@ static node *parse_compare_expr() {
     case T_LE:
         ttype = lookahead.type;
         break;
+    default:
+        break;
     }
 
     // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
@@ -656,6 +619,8 @@ static node *parse_add_expr() {
     case T_PLUS:
     case T_MINUS:
         ttype = lookahead.type;
+        break;
+    default:
         break;
     }
 
@@ -702,6 +667,8 @@ static node *parse_mult_expr() {
     case T_MOD:
         ttype = lookahead.type;
         break;
+    default:
+        break;
     }
 
     // We didn't find an operator, so this is a "leaf" expression. No "right hand side"
@@ -734,7 +701,6 @@ static node *parse_mult_expr() {
 // Literals and grouping expressions
 static node *parse_primary_expr() {
     node *retval;
-    bool parsed_func_call = false;
     print_lookahead_debug("begin primary_expr");
 
     // Move past assignment operator
@@ -854,6 +820,8 @@ static node *parse_primary_expr() {
         retval = parse_expression();
         consume();
         return retval;
+        break;
+    default:
         break;
     }
 
@@ -1450,7 +1418,8 @@ static node *parse_var_decl() {
                 case D_BOOLEAN:
                     val_default                          = mk_node(N_BOOL_LITERAL);
                     val_default->data.bool_literal.value = 0; // false
-                    strncpy(val_default->data.bool_literal.str_val, "false", sizeof("false"));
+                    snprintf(val_default->data.bool_literal.str_val,
+                             sizeof(val_default->data.bool_literal.str_val), "false");
                     break;
                 case D_STRUCT:
                     // For structs, don't assign a default value. We'll handle this at codegen time
@@ -1793,6 +1762,8 @@ static node *parse_bool_literal() {
             syntax_error(__FUNCTION__, "true or false", lookahead);
         }
     }
+
+    return retval;
 }
 static node *parse_nil() {
     node *retval = mk_node(N_NIL);

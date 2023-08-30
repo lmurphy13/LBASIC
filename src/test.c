@@ -110,8 +110,8 @@ void run_tests(void) {
         b2->object_type = SYM_OTYPE_VARIABLE;
 
         binding_t *b3 = mk_binding();
-        snprintf(b3->name, sizeof(b3->name), "%s", "PENIS");
-        snprintf(b3->struct_type, sizeof(b3->struct_type), "%s", "PENISPENISPENISPENIS");
+        snprintf(b3->name, sizeof(b3->name), "%s", "BLAHBLAH");
+        snprintf(b3->struct_type, sizeof(b3->struct_type), "%s", "BLAHBLABHBLABHBLABHBLABH");
         b3->data_type   = SYM_DTYPE_FLOAT;
         b3->object_type = SYM_OTYPE_FUNCTION;
 

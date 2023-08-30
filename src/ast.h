@@ -227,8 +227,8 @@ typedef struct string_literal_s {
 
 typedef struct bool_literal_s {
     data_type type;
-    char str_val[6]; // enough space to fit "false" plus null terminator
-    char value;      // 0 or 1
+    char str_val[MAX_LITERAL + 1];
+    char value; // 0 or 1
 } bool_literal_t;
 
 typedef struct nil_s {
