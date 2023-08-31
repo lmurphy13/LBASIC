@@ -58,6 +58,7 @@ typedef struct line_s {
     char text[MAX_LINE];
 } line_t;
 
+/* Hash Table */
 // Allocate a new hash table
 hashtable *mk_hashtable(void);
 

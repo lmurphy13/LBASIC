@@ -75,11 +75,9 @@ int main(int argc, char *argv[]) {
                 typecheck(program);
             } else {
                 log_error("Invalid AST generated during parsing.");
-                exit(COMPILER_ERROR_BAD_AST);
             }
         } else {
             log_error("Provide valid file path.");
-            exit(COMPILER_ERROR_UNKNOWN_PATH);
         }
     } else {
         print_usage();

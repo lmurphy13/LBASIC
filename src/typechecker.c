@@ -68,7 +68,7 @@ static void typecheck_var_decl(node *n) {
         */
         if (!is_duplicate(n->data.var_decl.name)) {
             char *name = (char *)malloc(strlen(n->data.var_decl.name));
-            snprintf(name, sizeof(name), "%s", n->data.var_decl.name);
+            snprintf(name, strlen(name), "%s", n->data.var_decl.name);
             vector_add(idents, name);
         } else {
             char msg[MAX_ERROR_LEN] = {0};

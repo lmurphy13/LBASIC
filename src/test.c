@@ -24,7 +24,7 @@ static void print_string_vec(vector *v) {
 
         if (vector_length(v) > 0) {
             while (curr != NULL) {
-                printf("%s\n", curr->data);
+                printf("%s\n", (char *)curr->data);
 
                 curr = curr->next;
             }
@@ -39,7 +39,6 @@ void run_tests(void) {
     print_header();
 
     // Begin internal unit test environment below
-
     printf("Running vector tests.....\n");
 
     vector *v = mk_vector();

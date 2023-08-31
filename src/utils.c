@@ -214,7 +214,7 @@ static unsigned int ht_hash(void *key) {
     // Size of key
     const size_t keysize = strlen(data);
 #if defined(DEBUG)
-    printf("Key size: %d\n", sizeof(*data) / sizeof(char));
+    printf("Key size: %ld\n", sizeof(*data) / sizeof(char));
 #endif
 
     // Sum each byte

@@ -50,7 +50,7 @@ void split_into_lines(const char *path) {
         char line_buff[MAX_LINE] = {'\0'};
         while (fgets(line_buff, MAX_LINE, fp) != NULL) {
             line_t *newline = (line_t *)malloc(sizeof(line_t));
-            memset(newline, 0, sizeof(newline));
+            memset(newline, 0, sizeof(*newline));
 
             snprintf(newline->text, sizeof(newline->text), "%s", line_buff);
             vector_add(line_map, newline);
@@ -105,7 +105,7 @@ static char *input_file(const char *path) {
         // Get file size
         fseek(fp, 0, SEEK_END);
         const size_t file_size = ftell(fp);
-        printf("file size: %d\n", file_size);
+        printf("file size: %ld\n", file_size);
 
         // Seek back to the beginning of the file
         rewind(fp);
@@ -250,8 +250,7 @@ static char get_char(char *prog_buff) {
 static void unget_char() { char_num--; }
 
 static void tokenize(char *prog_buff) {
-    static int state = 0;
-    char c           = 0;
+    char c = 0;
     char lexeme[MAX_LITERAL];
     token_type tmp;
 

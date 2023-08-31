@@ -9,7 +9,8 @@
 
 #include "utils.h" /* line_t, vector */
 
-#define MAX_LITERAL 1024
+// Accounting for null byte
+#define MAX_LITERAL 1024 + 1
 
 typedef enum {
     T_LPAREN    = 0,  // (
