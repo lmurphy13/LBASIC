@@ -283,30 +283,18 @@ void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *
                     // Need to check each node in the vector for a match
                     vecnode *vn = slot_ptr->head;
                     if (vn != NULL) {
-                        int count = 0;
-
                         while (vn != NULL) {
                             // Use comparison callback to become generic
                             if ((*ht_compare)(vn, key)) {
                                 retval = vn->data;
                                 break;
                             }
-                            /*
-                                binding_t *b = (binding_t *)vn->data;
-                                if (strcmp(b->name, (char *)key) == 0) {
-                                    retval = vn->data;
-                                    break;
-                                }
-                            */
                             vn = vn->next;
                         }
                     }
                 }
             } else {
-                char msg[MAX_ERROR_LEN] = {'\0'};
-                snprintf(msg, sizeof(msg),
-                         "Unable to access vector for hashtable lookup at index: %d", index);
-                log_error(msg);
+                printf("Vector does not exist at index %d\n", index);
             }
         } else {
             log_error("Unable to access key for lookup");
@@ -316,6 +304,14 @@ void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *
     }
 
     return retval;
+}
+
+// TODO: Be smarter here: iterate through table and free key/value pairs
+// This is definitely a memory leak
+void ht_free(hashtable *ht) {
+    if (ht != NULL) {
+        free(ht);
+    }
 }
 
 // Remove an element

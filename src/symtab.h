@@ -37,9 +37,23 @@ typedef struct binding_s {
     sym_obj_type object_type;
 } binding_t;
 
+typedef struct symtab_s {
+    hashtable *table;
+    struct symtab_s *prev;
+    struct symtab_s *next;
+} symtab_t;
+
+symtab_t *symtab_new(void);
+void symtab_free(symtab_t *st);
+void symtab_append(symtab_t *st, symtab_t *new_st);
+symtab_t *symtab_next(symtab_t *st);
+symtab_t *symtab_prev(symtab_t *st);
+
 binding_t *mk_binding(void);
 
 // Hashtable comparison callback. Tries to find match using binding_t*
 bool ht_compare_binding(vecnode *vn, void *key);
+
+void print_binding(const binding_t *);
 
 #endif // SYMTAB_H

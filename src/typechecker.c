@@ -13,9 +13,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// Temporary
-int indent     = 0;
-vector *idents = NULL;
+// Globals
+static symtab_t *symbol_table = NULL;
+static bool created_table     = false;
 
 // Prototypes
 static bool is_duplicate(const char *ident);
@@ -69,7 +69,6 @@ static void typecheck_var_decl(node *n) {
         if (!is_duplicate(n->data.var_decl.name)) {
             char *name = (char *)malloc(strlen(n->data.var_decl.name));
             snprintf(name, strlen(name), "%s", n->data.var_decl.name);
-            vector_add(idents, name);
         } else {
             char msg[MAX_ERROR_LEN] = {0};
             snprintf(msg, sizeof(msg), "Identifier already defined in this scope: %s",
@@ -81,12 +80,63 @@ static void typecheck_var_decl(node *n) {
 
 static void typecheck_func_decl(node *n) {
     if (n != NULL) {
+        printf("here\n");
         if (!is_duplicate(n->data.function_decl.name)) {
             binding_t *b = mk_binding();
 
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.function_decl.name);
-                vector_add(idents, b);
+                b->data_type   = SYM_DTYPE_UNKNOWN;
+                b->object_type = SYM_OTYPE_FUNCTION;
+
+                ht_insert(symbol_table->table, b->name, b);
+            }
+
+            if (vector_length(n->data.function_decl.formals) > 0) {
+                vector *vec = n->data.function_decl.formals;
+
+                vecnode *vn = vec->head;
+
+                while (vn != NULL) {
+                    typecheck(vn->data);
+
+                    vn = vn->next;
+                }
+            }
+        }
+    }
+}
+
+static void typecheck_formal(node *n) {
+    if (n != NULL) {
+        if (!is_duplicate(n->data.formal.name)) {
+            binding_t *b = mk_binding();
+
+            if (b != NULL) {
+                snprintf(b->name, sizeof(b->name), "%s", n->data.formal.name);
+                switch (n->data.formal.type) {
+                case D_INTEGER:
+                    b->data_type = SYM_DTYPE_INTEGER;
+                    break;
+                case D_FLOAT:
+                    b->data_type = SYM_DTYPE_FLOAT;
+                    break;
+                case D_STRING:
+                    b->data_type = SYM_DTYPE_STRING;
+                    break;
+                case D_BOOLEAN:
+                    b->data_type = SYM_DTYPE_BOOLEAN;
+                    break;
+                case D_VOID:
+                    b->data_type = SYM_DTYPE_VOID;
+                    break;
+                case D_NIL:
+                default:
+                    b->data_type = SYM_DTYPE_UNKNOWN;
+                }
+                b->object_type = SYM_OTYPE_VARIABLE;
+
+                ht_insert(symbol_table->table, b->name, b);
             }
         }
     }
@@ -98,7 +148,16 @@ static void typecheck_func_decl(node *n) {
  */
 void typecheck(node *ast) {
     if (ast != NULL) {
-        idents = mk_vector();
+        if (!created_table) {
+            symbol_table = symtab_new();
+
+            if (symbol_table == NULL) {
+                log_error("Unable to create symbol table");
+            } else {
+                printf("Successfully allocated symbol table\n");
+                created_table = true;
+            }
+        }
 
         switch (ast->type) {
         case N_PROGRAM:
@@ -108,7 +167,7 @@ void typecheck(node *ast) {
             typecheck_block_stmt(ast);
             break;
         case N_VAR_DECL:
-            typecheck_var_decl(ast);
+            //            typecheck_var_decl(ast);
             break;
         case N_LABEL_DECL:
         case N_GOTO_STMT:
@@ -122,6 +181,8 @@ void typecheck(node *ast) {
         case N_ARRAY_INIT_EXPR:
         case N_ARRAY_ACCESS_EXPR:
         case N_FORMAL:
+            typecheck_formal(ast);
+            break;
         case N_MEMBER_DECL:
         case N_LITERAL:
         case N_INTEGER_LITERAL:
@@ -156,23 +217,15 @@ static bool is_duplicate(const char *ident) {
     }
 
     // Eventually a symbol table
-    if (idents != NULL) {
-        printf("count: %d\n", vector_length(idents));
-        // Search vector for symbols matching ident
-        if (idents->count > 0) {
-            vecnode *vn = idents->head;
+    if (symbol_table != NULL) {
+        // Search hashtable for symbols matching ident
+        hashtable *ht = symbol_table->table;
+        binding_t *b  = ht_lookup(ht, (char *)ident, ht_compare_binding);
 
-            while (vn != NULL) {
-                char *str = (char *)vn->data;
-                printf("str: %s\n", str);
-
-                if (strcmp(ident, str) == 0) {
-                    retval = true;
-                    break;
-                }
-
-                vn = vn->next;
-            }
+        if (b != NULL) {
+            printf("Found an existing binding!\n");
+            print_binding(b);
+            retval = true;
         }
     }
 
@@ -181,3 +234,31 @@ static bool is_duplicate(const char *ident) {
 
 // Might not be needed
 void print_checked_ast(node *ast) { return; }
+
+void print_symbol_tables() {
+    hashtable *ht = symbol_table->table;
+
+    if (ht == NULL) {
+        log_error("Unable to access symbol table for printing!");
+    }
+
+    // Iterate over hash table and print each key/value pair
+    printf("Symbol Table\n");
+    printf("============\n");
+    for (int idx = 0; idx < MAX_SLOTS; idx++) {
+        if (vector_length(ht->slots[idx]) <= 0) {
+            continue;
+        } else {
+            vector *vec = ht->slots[idx];
+
+            vecnode *vn = vec->head;
+
+            while (vn != NULL) {
+                binding_t *b = (binding_t *)vn->data;
+                print_binding(b);
+
+                vn = vn->next;
+            }
+        }
+    }
+}

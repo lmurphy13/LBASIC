@@ -59,20 +59,23 @@ int main(int argc, char *argv[]) {
 
         if (token_list != NULL) {
 #if defined(DEBUG)
-            print_list(token_list);
+//            print_list(token_list);
 #endif
             // Syntactic analysis
             node *program = parse(token_list);
 
             if (program != NULL) {
 #if defined(DEBUG)
-                print_ast(program);
+//                print_ast(program);
 #endif
                 // Cleanup token_list
                 t_list_free(token_list);
 
                 // Semantic analysis
                 typecheck(program);
+#if defined(DEBUG)
+                print_symbol_tables();
+#endif
             } else {
                 log_error("Invalid AST generated during parsing.");
             }
