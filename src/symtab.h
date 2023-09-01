@@ -7,6 +7,7 @@
 #ifndef SYMTAB_H
 #define SYMTAB_H
 
+#include "ast.h"
 #include "token.h"
 #include "utils.h"
 #include <stdlib.h>
@@ -35,9 +36,12 @@ typedef struct binding_s {
     char struct_type[MAX_LITERAL];
     sym_data_type data_type;
     sym_obj_type object_type;
+    bool is_array;
+    unsigned int array_dims;
 } binding_t;
 
 typedef struct symtab_s {
+    unsigned int level;
     hashtable *table;
     struct symtab_s *prev;
     struct symtab_s *next;
@@ -55,5 +59,6 @@ binding_t *mk_binding(void);
 bool ht_compare_binding(vecnode *vn, void *key);
 
 void print_binding(const binding_t *);
+sym_data_type ast_data_type_to_binding_data_type(data_type t);
 
 #endif // SYMTAB_H

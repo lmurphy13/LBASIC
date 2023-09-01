@@ -3,9 +3,10 @@
 
 func main(string[] args) -> int
 then
-'    string greeting := "My name is Liam. What is your name?";
-'    string answer;
-'    answer := getstdin();
+    string greeting := "My name is Liam. What is your name?";
+    string answer;
+    answer := getstdin();
+'    string greeting := "Hiya";
 
 '    if (getstdin() == "Jim") then
 '        println("Hello Jim");

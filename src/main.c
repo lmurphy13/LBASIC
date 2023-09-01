@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
             if (program != NULL) {
 #if defined(DEBUG)
-//                print_ast(program);
+                print_ast(program);
 #endif
                 // Cleanup token_list
                 t_list_free(token_list);

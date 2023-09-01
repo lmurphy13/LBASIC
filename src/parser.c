@@ -1408,7 +1408,8 @@ static node *parse_var_decl() {
                     val_default->data.float_literal.value = 0.0;
                     break;
                 case D_STRING:
-                    val_default = mk_node(N_STRING_LITERAL);
+                    val_default                           = mk_node(N_STRING_LITERAL);
+                    val_default->data.string_literal.type = D_STRING;
                     // Empty string
                     memset(val_default->data.string_literal.value, 0,
                            sizeof(val_default->data.string_literal.value));

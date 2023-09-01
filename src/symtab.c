@@ -17,6 +17,9 @@ binding_t *mk_binding() {
 
     if (retval != NULL) {
         memset(retval, 0, sizeof(binding_t));
+
+        snprintf(retval->struct_type, sizeof(retval->struct_type), "NONE");
+        snprintf(retval->name, sizeof(retval->name), "NONE");
     } else {
         log_error("Unable to allocate binding_t");
     }
@@ -71,6 +74,7 @@ static char *b_obj_type_to_str(sym_obj_type t) {
         break;
     case SYM_OTYPE_STRUCTURE:
         return "SYM_OTYPE_STRUCTURE";
+        break;
     case SYM_OTYPE_UNKNOWN:
         return "SYM_OTYPE_STRUCTURE";
         break;
@@ -80,13 +84,60 @@ static char *b_obj_type_to_str(sym_obj_type t) {
     }
 }
 
+static data_type sym_data_to_data_type(sym_data_type t) {
+    switch (t) {
+    case SYM_DTYPE_INTEGER:
+        return D_INTEGER;
+        break;
+    case SYM_DTYPE_FLOAT:
+        return D_FLOAT;
+        break;
+    case SYM_DTYPE_STRING:
+        return D_STRING;
+        break;
+    case SYM_DTYPE_BOOLEAN:
+        return D_BOOLEAN;
+        break;
+    case SYM_DTYPE_VOID:
+        return D_VOID;
+        break;
+    case SYM_DTYPE_STRUCT:
+        return D_STRUCT;
+        break;
+    case SYM_DTYPE_UNKNOWN:
+    default:
+        return D_UNKNOWN;
+        break;
+    }
+}
+
+sym_data_type ast_data_type_to_binding_data_type(data_type t) {
+    switch (t) {
+    case D_INTEGER:
+        return SYM_DTYPE_INTEGER;
+    case D_FLOAT:
+        return SYM_DTYPE_FLOAT;
+    case D_STRING:
+        return SYM_DTYPE_STRING;
+    case D_BOOLEAN:
+        return SYM_DTYPE_BOOLEAN;
+    case D_VOID:
+        return SYM_DTYPE_VOID;
+    case D_STRUCT:
+        return SYM_DTYPE_STRUCT;
+    default:
+        return SYM_DTYPE_UNKNOWN;
+    }
+}
+
 void print_binding(const binding_t *b) {
     if (b != NULL) {
-        printf("Binding\n");
-        printf("Binding name: %s\n", b->name);
-        printf("Binding struct type: %s\n", b->struct_type);
-        printf("Binding data type: %s\n", b_data_type_to_str(b->data_type));
-        printf("Binding object type: %s\n", b_obj_type_to_str(b->object_type));
+        printf("Binding Name: %s | ", b->name);
+        printf("Binding Struct Type: %s | ", b->struct_type);
+        printf("Binding Data Type: %s | ", b_data_type_to_str(b->data_type));
+        printf("Binding Object Type: %s | ", b_obj_type_to_str(b->object_type));
+        printf("Binding IsArray: %d | ", b->is_array);
+        printf("Binding Array Dimensions: %u\n", b->array_dims);
     }
 }
 
@@ -135,10 +186,10 @@ void symtab_append(symtab_t *st, symtab_t *new_st) {
                 st->next = new_st;
             }
         } else {
-            printf("ERROR: Cannot access new_st\n");
+            log_error("Cannot access new_st");
         }
     } else {
-        printf("ERROR: Cannot access st\n");
+        log_error("Cannot access st");
     }
 }
 

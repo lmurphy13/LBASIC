@@ -26,6 +26,7 @@ typedef struct vector {
 
 typedef struct hashtable {
     vector *slots[MAX_SLOTS];
+    int num_values; // The sum of all elements within the table
 } hashtable;
 
 // Allocate a new vector

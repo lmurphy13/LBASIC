@@ -63,13 +63,13 @@ typedef enum n_type {
 
 typedef enum data_type {
     D_INTEGER = 0,
-    D_FLOAT,
-    D_STRING,
-    D_BOOLEAN,
-    D_VOID,
-    D_NIL,
-    D_STRUCT,
-    D_UNKNOWN
+    D_FLOAT   = 1,
+    D_STRING  = 2,
+    D_BOOLEAN = 3,
+    D_VOID    = 4,
+    D_NIL     = 5,
+    D_STRUCT  = 6,
+    D_UNKNOWN = 7
 } data_type;
 
 // Node types

@@ -200,7 +200,8 @@ hashtable *mk_hashtable() {
 // Free a hash table
 // void ht_free(hashtable *ht);
 
-// Private hash function
+// Private naive hash function.
+// If there are too many collisions, we will change this
 static unsigned int ht_hash(void *key) {
     unsigned int accum = 0;
 
@@ -214,7 +215,7 @@ static unsigned int ht_hash(void *key) {
     // Size of key
     const size_t keysize = strlen(data);
 #if defined(DEBUG)
-    printf("Key size: %ld\n", sizeof(*data) / sizeof(char));
+    printf("Key size: %ld\n", keysize);
 #endif
 
     // Sum each byte
@@ -239,6 +240,7 @@ void ht_insert(hashtable *ht, void *key, void *data) {
                     ht->slots[index] = mk_vector();
                     if (ht->slots[index] != NULL) {
                         vector_add(ht->slots[index], data);
+                        ht->num_values++;
                     } else {
                         char msg[MAX_ERROR_LEN] = {'\0'};
                         snprintf(msg, sizeof(msg),
@@ -247,7 +249,9 @@ void ht_insert(hashtable *ht, void *key, void *data) {
                         log_error(msg);
                     }
                 } else {
+                    // Hash index collision, so append to vector (buckets 'n chaining)
                     vector_add(ht->slots[index], data);
+                    ht->num_values++;
                 }
             } else {
                 log_error("Unable to access data for insertion");

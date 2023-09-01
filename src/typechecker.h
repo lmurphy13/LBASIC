@@ -10,6 +10,11 @@
 #include "ast.h"
 #include "token.h"
 
+typedef struct type_s {
+    data_type datatype;
+    char struct_type[MAX_LITERAL];
+} type_t;
+
 // Prototypes
 void typecheck(node *ast);
 void print_checked_ast(node *ast);
