@@ -350,16 +350,18 @@ static void typecheck_formal(node *n) {
 }
 
 static void typecheck_binop_expr(node *n) {
-    printf("Typechecking binop_expr\n");
+    printf("Typechecking bin_op_expr\n");
     if (n != NULL) {
         // First, check if the LHS is in the symbol table
-        typecheck(n->data.assign_expr.lhs);
+        typecheck(n->data.bin_op_expr.lhs);
 
         // Then, the RHS
-        typecheck(n->data.assign_expr.lhs);
+        typecheck(n->data.bin_op_expr.rhs);
 
-        if (!coerce_to(n->data.assign_expr.lhs, n->data.assign_expr.rhs)) {
-            type_error("Type mismatch between left-hand expression and right-hand expression", n);
+        // TODO: Check the operator to make sure the LHS and RHS are compatible with it
+
+        if (!coerce_to(n->data.bin_op_expr.lhs, n->data.bin_op_expr.rhs)) {
+            type_error("Type mismatch in binary operator between left-hand expression and right-hand expression", n);
         }
     }
 }
@@ -371,10 +373,10 @@ static void typecheck_assign_expr(node *n) {
         typecheck(n->data.assign_expr.lhs);
 
         // Then, the RHS
-        typecheck(n->data.assign_expr.lhs);
+        typecheck(n->data.assign_expr.rhs);
 
         if (!coerce_to(n->data.assign_expr.lhs, n->data.assign_expr.rhs)) {
-            type_error("Type mismatch between left-hand expression and right-hand expression", n);
+            type_error("Type mismatch in assignment between left-hand expression and right-hand expression", n);
         }
     }
 }
@@ -440,22 +442,31 @@ void typecheck(node *ast) {
         case N_VAR_DECL:
             typecheck_var_decl(ast);
             break;
-        case N_LABEL_DECL:
-        case N_GOTO_STMT:
         case N_FUNC_DECL:
             typecheck_func_decl(ast);
             break;
-        case N_RETURN_STMT:
         case N_CALL_EXPR:
             typecheck_call_expr(ast);
             break;
+        case N_FORMAL:
+            typecheck_formal(ast);
+            break;
+        case N_IDENT:
+            typecheck_ident(ast);
+            break;
+        case N_BINOP_EXPR:
+            typecheck_binop_expr(ast);
+            break;
+        case N_ASSIGN_EXPR:
+            typecheck_assign_expr(ast);
+            break;
+        case N_LABEL_DECL:
+        case N_GOTO_STMT:
+        case N_RETURN_STMT:
         case N_STRUCT_DECL:
         case N_STRUCT_ACCESS_EXPR:
         case N_ARRAY_INIT_EXPR:
         case N_ARRAY_ACCESS_EXPR:
-        case N_FORMAL:
-            typecheck_formal(ast);
-            break;
         case N_MEMBER_DECL:
         case N_LITERAL:
         case N_INTEGER_LITERAL:
@@ -463,20 +474,11 @@ void typecheck(node *ast) {
         case N_STRING_LITERAL:
         case N_BOOL_LITERAL:
         case N_NIL:
-        case N_IDENT:
-            typecheck_ident(ast);
-            break;
         case N_IF_STMT:
         case N_WHILE_STMT:
         case N_EMPTY_EXPR:
         case N_NEG_EXPR:
         case N_NOT_EXPR:
-        case N_BINOP_EXPR:
-            typecheck_binop_expr(ast);
-            break;
-        case N_ASSIGN_EXPR:
-            typecheck_assign_expr(ast);
-            break;
         default:
             type_error("Unknown node type", ast);
             break;
@@ -521,7 +523,6 @@ static bool is_builtin(const char *ident, data_type *type) {
     }
 
     builtin_t getstdin = {.name = "getstdin", .type = D_STRING};
-
     builtin_t println = {.name = "println", .type = D_VOID};
 
     builtin_t built_ins[N_BUILTINS] = {getstdin, println};
