@@ -6,14 +6,14 @@ then
     string greeting := "My name is Liam. What is your name?";
     string answer;
     answer := getstdin();
-'    string greeting := "Hiya";
+    bool some_question := false;
 
-'    if (getstdin() == "Jim") then
-'        println("Hello Jim");
-'    else then
-'        println("Hello " + answer);
-'    end
+    if (getstdin() == "Jim") then
+        println("Hello Jim");
+    else then
+        println("Hello " + answer);
+    end
 
-'    return 0;
+    return 0;
 end
 

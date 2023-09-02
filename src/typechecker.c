@@ -13,12 +13,20 @@
 #include <stdio.h>
 #include <string.h>
 
+#define N_BUILTINS 2
+
+typedef struct builtin_s {
+    char name[MAX_LITERAL];
+    data_type type;
+} builtin_t;
+
 // Globals
 static symtab_t *symbol_table = NULL;
 static bool created_table     = false;
 
 // Prototypes
 static bool is_duplicate(const char *ident);
+static bool is_builtin(const char *ident, data_type *type);
 
 static void type_error(const char *str, node *n) {
     printf("Type Error! Node type: %d\n", n->type);
@@ -27,54 +35,123 @@ static void type_error(const char *str, node *n) {
     exit(1);
 }
 
-// Gets the type of a node that contains a type
-static type_t get_type(node *n) {
+static type_t query_symbol_table(const char *ident) {
     type_t retval;
     memset(&retval, 0, sizeof(type_t));
+    retval.datatype = D_UNKNOWN;
     snprintf(retval.struct_type, strlen(retval.struct_type), "NONE");
+
+    if (ident != NULL) {
+        if (symbol_table != NULL) {
+            // Search hashtable for symbols matching ident
+            hashtable *ht = symbol_table->table;
+            binding_t *b  = ht_lookup(ht, (char *)ident, ht_compare_binding);
+
+            if (b != NULL) {
+                retval.datatype = sym_data_to_data_type(b->data_type);
+                if (strlen(b->struct_type) > 0) {
+                    snprintf(retval.struct_type, strlen(retval.struct_type), "%s", b->struct_type);
+                }
+            }
+        }
+    }
+
+    return retval;
+}
+
+// Gets the type of a node that contains a type
+// These should be "leaf" nodes
+static bool get_type(node *n, type_t *out) {
+    bool retval = true;
+
+    memset(out, 0, sizeof(type_t));
+    snprintf(out->struct_type, strlen(out->struct_type), "NONE");
 
     if (n != NULL) {
         switch (n->type) {
         case N_VAR_DECL:
-            retval.datatype = n->data.var_decl.type;
-            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+            out->datatype = n->data.var_decl.type;
+            snprintf(out->struct_type, strlen(out->struct_type), "%s",
                      n->data.var_decl.struct_type);
             break;
         case N_FUNC_DECL:
-            retval.datatype = n->data.function_decl.type;
-            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+            out->datatype = n->data.function_decl.type;
+            snprintf(out->struct_type, strlen(out->struct_type), "%s",
                      n->data.function_decl.struct_type);
             break;
         case N_STRUCT_DECL:
-            retval.datatype = n->data.struct_decl.type;
-            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
-                     n->data.struct_decl.name);
+            out->datatype = n->data.struct_decl.type;
+            snprintf(out->struct_type, strlen(out->struct_type), "%s", n->data.struct_decl.name);
             break;
         case N_FORMAL:
-            retval.datatype = n->data.formal.type;
-            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
-                     n->data.formal.struct_type);
+            out->datatype = n->data.formal.type;
+            snprintf(out->struct_type, strlen(out->struct_type), "%s", n->data.formal.struct_type);
             break;
         case N_MEMBER_DECL:
-            retval.datatype = n->data.member_decl.type;
+            out->datatype = n->data.member_decl.type;
             break;
         case N_INTEGER_LITERAL:
-            retval.datatype = n->data.integer_literal.type;
+            out->datatype = n->data.integer_literal.type;
             break;
         case N_FLOAT_LITERAL:
-            retval.datatype = n->data.float_literal.type;
+            out->datatype = n->data.float_literal.type;
             break;
         case N_STRING_LITERAL:
-            retval.datatype = n->data.string_literal.type;
+            out->datatype = n->data.string_literal.type;
             break;
         case N_BOOL_LITERAL:
-            retval.datatype = n->data.bool_literal.type;
+            out->datatype = n->data.bool_literal.type;
             break;
         case N_NIL:
-            retval.datatype = D_NIL;
+            out->datatype = D_NIL;
             break;
+        case N_CALL_EXPR: {
+            // First, check if it's builtin
+            data_type builtin_type;
+            if (is_builtin(n->data.call_expr.func_name, &builtin_type)) {
+                // If so, output its return type
+                out->datatype = builtin_type;
+            }
+            // Next, check if it's in the symbol table
+            else if (is_duplicate(n->data.call_expr.func_name)) {
+                // If so, output its return type
+                type_t tmp = query_symbol_table(n->data.call_expr.func_name);
+                if (tmp.datatype != D_UNKNOWN) {
+                    out->datatype = tmp.datatype;
+                    if ((strcmp(tmp.struct_type, "NONE") != 0) && (strlen(tmp.struct_type) > 0)) {
+                        // If there's a valid struct_type, set it as well
+                        snprintf(out->struct_type, strlen(out->struct_type), "%s", tmp.struct_type);
+                    }
+                }
+            }
+            // Otherwise, we don't know where this is from
+            else {
+                retval = false;
+                type_error("Trying to call an undeclared function", n);
+            }
+            break;
+        }
+        case N_IDENT: {
+            // First, try the symbol table
+            type_t tmp = query_symbol_table(n->data.identifier.name);
+            if (tmp.datatype != D_UNKNOWN) {
+                out->datatype = tmp.datatype;
+                if ((strcmp(tmp.struct_type, "NONE") != 0) && (strlen(tmp.struct_type) > 0)) {
+                    // If there's a valid struct_type, set it as well
+                    snprintf(out->struct_type, strlen(out->struct_type), "%s", tmp.struct_type);
+                }
+            } else {
+                // If we didn't find this identifier in the symbol table, assume it hasn't been seen
+                // yet
+                retval = false;
+                type_error("Undeclared identifier", n);
+            }
+            break;
+        }
         default:
-            type_error("Requested node does not contain a coercible type", n);
+            retval = false;
+            printf("Requested node does not contain a coercible type\n");
+            print_node(n, 0);
             break;
         }
 
@@ -89,27 +166,32 @@ static bool coerce_to(node *a, node *b) {
     bool retval = false;
     if (a != NULL) {
         if (b != NULL) {
-            type_t a_type = get_type(a);
-            type_t b_type = get_type(b);
+            type_t a_type;
+            type_t b_type;
+            bool result_a = get_type(a, &a_type);
+            bool result_b = get_type(b, &b_type);
 
-            // Do the datatypes match?
-            if (a_type.datatype == b_type.datatype) {
-                // Are the struct types both NONE?
-                if ((strcmp(a_type.struct_type, "NONE") == 0) &&
-                    (strcmp(b_type.struct_type, "NONE") == 0)) {
-                    // If yes, we can say both types are compatible.
-                    retval = true;
-                } else {
-                    if (strcmp(a_type.struct_type, b_type.struct_type) == 0) {
+            if (result_a && result_b) {
+                // Do the datatypes match?
+                if (a_type.datatype == b_type.datatype) {
+                    // Are the struct types both NONE?
+                    if ((strcmp(a_type.struct_type, "NONE") == 0) &&
+                        (strcmp(b_type.struct_type, "NONE") == 0)) {
+                        // If yes, we can say both types are compatible.
                         retval = true;
+                    } else {
+                        // This can probably be incorporated into the above if block
+                        if (strcmp(a_type.struct_type, b_type.struct_type) == 0) {
+                            retval = true;
+                        }
                     }
                 }
             }
         } else {
-            log_error("Unable to access Node B for type coercion");
+            printf("Unable to access Node B for type coercion\n");
         }
     } else {
-        log_error("Unable to access Node A for type coercion");
+        printf("Unable to access Node A for type coercion\n");
     }
 
     return retval;
@@ -171,7 +253,7 @@ static void typecheck_var_decl(node *n) {
     if (n != NULL) {
         if (!is_duplicate(n->data.var_decl.name)) {
             if (!coerce_to(n, n->data.var_decl.value)) {
-                type_error("Mismatch between variable declaration and immediate value", n);
+                type_error("Mismatch between variable declaration and initialized value", n);
             }
 
             binding_t *b = mk_binding();
@@ -223,6 +305,8 @@ static void typecheck_func_decl(node *n) {
             }
 
             typecheck(n->data.function_decl.body);
+        } else {
+            type_error("Function already declared within this scope", n);
         }
     }
 }
@@ -265,6 +349,21 @@ static void typecheck_formal(node *n) {
     }
 }
 
+static void typecheck_binop_expr(node *n) {
+    printf("Typechecking binop_expr\n");
+    if (n != NULL) {
+        // First, check if the LHS is in the symbol table
+        typecheck(n->data.assign_expr.lhs);
+
+        // Then, the RHS
+        typecheck(n->data.assign_expr.lhs);
+
+        if (!coerce_to(n->data.assign_expr.lhs, n->data.assign_expr.rhs)) {
+            type_error("Type mismatch between left-hand expression and right-hand expression", n);
+        }
+    }
+}
+
 static void typecheck_assign_expr(node *n) {
     printf("Typechecking assign expr\n");
     if (n != NULL) {
@@ -272,10 +371,30 @@ static void typecheck_assign_expr(node *n) {
         typecheck(n->data.assign_expr.lhs);
 
         // Then, the RHS
-        //        typecheck(n->data.assign_expr.lhs);
+        typecheck(n->data.assign_expr.lhs);
 
         if (!coerce_to(n->data.assign_expr.lhs, n->data.assign_expr.rhs)) {
-            type_error("lol what", n);
+            type_error("Type mismatch between left-hand expression and right-hand expression", n);
+        }
+    }
+}
+
+static void typecheck_call_expr(node *n) {
+    printf("Typechecking call_expr\n");
+    if (n != NULL) {
+        // Check if the function name is a builtin
+        data_type builtin_type;
+        if (is_builtin(n->data.call_expr.func_name, &builtin_type)) {
+            // If yes, process the arguments
+        }
+        // Check if the function name is in the symbol table
+        else if (is_duplicate(n->data.call_expr.func_name)) {
+            // If yes, process the arguments
+        } else {
+            // If no, error
+            char msg[MAX_ERROR_LEN] = {0};
+            snprintf(msg, sizeof(msg), "Undeclared function: %s", n->data.call_expr.func_name);
+            type_error(msg, n);
         }
     }
 }
@@ -283,10 +402,11 @@ static void typecheck_assign_expr(node *n) {
 static void typecheck_ident(node *n) {
     printf("Typechecking ident\n");
     if (n != NULL) {
-        if (is_duplicate(n->data.identifier.name)) {
+        // Identifiers should be variable names. If it exists in the symbol table, we know it has
+        // previously been declared. If not, raise an error
+        if (!is_duplicate(n->data.identifier.name)) {
             char msg[MAX_ERROR_LEN] = {0};
-            snprintf(msg, sizeof(msg), "Identifier already defined in this scope: %s",
-                     n->data.var_decl.name);
+            snprintf(msg, sizeof(msg), "Undeclared identifier: %s", n->data.identifier.name);
             type_error(msg, n);
         }
     }
@@ -327,6 +447,8 @@ void typecheck(node *ast) {
             break;
         case N_RETURN_STMT:
         case N_CALL_EXPR:
+            typecheck_call_expr(ast);
+            break;
         case N_STRUCT_DECL:
         case N_STRUCT_ACCESS_EXPR:
         case N_ARRAY_INIT_EXPR:
@@ -350,6 +472,8 @@ void typecheck(node *ast) {
         case N_NEG_EXPR:
         case N_NOT_EXPR:
         case N_BINOP_EXPR:
+            typecheck_binop_expr(ast);
+            break;
         case N_ASSIGN_EXPR:
             typecheck_assign_expr(ast);
             break;
@@ -380,6 +504,31 @@ static bool is_duplicate(const char *ident) {
         if (b != NULL) {
             printf("Found an existing binding!\n");
             print_binding(b);
+            retval = true;
+        }
+    }
+
+    return retval;
+}
+
+// Check if an identifier corresponds to a builtin function.
+// If it does, also output its type.
+static bool is_builtin(const char *ident, data_type *type) {
+    bool retval = false;
+
+    if (ident == NULL) {
+        log_error("Unable to access identifier to check if it is a builtin function");
+    }
+
+    builtin_t getstdin = {.name = "getstdin", .type = D_STRING};
+
+    builtin_t println = {.name = "println", .type = D_VOID};
+
+    builtin_t built_ins[N_BUILTINS] = {getstdin, println};
+
+    for (int i = 0; i < N_BUILTINS; i++) {
+        if (strcmp(ident, built_ins[i].name) == 0) {
+            *type  = built_ins[i].type;
             retval = true;
         }
     }

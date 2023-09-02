@@ -84,7 +84,7 @@ static char *b_obj_type_to_str(sym_obj_type t) {
     }
 }
 
-static data_type sym_data_to_data_type(sym_data_type t) {
+data_type sym_data_to_data_type(sym_data_type t) {
     switch (t) {
     case SYM_DTYPE_INTEGER:
         return D_INTEGER;

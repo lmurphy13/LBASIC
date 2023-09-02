@@ -60,5 +60,6 @@ bool ht_compare_binding(vecnode *vn, void *key);
 
 void print_binding(const binding_t *);
 sym_data_type ast_data_type_to_binding_data_type(data_type t);
+data_type sym_data_to_data_type(sym_data_type t);
 
 #endif // SYMTAB_H
