@@ -1,5 +1,6 @@
 *.o
 *.old
+*.swp
 lbasic
 .vscode/
 tags

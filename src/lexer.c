@@ -170,57 +170,57 @@ static bool check_singles(char c) {
     bool retval = true;
 
     switch (c) {
-    case '(':
-        emit_token(token_list, T_LPAREN, "(");
-        break;
-    case ')':
-        emit_token(token_list, T_RPAREN, ")");
-        break;
-    case '[':
-        emit_token(token_list, T_LBRACKET, "[");
-        break;
-    case ']':
-        emit_token(token_list, T_RBRACKET, "]");
-        break;
-    case '{':
-        emit_token(token_list, T_LBRACE, "{");
-        break;
-    case '}':
-        emit_token(token_list, T_RBRACE, "}");
-        break;
-    case ';':
-        emit_token(token_list, T_SEMICOLON, ";");
-        break;
-    case '+':
-        emit_token(token_list, T_PLUS, "+");
-        break;
-    case '*':
-        emit_token(token_list, T_MUL, "*");
-        break;
-    case '/':
-        emit_token(token_list, T_DIV, "/");
-        break;
-    case '%':
-        emit_token(token_list, T_MOD, "%");
-        break;
-    case ',':
-        emit_token(token_list, T_COMMA, ",");
-        break;
-    case '.':
-        emit_token(token_list, T_DOT, ".");
-        break;
-    // Intentional fallthrough
-    case '<':
-    case '>':
-    case '=':
-    case '!':
-    case ':':
-    case '-':
-    case '\'':
-    case '"':
-        return true;
-    default:
-        retval = false;
+        case '(':
+            emit_token(token_list, T_LPAREN, "(");
+            break;
+        case ')':
+            emit_token(token_list, T_RPAREN, ")");
+            break;
+        case '[':
+            emit_token(token_list, T_LBRACKET, "[");
+            break;
+        case ']':
+            emit_token(token_list, T_RBRACKET, "]");
+            break;
+        case '{':
+            emit_token(token_list, T_LBRACE, "{");
+            break;
+        case '}':
+            emit_token(token_list, T_RBRACE, "}");
+            break;
+        case ';':
+            emit_token(token_list, T_SEMICOLON, ";");
+            break;
+        case '+':
+            emit_token(token_list, T_PLUS, "+");
+            break;
+        case '*':
+            emit_token(token_list, T_MUL, "*");
+            break;
+        case '/':
+            emit_token(token_list, T_DIV, "/");
+            break;
+        case '%':
+            emit_token(token_list, T_MOD, "%");
+            break;
+        case ',':
+            emit_token(token_list, T_COMMA, ",");
+            break;
+        case '.':
+            emit_token(token_list, T_DOT, ".");
+            break;
+        // Intentional fallthrough
+        case '<':
+        case '>':
+        case '=':
+        case '!':
+        case ':':
+        case '-':
+        case '\'':
+        case '"':
+            return true;
+        default:
+            retval = false;
     }
 
     return retval;
@@ -316,71 +316,72 @@ static void tokenize(char *prog_buff) {
 
             else {
                 switch (c) {
-                case '=':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_EQ, "==");
-                    } else {
-                        unget_char();
-                        unget_char();
+                    case '=':
                         c = get_char(prog_buff);
-                        printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
-                               line_num, col_num, c, char_num);
-                        exit(LEXER_ERROR_UNKNOWN_CHARACTER);
-                    }
-                    break;
-                case '<':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_LE, "<=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_LT, "<");
-                    }
-                    break;
-                case '>':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_GE, ">=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_GT, ">");
-                    }
-                    break;
-                case '!':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_NE, "!=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_BANG, "!");
-                    }
-                    break;
-                case '-':
-                    c = get_char(prog_buff);
-                    // Are we a number?
-                    if (is_digit(c)) {
-                        // Append '-' to lexeme
-                        col_num++;
-                        sprintf(lexeme, "%s%c", lexeme, '-');
-                        goto lex_num;
-                        // Yes, using a goto is bad, but it's the easiest way to
-                        // directly parse a negative number with atoi or atof if we
-                        // encode the - within the token
-                    } else {
-                        if (c == '>') {
+                        if (c == '=') {
                             col_num++;
-                            emit_token(token_list, T_OFTYPE, "->");
+                            emit_token(token_list, T_EQ, "==");
                         } else {
                             unget_char();
-                            emit_token(token_list, T_MINUS, "-");
+                            unget_char();
+                            c = get_char(prog_buff);
+                            printf(
+                                "ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
+                                line_num, col_num, c, char_num);
+                            exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                         }
-                    }
-                    break;
+                        break;
+                    case '<':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_LE, "<=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_LT, "<");
+                        }
+                        break;
+                    case '>':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_GE, ">=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_GT, ">");
+                        }
+                        break;
+                    case '!':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_NE, "!=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_BANG, "!");
+                        }
+                        break;
+                    case '-':
+                        c = get_char(prog_buff);
+                        // Are we a number?
+                        if (is_digit(c)) {
+                            // Append '-' to lexeme
+                            col_num++;
+                            sprintf(lexeme, "%s%c", lexeme, '-');
+                            goto lex_num;
+                            // Yes, using a goto is bad, but it's the easiest way to
+                            // directly parse a negative number with atoi or atof if we
+                            // encode the - within the token
+                        } else {
+                            if (c == '>') {
+                                col_num++;
+                                emit_token(token_list, T_OFTYPE, "->");
+                            } else {
+                                unget_char();
+                                emit_token(token_list, T_MINUS, "-");
+                            }
+                        }
+                        break;
                 }
             }
 

@@ -3,3 +3,4 @@ Language: Cpp
 PointerAlignment: Right
 ColumnLimit: 100
 AlignConsecutiveAssignments: true
+IndentCaseLabels: true

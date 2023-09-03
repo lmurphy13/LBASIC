@@ -69,90 +69,94 @@ static bool get_type(node *n, type_t *out) {
 
     if (n != NULL) {
         switch (n->type) {
-        case N_VAR_DECL:
-            out->datatype = n->data.var_decl.type;
-            snprintf(out->struct_type, strlen(out->struct_type), "%s",
-                     n->data.var_decl.struct_type);
-            break;
-        case N_FUNC_DECL:
-            out->datatype = n->data.function_decl.type;
-            snprintf(out->struct_type, strlen(out->struct_type), "%s",
-                     n->data.function_decl.struct_type);
-            break;
-        case N_STRUCT_DECL:
-            out->datatype = n->data.struct_decl.type;
-            snprintf(out->struct_type, strlen(out->struct_type), "%s", n->data.struct_decl.name);
-            break;
-        case N_FORMAL:
-            out->datatype = n->data.formal.type;
-            snprintf(out->struct_type, strlen(out->struct_type), "%s", n->data.formal.struct_type);
-            break;
-        case N_MEMBER_DECL:
-            out->datatype = n->data.member_decl.type;
-            break;
-        case N_INTEGER_LITERAL:
-            out->datatype = n->data.integer_literal.type;
-            break;
-        case N_FLOAT_LITERAL:
-            out->datatype = n->data.float_literal.type;
-            break;
-        case N_STRING_LITERAL:
-            out->datatype = n->data.string_literal.type;
-            break;
-        case N_BOOL_LITERAL:
-            out->datatype = n->data.bool_literal.type;
-            break;
-        case N_NIL:
-            out->datatype = D_NIL;
-            break;
-        case N_CALL_EXPR: {
-            // First, check if it's builtin
-            data_type builtin_type;
-            if (is_builtin(n->data.call_expr.func_name, &builtin_type)) {
-                // If so, output its return type
-                out->datatype = builtin_type;
+            case N_VAR_DECL:
+                out->datatype = n->data.var_decl.type;
+                snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                         n->data.var_decl.struct_type);
+                break;
+            case N_FUNC_DECL:
+                out->datatype = n->data.function_decl.type;
+                snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                         n->data.function_decl.struct_type);
+                break;
+            case N_STRUCT_DECL:
+                out->datatype = n->data.struct_decl.type;
+                snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                         n->data.struct_decl.name);
+                break;
+            case N_FORMAL:
+                out->datatype = n->data.formal.type;
+                snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                         n->data.formal.struct_type);
+                break;
+            case N_MEMBER_DECL:
+                out->datatype = n->data.member_decl.type;
+                break;
+            case N_INTEGER_LITERAL:
+                out->datatype = n->data.integer_literal.type;
+                break;
+            case N_FLOAT_LITERAL:
+                out->datatype = n->data.float_literal.type;
+                break;
+            case N_STRING_LITERAL:
+                out->datatype = n->data.string_literal.type;
+                break;
+            case N_BOOL_LITERAL:
+                out->datatype = n->data.bool_literal.type;
+                break;
+            case N_NIL:
+                out->datatype = D_NIL;
+                break;
+            case N_CALL_EXPR: {
+                // First, check if it's builtin
+                data_type builtin_type;
+                if (is_builtin(n->data.call_expr.func_name, &builtin_type)) {
+                    // If so, output its return type
+                    out->datatype = builtin_type;
+                }
+                // Next, check if it's in the symbol table
+                else if (is_duplicate(n->data.call_expr.func_name)) {
+                    // If so, output its return type
+                    type_t tmp = query_symbol_table(n->data.call_expr.func_name);
+                    if (tmp.datatype != D_UNKNOWN) {
+                        out->datatype = tmp.datatype;
+                        if ((strcmp(tmp.struct_type, "NONE") != 0) &&
+                            (strlen(tmp.struct_type) > 0)) {
+                            // If there's a valid struct_type, set it as well
+                            snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                                     tmp.struct_type);
+                        }
+                    }
+                }
+                // Otherwise, we don't know where this is from
+                else {
+                    retval = false;
+                    type_error("Trying to call an undeclared function", n);
+                }
+                break;
             }
-            // Next, check if it's in the symbol table
-            else if (is_duplicate(n->data.call_expr.func_name)) {
-                // If so, output its return type
-                type_t tmp = query_symbol_table(n->data.call_expr.func_name);
+            case N_IDENT: {
+                // First, try the symbol table
+                type_t tmp = query_symbol_table(n->data.identifier.name);
                 if (tmp.datatype != D_UNKNOWN) {
                     out->datatype = tmp.datatype;
                     if ((strcmp(tmp.struct_type, "NONE") != 0) && (strlen(tmp.struct_type) > 0)) {
                         // If there's a valid struct_type, set it as well
                         snprintf(out->struct_type, strlen(out->struct_type), "%s", tmp.struct_type);
                     }
+                } else {
+                    // If we didn't find this identifier in the symbol table, assume it hasn't been
+                    // seen yet
+                    retval = false;
+                    type_error("Undeclared identifier", n);
                 }
+                break;
             }
-            // Otherwise, we don't know where this is from
-            else {
+            default:
                 retval = false;
-                type_error("Trying to call an undeclared function", n);
-            }
-            break;
-        }
-        case N_IDENT: {
-            // First, try the symbol table
-            type_t tmp = query_symbol_table(n->data.identifier.name);
-            if (tmp.datatype != D_UNKNOWN) {
-                out->datatype = tmp.datatype;
-                if ((strcmp(tmp.struct_type, "NONE") != 0) && (strlen(tmp.struct_type) > 0)) {
-                    // If there's a valid struct_type, set it as well
-                    snprintf(out->struct_type, strlen(out->struct_type), "%s", tmp.struct_type);
-                }
-            } else {
-                // If we didn't find this identifier in the symbol table, assume it hasn't been seen
-                // yet
-                retval = false;
-                type_error("Undeclared identifier", n);
-            }
-            break;
-        }
-        default:
-            retval = false;
-            printf("Requested node does not contain a coercible type\n");
-            print_node(n, 0);
-            break;
+                printf("Requested node does not contain a coercible type\n");
+                print_node(n, 0);
+                break;
         }
 
     } else {
@@ -200,18 +204,18 @@ static bool coerce_to(node *a, node *b) {
 static data_type get_literal_type(node *n) {
     if (n != NULL) {
         switch (n->type) {
-        case N_INTEGER_LITERAL:
-            return D_INTEGER;
-        case N_FLOAT_LITERAL:
-            return D_FLOAT;
-        case N_STRING_LITERAL:
-            return D_STRING;
-        case N_BOOL_LITERAL:
-            return D_BOOLEAN;
-        case N_NIL:
-            return D_NIL;
-        default:
-            type_error("Unable to resolve data type from literal", n);
+            case N_INTEGER_LITERAL:
+                return D_INTEGER;
+            case N_FLOAT_LITERAL:
+                return D_FLOAT;
+            case N_STRING_LITERAL:
+                return D_STRING;
+            case N_BOOL_LITERAL:
+                return D_BOOLEAN;
+            case N_NIL:
+                return D_NIL;
+            default:
+                type_error("Unable to resolve data type from literal", n);
         }
     }
 
@@ -320,24 +324,24 @@ static void typecheck_formal(node *n) {
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.formal.name);
                 switch (n->data.formal.type) {
-                case D_INTEGER:
-                    b->data_type = SYM_DTYPE_INTEGER;
-                    break;
-                case D_FLOAT:
-                    b->data_type = SYM_DTYPE_FLOAT;
-                    break;
-                case D_STRING:
-                    b->data_type = SYM_DTYPE_STRING;
-                    break;
-                case D_BOOLEAN:
-                    b->data_type = SYM_DTYPE_BOOLEAN;
-                    break;
-                case D_VOID:
-                    b->data_type = SYM_DTYPE_VOID;
-                    break;
-                case D_NIL:
-                default:
-                    b->data_type = SYM_DTYPE_UNKNOWN;
+                    case D_INTEGER:
+                        b->data_type = SYM_DTYPE_INTEGER;
+                        break;
+                    case D_FLOAT:
+                        b->data_type = SYM_DTYPE_FLOAT;
+                        break;
+                    case D_STRING:
+                        b->data_type = SYM_DTYPE_STRING;
+                        break;
+                    case D_BOOLEAN:
+                        b->data_type = SYM_DTYPE_BOOLEAN;
+                        break;
+                    case D_VOID:
+                        b->data_type = SYM_DTYPE_VOID;
+                        break;
+                    case D_NIL:
+                    default:
+                        b->data_type = SYM_DTYPE_UNKNOWN;
                 }
                 b->object_type = SYM_OTYPE_VARIABLE;
                 b->is_array    = n->data.formal.is_array;
@@ -361,7 +365,9 @@ static void typecheck_binop_expr(node *n) {
         // TODO: Check the operator to make sure the LHS and RHS are compatible with it
 
         if (!coerce_to(n->data.bin_op_expr.lhs, n->data.bin_op_expr.rhs)) {
-            type_error("Type mismatch in binary operator between left-hand expression and right-hand expression", n);
+            type_error("Type mismatch in binary operator between left-hand expression and "
+                       "right-hand expression",
+                       n);
         }
     }
 }
@@ -376,7 +382,9 @@ static void typecheck_assign_expr(node *n) {
         typecheck(n->data.assign_expr.rhs);
 
         if (!coerce_to(n->data.assign_expr.lhs, n->data.assign_expr.rhs)) {
-            type_error("Type mismatch in assignment between left-hand expression and right-hand expression", n);
+            type_error("Type mismatch in assignment between left-hand expression and right-hand "
+                       "expression",
+                       n);
         }
     }
 }
@@ -414,6 +422,38 @@ static void typecheck_ident(node *n) {
     }
 }
 
+static void typecheck_if_stmt(node *n) {
+    printf("Typechecking if_stmt\n");
+    if (n != NULL) {
+        // First, typecheck the test
+        typecheck(n->data.if_stmt.test);
+
+        // Then, check the body
+        typecheck(n->data.if_stmt.body);
+
+        // Lastly, the else if it exists
+        if (n->data.if_stmt.else_stmt != NULL) {
+            typecheck(n->data.if_stmt.else_stmt);
+        }
+    }
+}
+
+static void typecheck_literal(node *n) {
+    printf("Typechecking literal\n");
+    if (n != NULL) {
+        switch (n->type) {
+            case N_LITERAL:
+            case N_INTEGER_LITERAL:
+            case N_FLOAT_LITERAL:
+            case N_STRING_LITERAL:
+            case N_BOOL_LITERAL:
+            default:
+                type_error("Not a valid literal type", n);
+                break;
+        }
+    }
+}
+
 /*
  * Pass 1: Build a symbol table
  * Pass 2: Verify types and scope
@@ -433,55 +473,59 @@ void typecheck(node *ast) {
         }
 
         switch (ast->type) {
-        case N_PROGRAM:
-            typecheck_program(ast);
-            break;
-        case N_BLOCK_STMT:
-            typecheck_block_stmt(ast);
-            break;
-        case N_VAR_DECL:
-            typecheck_var_decl(ast);
-            break;
-        case N_FUNC_DECL:
-            typecheck_func_decl(ast);
-            break;
-        case N_CALL_EXPR:
-            typecheck_call_expr(ast);
-            break;
-        case N_FORMAL:
-            typecheck_formal(ast);
-            break;
-        case N_IDENT:
-            typecheck_ident(ast);
-            break;
-        case N_BINOP_EXPR:
-            typecheck_binop_expr(ast);
-            break;
-        case N_ASSIGN_EXPR:
-            typecheck_assign_expr(ast);
-            break;
-        case N_LABEL_DECL:
-        case N_GOTO_STMT:
-        case N_RETURN_STMT:
-        case N_STRUCT_DECL:
-        case N_STRUCT_ACCESS_EXPR:
-        case N_ARRAY_INIT_EXPR:
-        case N_ARRAY_ACCESS_EXPR:
-        case N_MEMBER_DECL:
-        case N_LITERAL:
-        case N_INTEGER_LITERAL:
-        case N_FLOAT_LITERAL:
-        case N_STRING_LITERAL:
-        case N_BOOL_LITERAL:
-        case N_NIL:
-        case N_IF_STMT:
-        case N_WHILE_STMT:
-        case N_EMPTY_EXPR:
-        case N_NEG_EXPR:
-        case N_NOT_EXPR:
-        default:
-            type_error("Unknown node type", ast);
-            break;
+            case N_PROGRAM:
+                typecheck_program(ast);
+                break;
+            case N_BLOCK_STMT:
+                typecheck_block_stmt(ast);
+                break;
+            case N_VAR_DECL:
+                typecheck_var_decl(ast);
+                break;
+            case N_FUNC_DECL:
+                typecheck_func_decl(ast);
+                break;
+            case N_CALL_EXPR:
+                typecheck_call_expr(ast);
+                break;
+            case N_FORMAL:
+                typecheck_formal(ast);
+                break;
+            case N_IDENT:
+                typecheck_ident(ast);
+                break;
+            case N_BINOP_EXPR:
+                typecheck_binop_expr(ast);
+                break;
+            case N_ASSIGN_EXPR:
+                typecheck_assign_expr(ast);
+                break;
+            case N_IF_STMT:
+                typecheck_if_stmt(ast);
+                break;
+            case N_LITERAL:
+            case N_INTEGER_LITERAL:
+            case N_FLOAT_LITERAL:
+            case N_STRING_LITERAL:
+            case N_BOOL_LITERAL:
+                typecheck_literal(ast);
+                break;
+            case N_LABEL_DECL:
+            case N_GOTO_STMT:
+            case N_RETURN_STMT:
+            case N_STRUCT_DECL:
+            case N_STRUCT_ACCESS_EXPR:
+            case N_ARRAY_INIT_EXPR:
+            case N_ARRAY_ACCESS_EXPR:
+            case N_MEMBER_DECL:
+            case N_NIL:
+            case N_WHILE_STMT:
+            case N_EMPTY_EXPR:
+            case N_NEG_EXPR:
+            case N_NOT_EXPR:
+            default:
+                type_error("Unknown node type", ast);
+                break;
         }
     } else {
         log_error("Unable to access AST for type checking");
@@ -523,7 +567,7 @@ static bool is_builtin(const char *ident, data_type *type) {
     }
 
     builtin_t getstdin = {.name = "getstdin", .type = D_STRING};
-    builtin_t println = {.name = "println", .type = D_VOID};
+    builtin_t println  = {.name = "println", .type = D_VOID};
 
     builtin_t built_ins[N_BUILTINS] = {getstdin, println};
 

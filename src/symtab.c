@@ -38,95 +38,95 @@ bool ht_compare_binding(vecnode *vn, void *key) {
 
 static char *b_data_type_to_str(sym_data_type t) {
     switch (t) {
-    case SYM_DTYPE_INTEGER:
-        return "SYM_DTYPE_INTEGER";
-        break;
-    case SYM_DTYPE_FLOAT:
-        return "SYM_DTYPE_FLOAT";
-        break;
-    case SYM_DTYPE_STRING:
-        return "SYM_DTYPE_STRING";
-        break;
-    case SYM_DTYPE_BOOLEAN:
-        return "SYM_DTYPE_BOOLEAN";
-        break;
-    case SYM_DTYPE_VOID:
-        return "SYM_DTYPE_VOID";
-        break;
-    case SYM_DTYPE_STRUCT:
-        return "SYM_DTYPE_STRUCT";
-        break;
-    case SYM_DTYPE_UNKNOWN:
-        return "SYM_DTYPE_UNKNOWN";
-    default:
-        return "UNKNOWN";
-        break;
+        case SYM_DTYPE_INTEGER:
+            return "SYM_DTYPE_INTEGER";
+            break;
+        case SYM_DTYPE_FLOAT:
+            return "SYM_DTYPE_FLOAT";
+            break;
+        case SYM_DTYPE_STRING:
+            return "SYM_DTYPE_STRING";
+            break;
+        case SYM_DTYPE_BOOLEAN:
+            return "SYM_DTYPE_BOOLEAN";
+            break;
+        case SYM_DTYPE_VOID:
+            return "SYM_DTYPE_VOID";
+            break;
+        case SYM_DTYPE_STRUCT:
+            return "SYM_DTYPE_STRUCT";
+            break;
+        case SYM_DTYPE_UNKNOWN:
+            return "SYM_DTYPE_UNKNOWN";
+        default:
+            return "UNKNOWN";
+            break;
     }
 }
 
 static char *b_obj_type_to_str(sym_obj_type t) {
     switch (t) {
-    case SYM_OTYPE_FUNCTION:
-        return "SYM_OTYPE_FUNCTION";
-        break;
-    case SYM_OTYPE_VARIABLE:
-        return "SYM_OTYPE_VARIABLE";
-        break;
-    case SYM_OTYPE_STRUCTURE:
-        return "SYM_OTYPE_STRUCTURE";
-        break;
-    case SYM_OTYPE_UNKNOWN:
-        return "SYM_OTYPE_STRUCTURE";
-        break;
-    default:
-        return "UNKNOWN";
-        break;
+        case SYM_OTYPE_FUNCTION:
+            return "SYM_OTYPE_FUNCTION";
+            break;
+        case SYM_OTYPE_VARIABLE:
+            return "SYM_OTYPE_VARIABLE";
+            break;
+        case SYM_OTYPE_STRUCTURE:
+            return "SYM_OTYPE_STRUCTURE";
+            break;
+        case SYM_OTYPE_UNKNOWN:
+            return "SYM_OTYPE_STRUCTURE";
+            break;
+        default:
+            return "UNKNOWN";
+            break;
     }
 }
 
 data_type sym_data_to_data_type(sym_data_type t) {
     switch (t) {
-    case SYM_DTYPE_INTEGER:
-        return D_INTEGER;
-        break;
-    case SYM_DTYPE_FLOAT:
-        return D_FLOAT;
-        break;
-    case SYM_DTYPE_STRING:
-        return D_STRING;
-        break;
-    case SYM_DTYPE_BOOLEAN:
-        return D_BOOLEAN;
-        break;
-    case SYM_DTYPE_VOID:
-        return D_VOID;
-        break;
-    case SYM_DTYPE_STRUCT:
-        return D_STRUCT;
-        break;
-    case SYM_DTYPE_UNKNOWN:
-    default:
-        return D_UNKNOWN;
-        break;
+        case SYM_DTYPE_INTEGER:
+            return D_INTEGER;
+            break;
+        case SYM_DTYPE_FLOAT:
+            return D_FLOAT;
+            break;
+        case SYM_DTYPE_STRING:
+            return D_STRING;
+            break;
+        case SYM_DTYPE_BOOLEAN:
+            return D_BOOLEAN;
+            break;
+        case SYM_DTYPE_VOID:
+            return D_VOID;
+            break;
+        case SYM_DTYPE_STRUCT:
+            return D_STRUCT;
+            break;
+        case SYM_DTYPE_UNKNOWN:
+        default:
+            return D_UNKNOWN;
+            break;
     }
 }
 
 sym_data_type ast_data_type_to_binding_data_type(data_type t) {
     switch (t) {
-    case D_INTEGER:
-        return SYM_DTYPE_INTEGER;
-    case D_FLOAT:
-        return SYM_DTYPE_FLOAT;
-    case D_STRING:
-        return SYM_DTYPE_STRING;
-    case D_BOOLEAN:
-        return SYM_DTYPE_BOOLEAN;
-    case D_VOID:
-        return SYM_DTYPE_VOID;
-    case D_STRUCT:
-        return SYM_DTYPE_STRUCT;
-    default:
-        return SYM_DTYPE_UNKNOWN;
+        case D_INTEGER:
+            return SYM_DTYPE_INTEGER;
+        case D_FLOAT:
+            return SYM_DTYPE_FLOAT;
+        case D_STRING:
+            return SYM_DTYPE_STRING;
+        case D_BOOLEAN:
+            return SYM_DTYPE_BOOLEAN;
+        case D_VOID:
+            return SYM_DTYPE_VOID;
+        case D_STRUCT:
+            return SYM_DTYPE_STRUCT;
+        default:
+            return SYM_DTYPE_UNKNOWN;
     }
 }
 
