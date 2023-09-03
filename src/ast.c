@@ -365,33 +365,6 @@ void print_node(node *n, int indent) {
             print_indent(indent);
             printf("),\n");
             break;
-        case N_LITERAL:
-            printf("Literal (\n");
-            print_indent(indent + INDENT_WIDTH);
-            printf("Type: %s\n", type_to_str((data_type)n->data.literal.type));
-            print_indent(indent + INDENT_WIDTH);
-            switch (n->data.literal.type) {
-                case D_INTEGER:
-                    printf("Value: %d\n", n->data.literal.value.intval);
-                    break;
-                case D_STRING:
-                    printf("Value: %s\n", n->data.literal.value.stringval);
-                    break;
-                case D_BOOLEAN:
-                    printf("Value: %s\n", (n->data.literal.value.boolval) ? "true" : "false");
-                    break;
-                case D_NIL:
-                    printf("Value: %d (nil)\n", (n->data.literal.value.intval));
-                    break;
-                case D_FLOAT:
-                    printf("Float literal not yet implemented\n");
-                    break;
-                default:
-                    break;
-            }
-            print_indent(indent);
-            printf("),\n");
-            break;
         case N_INTEGER_LITERAL:
             printf("IntegerLiteral (\n");
             print_indent(indent + INDENT_WIDTH);

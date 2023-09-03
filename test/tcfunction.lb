@@ -3,6 +3,12 @@
 
 func main(string[] args) -> int
 then
+
+    func inner() -> void
+    then
+        println("Hello world");
+    end
+
     string greeting := "My name is Liam. What is your name?";
     string answer;
     answer := getstdin();
@@ -14,6 +20,8 @@ then
         println("Hello " + answer);
     end
 
+    inner();
+    
     return 0;
 end
 

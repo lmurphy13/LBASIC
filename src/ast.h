@@ -52,13 +52,12 @@ typedef enum n_type {
     N_IDENT              = 34,
     N_IDENT_LIST         = 35,
     N_CONSTANT           = 36,
-    N_LITERAL            = 37,
-    N_INTEGER_LITERAL    = 38,
-    N_FLOAT_LITERAL      = 39,
-    N_STRING_LITERAL     = 40,
-    N_BOOL_LITERAL       = 41,
-    N_NIL                = 42,
-    NUM_TYPES            = 43
+    N_INTEGER_LITERAL    = 37,
+    N_FLOAT_LITERAL      = 38,
+    N_STRING_LITERAL     = 39,
+    N_BOOL_LITERAL       = 40,
+    N_NIL                = 41,
+    NUM_TYPES            = 42
 } n_type;
 
 typedef enum data_type {
@@ -85,16 +84,6 @@ typedef struct block_stmt_s {
 typedef struct identifier_s {
     char name[MAX_LITERAL];
 } identifier_t;
-
-typedef struct literal_s {
-    data_type type;
-    union {
-        int intval;
-        float floatval;
-        bool boolval;
-        char stringval[MAX_LITERAL];
-    } value;
-} literal_t;
 
 typedef struct neg_expr_s {
     struct node *expr;
@@ -245,7 +234,6 @@ typedef struct node {
         var_decl_t var_decl;
         function_decl_t function_decl;
         struct_decl_t struct_decl;
-        literal_t literal;
         block_stmt_t block_stmt;
         while_stmt_t while_stmt;
         if_stmt_t if_stmt;

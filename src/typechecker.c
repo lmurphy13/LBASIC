@@ -68,6 +68,9 @@ static bool get_type(node *n, type_t *out) {
     snprintf(out->struct_type, strlen(out->struct_type), "NONE");
 
     if (n != NULL) {
+        printf("Getting the type of\n");
+        print_node(n, INDENT_WIDTH);
+
         switch (n->type) {
             case N_VAR_DECL:
                 out->datatype = n->data.var_decl.type;
@@ -201,27 +204,6 @@ static bool coerce_to(node *a, node *b) {
     return retval;
 }
 
-static data_type get_literal_type(node *n) {
-    if (n != NULL) {
-        switch (n->type) {
-            case N_INTEGER_LITERAL:
-                return D_INTEGER;
-            case N_FLOAT_LITERAL:
-                return D_FLOAT;
-            case N_STRING_LITERAL:
-                return D_STRING;
-            case N_BOOL_LITERAL:
-                return D_BOOLEAN;
-            case N_NIL:
-                return D_NIL;
-            default:
-                type_error("Unable to resolve data type from literal", n);
-        }
-    }
-
-    return D_UNKNOWN;
-}
-
 static void typecheck_program(node *n) {
     printf("Typechecking program\n");
     if (n != NULL) {
@@ -290,7 +272,7 @@ static void typecheck_func_decl(node *n) {
 
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.function_decl.name);
-                b->data_type   = SYM_DTYPE_UNKNOWN;
+                b->data_type   = ast_data_type_to_binding_data_type(n->data.function_decl.type);
                 b->object_type = SYM_OTYPE_FUNCTION;
 
                 ht_insert(symbol_table->table, b->name, b);
@@ -442,14 +424,76 @@ static void typecheck_literal(node *n) {
     printf("Typechecking literal\n");
     if (n != NULL) {
         switch (n->type) {
-            case N_LITERAL:
             case N_INTEGER_LITERAL:
+                if (n->data.integer_literal.type != D_INTEGER) {
+                    type_error("Type mismatch between integer literal declaration and value", n);
+                }
+                break;
             case N_FLOAT_LITERAL:
+                if (n->data.float_literal.type != D_FLOAT) {
+                    type_error("Type mismatch between float literal declaration and value", n);
+                }
+                break;
             case N_STRING_LITERAL:
+                if (n->data.string_literal.type != D_STRING) {
+                    type_error("Type mismatch between string literal declaration and value", n);
+                }
+                break;
             case N_BOOL_LITERAL:
+                if (n->data.bool_literal.type != D_BOOLEAN) {
+                    type_error("Type mismatch between boolean literal declaration and value", n);
+                }
+                break;
             default:
                 type_error("Not a valid literal type", n);
                 break;
+        }
+    }
+}
+
+static void typecheck_return_stmt(node *n) {
+    printf("Typechecking return_stmt\n");
+    if (n != NULL) {
+        // Check the expression.
+        typecheck(n->data.return_stmt.expr);
+
+        // TODO: We'll also need to be clever and make sure the eventual type
+        // of the expression matches the return type of the parent function of this return.
+        // This will involve looking into the symbol table and finding the top-level for our scope.
+        // The top-level scope for a return statement is a function.
+
+        // Find the binding for our function
+        hashtable *ht = symbol_table->table;
+        for (int idx = 0; idx < MAX_SLOTS; idx++) {
+            if (vector_length(ht->slots[idx]) <= 0) {
+                continue;
+            } else {
+                vector *vec = ht->slots[idx];
+
+                vecnode *vn = vec->head;
+
+                while (vn != NULL) {
+                    binding_t *b = (binding_t *)vn->data;
+                    if (b->object_type == SYM_OTYPE_FUNCTION) {
+                        // Now check if the return stmt type matches the function return type
+                        type_t return_type;
+                        if (get_type(n->data.return_stmt.expr, &return_type)) {
+                            if (return_type.datatype != sym_data_to_data_type(b->data_type)) {
+                                printf("b->name: %s, b->data_type: %d\n", b->name, b->data_type);
+                                char msg[MAX_ERROR_LEN] = {'\0'};
+                                snprintf(msg, sizeof(msg),
+                                         "Mismatch between function return type: %d and return "
+                                         "statement expression type %d",
+                                         return_type.datatype, sym_data_to_data_type(b->data_type));
+                                type_error(msg, n);
+                            }
+                            return;
+                        }
+                    }
+
+                    vn = vn->next;
+                }
+            }
         }
     }
 }
@@ -503,16 +547,17 @@ void typecheck(node *ast) {
             case N_IF_STMT:
                 typecheck_if_stmt(ast);
                 break;
-            case N_LITERAL:
             case N_INTEGER_LITERAL:
             case N_FLOAT_LITERAL:
             case N_STRING_LITERAL:
             case N_BOOL_LITERAL:
                 typecheck_literal(ast);
                 break;
+            case N_RETURN_STMT:
+                typecheck_return_stmt(ast);
+                break;
             case N_LABEL_DECL:
             case N_GOTO_STMT:
-            case N_RETURN_STMT:
             case N_STRUCT_DECL:
             case N_STRUCT_ACCESS_EXPR:
             case N_ARRAY_INIT_EXPR:
