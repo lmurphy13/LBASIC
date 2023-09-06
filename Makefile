@@ -14,7 +14,7 @@ CFLAGS = -g -O0 -DDEBUG
 
 # Enable all warnings, except for -Wrestrict and -Wformat-overflow.
 # -Wrestrict and -Wformat-overflow are being raised due to using sprintf() in the lexer for a quick and dirty string concatenation
-# These warnings are mitigated by snprintf() called in the parser
+# These warnings are mitigated by snprintf() called in the parser to ensure strings are null-terminated and are a specific length
 CFLAGS += -Wall -Wno-restrict -Wno-format-overflow
 
 lbasic: $(OBJECTS)

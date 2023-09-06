@@ -503,13 +503,16 @@ static void typecheck_call_expr(node *n) {
         }
         // Check if the function name is in the symbol table
         else if (is_duplicate(n->data.call_expr.func_name)) {
-            // If yes, process the arguments
-            vecnode *vn = n->data.call_expr.args->head;
+            // If yes, process the arguments if they exist
+            if (n->data.call_expr.args != NULL) {
+                printf("I am here\n");
+                vecnode *vn = n->data.call_expr.args->head;
 
-            while (vn != NULL) {
-                typecheck(vn->data);
+                while (vn != NULL) {
+                    typecheck(vn->data);
 
-                vn = vn->next;
+                    vn = vn->next;
+                }
             }
 
         } else {

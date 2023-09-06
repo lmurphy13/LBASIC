@@ -12,14 +12,38 @@
 #include <stdlib.h>
 #include <string.h>
 
-binding_t *mk_binding() {
+binding_t *mk_binding(symbol_type_t st) {
     binding_t *retval = (binding_t *)malloc(sizeof(binding_t));
 
     if (retval != NULL) {
         memset(retval, 0, sizeof(binding_t));
-
-        snprintf(retval->struct_type, sizeof(retval->struct_type), "NONE");
+        retval->symbol_type = st;
         snprintf(retval->name, sizeof(retval->name), "NONE");
+
+        switch (st) {
+            case SYMBOL_TYPE_FUNCTION:
+                snprintf(retval->data.function_type.struct_type,
+                         sizeof(retval->data.function_type.struct_type), "NONE");
+                break;
+            case SYMBOL_TYPE_VARIABLE:
+                snprintf(retval->data.variable_type.struct_type,
+                         sizeof(retval->data.variable_type.struct_type), "NONE");
+                break;
+            case SYMBOL_TYPE_STRUCTURE:
+                snprintf(retval->data.structure_type.struct_type,
+                         sizeof(retval->data.structure_type.struct_type), "NONE");
+                break;
+            case SYMBOL_TYPE_MEMBER:
+                snprintf(retval->data.member_type.struct_type,
+                         sizeof(retval->data.member_type.struct_type), "NONE");
+                break;
+            case SYMBOL_TYPE_UNKNOWN:
+            default: {
+                char msg[MAX_ERROR_LEN] = {'\0'};
+                snprintf(msg, sizeof(msg), "Unknown symbol type %d", st);
+                log_error(msg);
+            }
+        }
     } else {
         log_error("Unable to allocate binding_t");
     }
@@ -36,6 +60,7 @@ bool ht_compare_binding(vecnode *vn, void *key) {
     return retval;
 }
 
+/*
 static char *b_data_type_to_str(sym_data_type t) {
     switch (t) {
         case SYM_DTYPE_INTEGER:
@@ -63,27 +88,30 @@ static char *b_data_type_to_str(sym_data_type t) {
             break;
     }
 }
+*/
 
-static char *b_obj_type_to_str(sym_obj_type t) {
+static char *sym_type_to_str(symbol_type_t t) {
     switch (t) {
-        case SYM_OTYPE_FUNCTION:
-            return "SYM_OTYPE_FUNCTION";
+        case SYMBOL_TYPE_FUNCTION:
+            return "SYMBOL_TYPE_FUNCTION";
             break;
-        case SYM_OTYPE_VARIABLE:
-            return "SYM_OTYPE_VARIABLE";
+        case SYMBOL_TYPE_VARIABLE:
+            return "SYMBOL_TYPE_VARIABLE";
             break;
-        case SYM_OTYPE_STRUCTURE:
-            return "SYM_OTYPE_STRUCTURE";
+        case SYMBOL_TYPE_STRUCTURE:
+            return "SYMBOL_TYPE_STRUCTURE";
             break;
-        case SYM_OTYPE_UNKNOWN:
-            return "SYM_OTYPE_STRUCTURE";
+        case SYMBOL_TYPE_MEMBER:
+            return "SYMBOL_TYPE_MEMBER";
             break;
+        case SYMBOL_TYPE_UNKNOWN:
         default:
-            return "UNKNOWN";
+            return "SYMBOL_TYPE_UNKNOWN";
             break;
     }
 }
 
+/*
 data_type sym_data_to_data_type(sym_data_type t) {
     switch (t) {
         case SYM_DTYPE_INTEGER:
@@ -110,7 +138,9 @@ data_type sym_data_to_data_type(sym_data_type t) {
             break;
     }
 }
+*/
 
+/*
 sym_data_type ast_data_type_to_binding_data_type(data_type t) {
     switch (t) {
         case D_INTEGER:
@@ -129,13 +159,17 @@ sym_data_type ast_data_type_to_binding_data_type(data_type t) {
             return SYM_DTYPE_UNKNOWN;
     }
 }
+*/
 
 void print_binding(const binding_t *b) {
     if (b != NULL) {
         printf("Binding Name: %s | ", b->name);
+
+        switch (b->symbol_type) {}
+
         printf("Binding Struct Type: %s | ", b->struct_type);
-        printf("Binding Data Type: %s | ", b_data_type_to_str(b->data_type));
-        printf("Binding Object Type: %s | ", b_obj_type_to_str(b->object_type));
+        printf("Binding Data Type: %s | ", type_to_str(b->data_type));
+        printf("Binding Object Type: %s | ", sym_type_to_str(b->object_type));
         printf("Binding IsArray: %d | ", b->is_array);
         printf("Binding Array Dimensions: %u\n", b->array_dims);
     }
