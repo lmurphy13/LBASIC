@@ -1576,7 +1576,7 @@ static node *parse_struct_access_expr() {
     return retval;
 }
 
-// 'return' <expression> ';'
+// 'return' ( <expression> )? ';'
 static node *parse_return_stmt() {
     node *retval = mk_node(N_RETURN_STMT);
 
@@ -1587,12 +1587,18 @@ static node *parse_return_stmt() {
         } else {
             consume();
 
-            retval->data.return_stmt.expr = parse_expression();
-            print_lookahead_debug("after return expr");
+            // If we run into a semicolon immediately after the return, consider this an "empty"
+            // return, which may be used within a void function to break out.
+            if (lookahead.type == T_SEMICOLON) {
+                retval->data.return_stmt.expr = NULL;
+            } else {
+                retval->data.return_stmt.expr = parse_expression();
+                print_lookahead_debug("after return expr");
 
-            // Look for ;
-            if (lookahead.type != T_SEMICOLON) {
-                syntax_error(__FUNCTION__, "; after return expression", lookahead);
+                // Look for ;
+                if (lookahead.type != T_SEMICOLON) {
+                    syntax_error(__FUNCTION__, "; after return expression", lookahead);
+                }
             }
 
             // Consume it

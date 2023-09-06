@@ -155,6 +155,49 @@ static bool get_type(node *n, type_t *out) {
                 }
                 break;
             }
+            case N_BINOP_EXPR: {
+                // The "type' of binary operator expressions depends on the operator.
+                // Arithmetic operators will return a numerical type, logical operators will return
+                // a boolean
+                switch (n->data.bin_op_expr.operator) {
+                    case T_PLUS:
+                    case T_MINUS:
+                    case T_MUL:
+                    case T_DIV:
+                    case T_MOD: {
+                        // return INTEGER or FLOAT
+                        type_t lhs_type;
+                        type_t rhs_type;
+                        if (get_type(n->data.bin_op_expr.lhs, &lhs_type)) {
+                            if (get_type(n->data.bin_op_expr.rhs, &rhs_type)) {
+                                printf("LHS TYPE: %s (%d)\n", type_to_str(lhs_type.datatype),
+                                       lhs_type.datatype);
+                                printf("RHS TYPE: %s (%d)\n", type_to_str(rhs_type.datatype),
+                                       rhs_type.datatype);
+                            }
+                        }
+                        break;
+                    }
+                    case T_LT:
+                    case T_LE:
+                    case T_GT:
+                    case T_GE:
+                    case T_EQ:
+                    case T_NE:
+                    case T_AND:
+                    case T_OR:
+                        // return BOOLEAN
+                        out->datatype = D_BOOLEAN;
+                        break;
+                    default: {
+                        char msg[MAX_ERROR_LEN] = {'\0'};
+                        snprintf(msg, sizeof(msg), "Unknown operator: %d",
+                                 n->data.bin_op_expr.operator);
+                        retval = false;
+                        type_error(msg, n);
+                    }
+                }
+            }
             default:
                 retval = false;
                 printf("Requested node does not contain a coercible type\n");
@@ -338,6 +381,9 @@ static void typecheck_formal(node *n) {
 static void typecheck_binop_expr(node *n) {
     printf("Typechecking bin_op_expr\n");
     if (n != NULL) {
+        type_t lhs_type;
+        type_t rhs_type;
+
         // First, check if the LHS is in the symbol table
         typecheck(n->data.bin_op_expr.lhs);
 
@@ -345,11 +391,87 @@ static void typecheck_binop_expr(node *n) {
         typecheck(n->data.bin_op_expr.rhs);
 
         // TODO: Check the operator to make sure the LHS and RHS are compatible with it
+        // The "type' of binary operator expressions depends on the operator.
+        // Arithmetic operators will return a numerical type, logical operators will return a
+        // boolean
+        if (get_type(n->data.bin_op_expr.lhs, &lhs_type)) {
+            if (get_type(n->data.bin_op_expr.rhs, &rhs_type)) {
+                //                printf("LHS TYPE: %d\n", lhs_type.datatype);
+                //                printf("RHS TYPE: %d\n", rhs_type.datatype);
+                printf("LHS TYPE: %s (%d)\n", type_to_str(lhs_type.datatype), lhs_type.datatype);
+                printf("RHS TYPE: %s (%d)\n", type_to_str(rhs_type.datatype), rhs_type.datatype);
 
-        if (!coerce_to(n->data.bin_op_expr.lhs, n->data.bin_op_expr.rhs)) {
-            type_error("Type mismatch in binary operator between left-hand expression and "
-                       "right-hand expression",
-                       n);
+                switch (n->data.bin_op_expr.operator) {
+                    case T_PLUS:
+                    case T_MINUS:
+                    case T_MUL:
+                    case T_DIV:
+                    case T_MOD: {
+                        // INTEGER or FLOAT
+                        if (!((lhs_type.datatype == D_INTEGER) || (lhs_type.datatype == D_FLOAT))) {
+                            char msg[MAX_ERROR_LEN] = {'\0'};
+                            snprintf(msg, sizeof(msg),
+                                     "Illegal LHS operand type %s (%d) applied with arithmetic "
+                                     "operator.",
+                                     type_to_str(lhs_type.datatype), lhs_type.datatype);
+                            type_error(msg, n);
+                        }
+
+                        if (!((rhs_type.datatype == D_INTEGER) || (rhs_type.datatype == D_FLOAT))) {
+                            char msg[MAX_ERROR_LEN] = {'\0'};
+                            snprintf(msg, sizeof(msg),
+                                     "Illegal RHS operand type %s (%d) applied with arithmetic "
+                                     "operator.",
+                                     type_to_str(rhs_type.datatype), rhs_type.datatype);
+                            type_error(msg, n);
+                        }
+                    } break;
+                    case T_LT:
+                    case T_LE:
+                    case T_GT:
+                    case T_GE:
+                    case T_EQ:
+                    case T_NE:
+                    case T_AND:
+                    case T_OR: {
+                        if (!((lhs_type.datatype == D_INTEGER) || (lhs_type.datatype == D_FLOAT) ||
+                              (lhs_type.datatype == D_STRING))) {
+                            char msg[MAX_ERROR_LEN] = {'\0'};
+                            snprintf(
+                                msg, sizeof(msg),
+                                "Illegal LHS operand type %s (%d) applied with logical operator.",
+                                type_to_str(lhs_type.datatype), lhs_type.datatype);
+                            type_error(msg, n);
+                        }
+
+                        if (!((rhs_type.datatype == D_INTEGER) || (rhs_type.datatype == D_FLOAT) ||
+                              (rhs_type.datatype == D_STRING))) {
+                            char msg[MAX_ERROR_LEN] = {'\0'};
+                            snprintf(
+                                msg, sizeof(msg),
+                                "Illegal RHS operand type %s (%d) applied with logical operator.",
+                                type_to_str(rhs_type.datatype), rhs_type.datatype);
+                            type_error(msg, n);
+                        }
+                    } break;
+                    default: {
+                        char msg[MAX_ERROR_LEN] = {'\0'};
+                        snprintf(msg, sizeof(msg), "Unknown operator: %d",
+                                 n->data.bin_op_expr.operator);
+                        type_error(msg, n);
+                    }
+                }
+                if (!coerce_to(n->data.bin_op_expr.lhs, n->data.bin_op_expr.rhs)) {
+                    char msg[MAX_ERROR_LEN] = {'\0'};
+
+                    snprintf(msg, sizeof(msg),
+                             "Type mismatch in binary operator between left-hand expression (type: "
+                             "%d) and "
+                             "right-hand expression (type: %d)",
+                             lhs_type.datatype, rhs_type.datatype);
+                    type_error(msg, n);
+                }
+            }
         }
     }
 }
@@ -382,6 +504,14 @@ static void typecheck_call_expr(node *n) {
         // Check if the function name is in the symbol table
         else if (is_duplicate(n->data.call_expr.func_name)) {
             // If yes, process the arguments
+            vecnode *vn = n->data.call_expr.args->head;
+
+            while (vn != NULL) {
+                typecheck(vn->data);
+
+                vn = vn->next;
+            }
+
         } else {
             // If no, error
             char msg[MAX_ERROR_LEN] = {0};
@@ -455,46 +585,59 @@ static void typecheck_return_stmt(node *n) {
     printf("Typechecking return_stmt\n");
     if (n != NULL) {
         // Check the expression.
-        typecheck(n->data.return_stmt.expr);
+        if (n->data.return_stmt.expr == NULL) {
+            // Empty return, so no need to typecheck.
+        } else {
+            typecheck(n->data.return_stmt.expr);
 
-        // TODO: We'll also need to be clever and make sure the eventual type
-        // of the expression matches the return type of the parent function of this return.
-        // This will involve looking into the symbol table and finding the top-level for our scope.
-        // The top-level scope for a return statement is a function.
+            // TODO: We'll also need to be clever and make sure the eventual type
+            // of the expression matches the return type of the parent function of this return.
+            // This will involve looking into the symbol table and finding the top-level for our
+            // scope. The top-level scope for a return statement is a function.
 
-        // Find the binding for our function
-        hashtable *ht = symbol_table->table;
-        for (int idx = 0; idx < MAX_SLOTS; idx++) {
-            if (vector_length(ht->slots[idx]) <= 0) {
-                continue;
-            } else {
-                vector *vec = ht->slots[idx];
+            // Find the binding for our function
+            hashtable *ht = symbol_table->table;
+            for (int idx = 0; idx < MAX_SLOTS; idx++) {
+                if (vector_length(ht->slots[idx]) <= 0) {
+                    continue;
+                } else {
+                    vector *vec = ht->slots[idx];
 
-                vecnode *vn = vec->head;
+                    vecnode *vn = vec->head;
 
-                while (vn != NULL) {
-                    binding_t *b = (binding_t *)vn->data;
-                    if (b->object_type == SYM_OTYPE_FUNCTION) {
-                        // Now check if the return stmt type matches the function return type
-                        type_t return_type;
-                        if (get_type(n->data.return_stmt.expr, &return_type)) {
-                            if (return_type.datatype != sym_data_to_data_type(b->data_type)) {
-                                printf("b->name: %s, b->data_type: %d\n", b->name, b->data_type);
-                                char msg[MAX_ERROR_LEN] = {'\0'};
-                                snprintf(msg, sizeof(msg),
-                                         "Mismatch between function return type: %d and return "
-                                         "statement expression type %d",
-                                         return_type.datatype, sym_data_to_data_type(b->data_type));
-                                type_error(msg, n);
+                    while (vn != NULL) {
+                        binding_t *b = (binding_t *)vn->data;
+                        if (b->object_type == SYM_OTYPE_FUNCTION) {
+                            // Now check if the return stmt type matches the function return type
+                            type_t return_type;
+                            if (get_type(n->data.return_stmt.expr, &return_type)) {
+                                if (return_type.datatype != sym_data_to_data_type(b->data_type)) {
+                                    printf("b->name: %s, b->data_type: %d\n", b->name,
+                                           b->data_type);
+                                    char msg[MAX_ERROR_LEN] = {'\0'};
+                                    snprintf(msg, sizeof(msg),
+                                             "Mismatch between function return type: %d and return "
+                                             "statement expression type %d",
+                                             return_type.datatype,
+                                             sym_data_to_data_type(b->data_type));
+                                    type_error(msg, n);
+                                }
+                                return;
                             }
-                            return;
                         }
-                    }
 
-                    vn = vn->next;
+                        vn = vn->next;
+                    }
                 }
             }
         }
+    }
+}
+
+static void typecheck_nil(node *n) {
+    printf("Typechecking nil\n");
+    if (n != NULL) {
+        // Nil (NULL)
     }
 }
 
@@ -556,6 +699,9 @@ void typecheck(node *ast) {
             case N_RETURN_STMT:
                 typecheck_return_stmt(ast);
                 break;
+            case N_NIL:
+                typecheck_nil(ast);
+                break;
             case N_LABEL_DECL:
             case N_GOTO_STMT:
             case N_STRUCT_DECL:
@@ -563,7 +709,6 @@ void typecheck(node *ast) {
             case N_ARRAY_INIT_EXPR:
             case N_ARRAY_ACCESS_EXPR:
             case N_MEMBER_DECL:
-            case N_NIL:
             case N_WHILE_STMT:
             case N_EMPTY_EXPR:
             case N_NEG_EXPR:

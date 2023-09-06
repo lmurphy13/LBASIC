@@ -235,7 +235,12 @@ void print_node(node *n, int indent) {
             print_indent(indent + INDENT_WIDTH);
             printf("Expression: \n");
             indent += INDENT_WIDTH;
-            print_node(n->data.return_stmt.expr, indent + INDENT_WIDTH);
+            if (n->data.return_stmt.expr == NULL) {
+                print_indent(indent);
+                printf("None\n");
+            } else {
+                print_node(n->data.return_stmt.expr, indent + INDENT_WIDTH);
+            }
             indent -= INDENT_WIDTH;
             print_indent(indent);
             printf("),\n");
