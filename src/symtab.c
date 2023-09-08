@@ -163,15 +163,39 @@ sym_data_type ast_data_type_to_binding_data_type(data_type t) {
 
 void print_binding(const binding_t *b) {
     if (b != NULL) {
-        printf("Binding Name: %s | ", b->name);
+        printf("Name: %s | ", b->name);
+        printf("Type: %s | ", sym_type_to_str(b->symbol_type));
 
-        switch (b->symbol_type) {}
-
-        printf("Binding Struct Type: %s | ", b->struct_type);
-        printf("Binding Data Type: %s | ", type_to_str(b->data_type));
-        printf("Binding Object Type: %s | ", sym_type_to_str(b->object_type));
-        printf("Binding IsArray: %d | ", b->is_array);
-        printf("Binding Array Dimensions: %u\n", b->array_dims);
+        switch (b->symbol_type) {
+            case SYMBOL_TYPE_FUNCTION:
+                printf("Return Type: %s | ", type_to_str(b->data.function_type.return_type));
+                printf("Struct Type: %s | ", b->data.function_type.struct_type);
+                printf("IsStructType?: %d | ", b->data.function_type.is_struct_type);
+                printf("IsArrayType?: %d | ", b->data.function_type.is_array_type);
+                printf("Num Dimensions: %d | ", b->data.function_type.num_dimensions);
+                printf("Num Args: %d\n", b->data.function_type.num_args);
+                break;
+            case SYMBOL_TYPE_VARIABLE:
+                printf("Struct Type: %s | ", b->data.variable_type.struct_type);
+                printf("IsStructType?: %d | ", b->data.variable_type.is_struct_type);
+                printf("IsArrayType?: %d | ", b->data.variable_type.is_array_type);
+                printf("Num Dimensions: %d\n", b->data.variable_type.num_dimensions);
+                break;
+            case SYMBOL_TYPE_STRUCTURE:
+                printf("Struct Type: %s | ", b->data.structure_type.struct_type);
+                printf("Num Members: %d\n", b->data.structure_type.num_members);
+                break;
+            case SYMBOL_TYPE_MEMBER:
+                printf("Struct Type: %s | ", b->data.member_type.struct_type);
+                printf("IsStructType?: %d | ", b->data.member_type.is_struct_type);
+                printf("IsArrayType?: %d | ", b->data.member_type.is_array_type);
+                printf("Num Dimensions: %d\n", b->data.member_type.num_dimensions);
+                break;
+            case SYMBOL_TYPE_UNKNOWN:
+            default:
+                printf("Unknown Symbol Type\n");
+                break;
+        }
     }
 }
 

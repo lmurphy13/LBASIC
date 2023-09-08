@@ -39,6 +39,7 @@ typedef struct b_function_s {
     char struct_type[MAX_LITERAL];
     bool is_array_type;
     bool is_struct_type;
+    unsigned int num_dimensions;
     unsigned int num_args;
 } b_function_t;
 

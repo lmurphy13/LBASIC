@@ -144,7 +144,7 @@ void vector_pop(vector *vec) {
 }
 
 int vector_length(vector *vec) {
-    int retval = -1;
+    int retval = 0;
 
     if (vec != NULL) {
         retval = vec->count;

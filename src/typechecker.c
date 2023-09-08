@@ -48,9 +48,36 @@ static type_t query_symbol_table(const char *ident) {
             binding_t *b  = ht_lookup(ht, (char *)ident, ht_compare_binding);
 
             if (b != NULL) {
-                retval.datatype = sym_data_to_data_type(b->data_type);
-                if (strlen(b->struct_type) > 0) {
-                    snprintf(retval.struct_type, strlen(retval.struct_type), "%s", b->struct_type);
+                switch (b->symbol_type) {
+                    case SYMBOL_TYPE_FUNCTION:
+                        retval.datatype = b->data.function_type.return_type;
+                        if (b->data.function_type.is_struct_type) {
+                            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+                                     b->data.function_type.struct_type);
+                        }
+                        break;
+                    case SYMBOL_TYPE_VARIABLE:
+                        retval.datatype = b->data.variable_type.type;
+                        if (b->data.variable_type.is_struct_type) {
+                            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+                                     b->data.variable_type.struct_type);
+                        }
+                        break;
+                    case SYMBOL_TYPE_STRUCTURE:
+                        snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+                                 b->data.structure_type.struct_type);
+                        break;
+                    case SYMBOL_TYPE_MEMBER:
+                        retval.datatype = b->data.member_type.type;
+                        if (b->data.member_type.is_struct_type) {
+                            snprintf(retval.struct_type, strlen(retval.struct_type), "%s",
+                                     b->data.member_type.struct_type);
+                        }
+                        break;
+                    case SYMBOL_TYPE_UNKNOWN:
+                    default:
+                        type_error("Unknown symbol type", NULL);
+                        break;
                 }
             }
         }
@@ -197,7 +224,7 @@ static bool get_type(node *n, type_t *out) {
                         type_error(msg, n);
                     }
                 }
-            }
+            } break;
             default:
                 retval = false;
                 printf("Requested node does not contain a coercible type\n");
@@ -285,15 +312,20 @@ static void typecheck_var_decl(node *n) {
                 type_error("Mismatch between variable declaration and initialized value", n);
             }
 
-            binding_t *b = mk_binding();
+            binding_t *b = mk_binding(SYMBOL_TYPE_VARIABLE);
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.var_decl.name);
-                snprintf(b->struct_type, sizeof(b->struct_type), "%s",
-                         n->data.var_decl.struct_type);
-                b->data_type   = ast_data_type_to_binding_data_type(n->data.var_decl.type);
-                b->object_type = SYM_OTYPE_VARIABLE;
-                b->is_array    = n->data.var_decl.is_array;
-                b->array_dims  = n->data.var_decl.num_dimensions;
+
+                if (n->data.var_decl.is_struct) {
+                    b->data.variable_type.is_struct_type = true;
+                    snprintf(b->data.variable_type.struct_type,
+                             sizeof(b->data.variable_type.struct_type), "%s",
+                             n->data.var_decl.struct_type);
+                }
+
+                b->data.variable_type.type           = n->data.var_decl.type;
+                b->data.variable_type.is_array_type  = n->data.var_decl.is_array;
+                b->data.variable_type.num_dimensions = n->data.var_decl.num_dimensions;
 
                 ht_insert(symbol_table->table, b->name, b);
             }
@@ -309,14 +341,24 @@ static void typecheck_var_decl(node *n) {
 static void typecheck_func_decl(node *n) {
     printf("Typechecking function decl\n");
     if (n != NULL) {
-        printf("here\n");
         if (!is_duplicate(n->data.function_decl.name)) {
-            binding_t *b = mk_binding();
+            binding_t *b = mk_binding(SYMBOL_TYPE_FUNCTION);
 
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.function_decl.name);
-                b->data_type   = ast_data_type_to_binding_data_type(n->data.function_decl.type);
-                b->object_type = SYM_OTYPE_FUNCTION;
+
+                b->data.function_type.return_type    = n->data.function_decl.type;
+                b->data.function_type.is_array_type  = n->data.function_decl.is_array;
+                b->data.function_type.num_dimensions = n->data.function_decl.num_dimensions;
+                b->data.function_type.is_struct_type = n->data.function_decl.is_struct;
+
+                if (n->data.function_decl.is_struct) {
+                    snprintf(b->data.function_type.struct_type,
+                             sizeof(b->data.function_type.struct_type), "%s",
+                             n->data.function_decl.struct_type);
+                }
+
+                b->data.function_type.num_args = vector_length(n->data.function_decl.formals);
 
                 ht_insert(symbol_table->table, b->name, b);
             }
@@ -344,33 +386,21 @@ static void typecheck_formal(node *n) {
     printf("Typechecking formal\n");
     if (n != NULL) {
         if (!is_duplicate(n->data.formal.name)) {
-            binding_t *b = mk_binding();
+            binding_t *b = mk_binding(SYMBOL_TYPE_VARIABLE);
 
             if (b != NULL) {
                 snprintf(b->name, sizeof(b->name), "%s", n->data.formal.name);
-                switch (n->data.formal.type) {
-                    case D_INTEGER:
-                        b->data_type = SYM_DTYPE_INTEGER;
-                        break;
-                    case D_FLOAT:
-                        b->data_type = SYM_DTYPE_FLOAT;
-                        break;
-                    case D_STRING:
-                        b->data_type = SYM_DTYPE_STRING;
-                        break;
-                    case D_BOOLEAN:
-                        b->data_type = SYM_DTYPE_BOOLEAN;
-                        break;
-                    case D_VOID:
-                        b->data_type = SYM_DTYPE_VOID;
-                        break;
-                    case D_NIL:
-                    default:
-                        b->data_type = SYM_DTYPE_UNKNOWN;
+
+                if (n->data.formal.is_struct) {
+                    b->data.variable_type.is_struct_type = true;
+                    snprintf(b->data.variable_type.struct_type,
+                             sizeof(b->data.variable_type.struct_type), "%s",
+                             n->data.formal.struct_type);
                 }
-                b->object_type = SYM_OTYPE_VARIABLE;
-                b->is_array    = n->data.formal.is_array;
-                b->array_dims  = n->data.formal.num_dimensions;
+
+                b->data.variable_type.type           = n->data.formal.type;
+                b->data.variable_type.is_array_type  = n->data.formal.is_array;
+                b->data.variable_type.num_dimensions = n->data.formal.num_dimensions;
 
                 ht_insert(symbol_table->table, b->name, b);
             }
@@ -435,7 +465,8 @@ static void typecheck_binop_expr(node *n) {
                     case T_AND:
                     case T_OR: {
                         if (!((lhs_type.datatype == D_INTEGER) || (lhs_type.datatype == D_FLOAT) ||
-                              (lhs_type.datatype == D_STRING))) {
+                              (lhs_type.datatype == D_STRING) ||
+                              (lhs_type.datatype == D_BOOLEAN))) {
                             char msg[MAX_ERROR_LEN] = {'\0'};
                             snprintf(
                                 msg, sizeof(msg),
@@ -445,7 +476,8 @@ static void typecheck_binop_expr(node *n) {
                         }
 
                         if (!((rhs_type.datatype == D_INTEGER) || (rhs_type.datatype == D_FLOAT) ||
-                              (rhs_type.datatype == D_STRING))) {
+                              (rhs_type.datatype == D_STRING) ||
+                              (rhs_type.datatype == D_BOOLEAN))) {
                             char msg[MAX_ERROR_LEN] = {'\0'};
                             snprintf(
                                 msg, sizeof(msg),
@@ -505,7 +537,6 @@ static void typecheck_call_expr(node *n) {
         else if (is_duplicate(n->data.call_expr.func_name)) {
             // If yes, process the arguments if they exist
             if (n->data.call_expr.args != NULL) {
-                printf("I am here\n");
                 vecnode *vn = n->data.call_expr.args->head;
 
                 while (vn != NULL) {
@@ -610,19 +641,19 @@ static void typecheck_return_stmt(node *n) {
 
                     while (vn != NULL) {
                         binding_t *b = (binding_t *)vn->data;
-                        if (b->object_type == SYM_OTYPE_FUNCTION) {
+                        if (b->symbol_type == SYMBOL_TYPE_FUNCTION) {
                             // Now check if the return stmt type matches the function return type
                             type_t return_type;
                             if (get_type(n->data.return_stmt.expr, &return_type)) {
-                                if (return_type.datatype != sym_data_to_data_type(b->data_type)) {
-                                    printf("b->name: %s, b->data_type: %d\n", b->name,
-                                           b->data_type);
+                                if (return_type.datatype != b->data.function_type.return_type) {
+                                    printf("b->name: %s, b->return_type: %d\n", b->name,
+                                           b->data.function_type.return_type);
                                     char msg[MAX_ERROR_LEN] = {'\0'};
                                     snprintf(msg, sizeof(msg),
                                              "Mismatch between function return type: %d and return "
                                              "statement expression type %d",
-                                             return_type.datatype,
-                                             sym_data_to_data_type(b->data_type));
+                                             b->data.function_type.return_type,
+                                             return_type.datatype);
                                     type_error(msg, n);
                                 }
                                 return;

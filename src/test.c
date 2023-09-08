@@ -95,24 +95,22 @@ void run_tests(void) {
     hashtable *ht = mk_hashtable();
 
     if (ht != NULL) {
-        binding_t *b1 = mk_binding();
-        binding_t *b2 = mk_binding();
+        binding_t *b1 = mk_binding(SYMBOL_TYPE_VARIABLE);
+        binding_t *b2 = mk_binding(SYMBOL_TYPE_VARIABLE);
 
         snprintf(b1->name, sizeof(b1->name), "%s", "LIAM");
-        snprintf(b1->struct_type, sizeof(b1->struct_type), "%s", "STRUCTYPE1");
-        b1->data_type   = SYM_DTYPE_STRING;
-        b1->object_type = SYM_OTYPE_VARIABLE;
+        snprintf(b1->data.variable_type.struct_type, sizeof(b1->data.variable_type.struct_type),
+                 "%s", "STRUCTYPE1");
 
-        snprintf(b2->name, sizeof(b2->name), "%s", "LIAM");
-        snprintf(b2->struct_type, sizeof(b2->struct_type), "%s", "STRUCTYPE2");
-        b2->data_type   = SYM_DTYPE_STRING;
-        b2->object_type = SYM_OTYPE_VARIABLE;
+        snprintf(b2->name, sizeof(b2->name), "%s", "MAIL");
+        snprintf(b2->data.variable_type.struct_type, sizeof(b2->data.variable_type.struct_type),
+                 "%s", "STRUCTYPE2");
 
-        binding_t *b3 = mk_binding();
+        binding_t *b3                      = mk_binding(SYMBOL_TYPE_FUNCTION);
+        b3->data.function_type.return_type = D_FLOAT;
         snprintf(b3->name, sizeof(b3->name), "%s", "BLAHBLAH");
-        snprintf(b3->struct_type, sizeof(b3->struct_type), "%s", "BLAHBLABHBLABHBLABHBLABH");
-        b3->data_type   = SYM_DTYPE_FLOAT;
-        b3->object_type = SYM_OTYPE_FUNCTION;
+        snprintf(b3->data.function_type.struct_type, sizeof(b3->data.function_type.struct_type),
+                 "%s", "BLAHBLABHBLABHBLABHBLABH");
 
         ht_insert(ht, b1, b1);
         ht_insert(ht, b2, b2);
@@ -120,8 +118,7 @@ void run_tests(void) {
 
         binding_t *lookup1 = (binding_t *)ht_lookup(ht, b2, ht_compare_binding);
         if (lookup1 != NULL) {
-            printf("lookup1.name == %s\n", lookup1->name);
-            printf("lookup1.struct_type == %s\n", lookup1->struct_type);
+            print_binding(lookup1);
         }
     }
 }
