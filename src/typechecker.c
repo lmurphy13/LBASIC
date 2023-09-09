@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define N_BUILTINS 2
+#define N_BUILTINS 4
 
 typedef struct builtin_s {
     char name[MAX_LITERAL];
@@ -32,6 +32,12 @@ static void type_error(const char *str, node *n) {
     printf("Type Error! Node type: %d\n", n->type);
     printf("%s\n", str);
     print_node(n, INDENT_WIDTH);
+
+#if defined(DEBUG)
+    printf("\n");
+    // Symbol Table Dump
+    print_symbol_tables();
+#endif
     exit(1);
 }
 
@@ -308,8 +314,12 @@ static void typecheck_var_decl(node *n) {
     printf("Typechecking var decl\n");
     if (n != NULL) {
         if (!is_duplicate(n->data.var_decl.name)) {
-            if (!coerce_to(n, n->data.var_decl.value)) {
-                type_error("Mismatch between variable declaration and initialized value", n);
+
+            // There may not be an immediately assigned value
+            if (n->data.var_decl.value != NULL) {
+                if (!coerce_to(n, n->data.var_decl.value)) {
+                    type_error("Mismatch between variable declaration and initialized value", n);
+                }
             }
 
             binding_t *b = mk_binding(SYMBOL_TYPE_VARIABLE);
@@ -675,6 +685,65 @@ static void typecheck_nil(node *n) {
     }
 }
 
+// TODO: Go back into the parser and AST and capture members that could be arrays or structs
+static void typecheck_struct_decl(node *n) {
+    printf("Typechecking struct_decl\n");
+    if (n != NULL) {
+        binding_t *struct_binding = mk_binding(SYMBOL_TYPE_STRUCTURE);
+        if (struct_binding != NULL) {
+            snprintf(struct_binding->name, sizeof(struct_binding->name), "%s",
+                     n->data.struct_decl.name);
+            struct_binding->data.structure_type.num_members =
+                vector_length(n->data.struct_decl.members);
+
+            ht_insert(symbol_table->table, struct_binding->name, struct_binding);
+
+            // Add members to the symbol table, if they exist
+            if (struct_binding->data.structure_type.num_members > 0) {
+                if (n->data.struct_decl.members != NULL) {
+                    vecnode *vn = n->data.struct_decl.members->head;
+
+                    while (vn != NULL) {
+                        node *m = (node *)vn->data;
+
+                        if (m != NULL) {
+                            binding_t *member_binding = mk_binding(SYMBOL_TYPE_MEMBER);
+                            if (member_binding != NULL) {
+                                snprintf(member_binding->name, sizeof(member_binding->name), "%s",
+                                         m->data.member_decl.name);
+                                member_binding->data.member_type.type = m->data.member_decl.type;
+                                // Parent struct name
+                                snprintf(member_binding->data.member_type.struct_type,
+                                         sizeof(member_binding->data.member_type.struct_type), "%s",
+                                         n->data.struct_decl.name);
+
+                                if (!is_duplicate(member_binding->name)) {
+                                    ht_insert(symbol_table->table, member_binding->name,
+                                              member_binding);
+                                } else {
+                                    char msg[MAX_ERROR_LEN] = {0};
+                                    snprintf(msg, sizeof(msg),
+                                             "Member already defined in this scope: %s",
+                                             m->data.member_decl.name);
+                                    type_error(msg, n);
+                                }
+                            }
+                        }
+
+                        vn = vn->next;
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void typecheck_struct_access(node *n) {
+    printf("Typechecking struct access\n");
+    if (n != NULL) {
+    }
+}
+
 /*
  * Pass 1: Build a symbol table
  * Pass 2: Verify types and scope
@@ -736,10 +805,14 @@ void typecheck(node *ast) {
             case N_NIL:
                 typecheck_nil(ast);
                 break;
+            case N_STRUCT_DECL:
+                typecheck_struct_decl(ast);
+                break;
+            case N_STRUCT_ACCESS_EXPR:
+                typecheck_struct_access(ast);
+                break;
             case N_LABEL_DECL:
             case N_GOTO_STMT:
-            case N_STRUCT_DECL:
-            case N_STRUCT_ACCESS_EXPR:
             case N_ARRAY_INIT_EXPR:
             case N_ARRAY_ACCESS_EXPR:
             case N_MEMBER_DECL:
@@ -790,10 +863,12 @@ static bool is_builtin(const char *ident, data_type *type) {
         log_error("Unable to access identifier to check if it is a builtin function");
     }
 
-    builtin_t getstdin = {.name = "getstdin", .type = D_STRING};
+    builtin_t getstr   = {.name = "getstr", .type = D_STRING};
+    builtin_t getint   = {.name = "getint", .type = D_INTEGER};
+    builtin_t getfloat = {.name = "getfloat", .type = D_FLOAT};
     builtin_t println  = {.name = "println", .type = D_VOID};
 
-    builtin_t built_ins[N_BUILTINS] = {getstdin, println};
+    builtin_t built_ins[N_BUILTINS] = {getstr, getint, getfloat, println};
 
     for (int i = 0; i < N_BUILTINS; i++) {
         if (strcmp(ident, built_ins[i].name) == 0) {

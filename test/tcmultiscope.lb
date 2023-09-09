@@ -1,0 +1,41 @@
+' file: tcmultiscope.lb
+' Test: This test should exercise the typechecker by
+'       employing multiple scopes.
+
+println("What is your name? ");
+string name := getstr();
+
+println("Hello, ", name);
+
+println("How old are you? ");
+int age := getint();
+
+if (age > 10) then
+    println("You are older than 10 years");
+else then
+    if (age < 10) then
+        println("You are younger than 10 years");
+    else then
+        println("You are 10 years old!");
+    end
+end
+
+struct person
+then
+    string name;
+    int age;
+    bool is_male;
+end
+
+func create_person(string n, int a, bool m) -> struct person
+then
+    struct person retval;
+
+    retval.name := n;
+    retval.age := a;
+    retval.is_male := m;
+
+    return retval;
+end
+
+struct person Liam := create_person("Liam", 24, true);

@@ -11,10 +11,10 @@ then
 
     string greeting := "My name is Liam. What is your name?";
     string answer;
-    answer := getstdin();
+    answer := getstr();
     bool some_question := false;
 
-    if (getstdin() == "Jim") then
+    if (getstr() == "Jim") then
         println("Hello Jim");
     else then
         println("Hello " + answer);

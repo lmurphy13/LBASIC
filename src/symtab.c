@@ -51,6 +51,7 @@ binding_t *mk_binding(symbol_type_t st) {
     return retval;
 }
 
+// Compare bindings by name
 bool ht_compare_binding(vecnode *vn, void *key) {
     bool retval = false;
 
