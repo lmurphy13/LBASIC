@@ -1058,18 +1058,30 @@ static bool is_builtin(const char *ident, data_type *type) {
 }
 
 static void begin_scope() {
-    symtab_t *new = symtab_new();
-
-    if (new != NULL) {
-        new->level = curr->level + 1;
-        vector_prepend(stack, new);
-
-        vecnode *vn = (vecnode *)vector_top(stack);
-        curr        = (symtab_t *)vn->data;
-
-        printf("Now entering scope level %d\n", curr->level);
+    // First, look if the level exists on aux
+    if (aux->head != NULL) {
+        vecnode *v                = aux->head;
+        symtab_t *aux_head_symtab = (symtab_t *)v->data;
+        if (aux_head_symtab->level == curr->level + 1) {
+            // Push it back onto the stack to re-enter it
+            restore_head();
+            printf("Now re-entering scope level %d\n", curr->level);
+        }
     } else {
-        log_error("Unable to create new symbol table scope");
+        // Otherwise, create a new scope
+        symtab_t *new = symtab_new();
+
+        if (new != NULL) {
+            new->level = curr->level + 1;
+            vector_prepend(stack, new);
+
+            vecnode *vn = (vecnode *)vector_top(stack);
+            curr        = (symtab_t *)vn->data;
+
+            printf("Now entering scope level %d\n", curr->level);
+        } else {
+            log_error("Unable to create new symbol table scope");
+        }
     }
 }
 
@@ -1077,11 +1089,10 @@ static void end_scope() {
     printf("Now leaving scope level %d\n", curr->level);
 
     if (curr->level > 0) {
-        vector_pop_head(stack);
-        vecnode *vn = (vecnode *)vector_top(stack);
-        curr        = (symtab_t *)vn->data;
+        pop_head();
     } else {
-        log_error("Cannot leave the global scope");
+        //        log_error("Cannot leave the global scope");
+        printf("Cannot leave the global scope\n");
     }
 
     printf("Now entering scope level %d\n", curr->level);
@@ -1091,7 +1102,7 @@ static void end_scope() {
 static void pop_head(void) {
     vecnode *head = vector_pop_head(stack);
     if (head != NULL) {
-        vector_prepend(aux, head);
+        vector_prepend(aux, head->data);
         if (stack->head != NULL) {
             curr = stack->head->data;
         }
@@ -1111,8 +1122,6 @@ static void restore_head(void) {
         symtab_t *aux_symtab = aux_head->data;
 
         if (aux_symtab != NULL) {
-            print_table(aux_symtab);
-
             vector_prepend(stack, aux_symtab);
 
             if (stack->head != NULL) {
@@ -1141,7 +1150,6 @@ static void cleanup_aux(void) {
         if (tab == NULL) {
             log_error("Unable to access table from aux->head");
         }
-        print_table(tab);
         restore_head();
     }
 
@@ -1153,35 +1161,9 @@ void print_symbol_tables() {
     vecnode *stack_head = stack->head;
 
     while (stack_head != NULL) {
-        symtab_t *st  = stack_head->data;
-        hashtable *ht = st->table;
+        symtab_t *st = stack_head->data;
 
-        if (ht == NULL) {
-            log_error("Unable to access symbol table for printing!");
-        }
-
-        // Iterate over hash table and print each key/value pair
-        printf("Symbol Table: Level %d\n", st->level);
-        printf("==================================================================================="
-               "=====================================================================\n");
-        for (int idx = 0; idx < MAX_SLOTS; idx++) {
-            if (vector_length(ht->slots[idx]) <= 0) {
-                continue;
-            } else {
-                vector *vec = ht->slots[idx];
-
-                vecnode *vn = vec->head;
-
-                while (vn != NULL) {
-                    binding_t *b = (binding_t *)vn->data;
-                    print_binding(b);
-
-                    vn = vn->next;
-                }
-            }
-        }
-        printf("==================================================================================="
-               "=====================================================================\n");
+        print_table(st);
 
         pop_head();
         stack_head = stack->head;
