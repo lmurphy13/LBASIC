@@ -17,7 +17,6 @@ typedef struct type_s {
 
 // Prototypes
 void typecheck(node *ast);
-void print_checked_ast(node *ast);
 void print_symbol_tables(void);
 
 #endif // TYPECHECKER_H

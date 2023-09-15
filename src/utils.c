@@ -143,6 +143,50 @@ void vector_pop(vector *vec) {
     }
 }
 
+/* Pop the head from a vector and return a pointer to it */
+vecnode *vector_pop_head(vector *vec) {
+    vecnode *retval = NULL;
+
+    if (vec != NULL) {
+        if (vector_length(vec) == 0) {
+            // log_error("Cannot pop from empty vector");
+            printf("Cannot pop from empty stack\n");
+        } else if (vector_length(vec) == 1) {
+            if (vec->head != NULL) {
+                retval    = vec->head;
+                vec->head = NULL;
+                vec->count--;
+            }
+        } else if (vector_length(vec) > 1) {
+            // Save a pointer to the current head
+            vecnode *curr_head = vec->head;
+            retval             = vec->head;
+
+            // Reassign the head pointer to the next node
+            if (curr_head->next != NULL) {
+                vec->head = curr_head->next;
+                vec->count--;
+            } else {
+                log_error("Cannot assign new head node to a NULL element");
+            }
+        }
+    }
+
+    return retval;
+}
+
+vecnode *vector_top(vector *vec) {
+    vecnode *retval = NULL;
+
+    if (vec != NULL) {
+        if (vec->head != NULL) {
+            retval = vec->head;
+        }
+    }
+
+    return retval;
+}
+
 int vector_length(vector *vec) {
     int retval = 0;
 

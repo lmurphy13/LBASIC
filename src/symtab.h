@@ -10,20 +10,8 @@
 #include "ast.h"
 #include "token.h"
 #include "utils.h"
-#include <stdlib.h>
 
-/*
-typedef enum sym_data_type {
-    SYM_DTYPE_INTEGER = 0,
-    SYM_DTYPE_FLOAT   = 1,
-    SYM_DTYPE_STRING  = 2,
-    SYM_DTYPE_BOOLEAN = 3,
-    SYM_DTYPE_VOID    = 4,
-    SYM_DTYPE_STRUCT  = 5,
-    SYM_DTYPE_UNKNOWN = 6,
-    NUM_SYM_DTYPES    = 7
-} sym_data_type;
-*/
+#include <stdlib.h>
 
 typedef enum symbol_type_s {
     SYMBOL_TYPE_FUNCTION  = 0,
@@ -78,15 +66,10 @@ typedef struct binding_s {
 typedef struct symtab_s {
     unsigned int level;
     hashtable *table;
-    struct symtab_s *prev;
-    struct symtab_s *next;
 } symtab_t;
 
 symtab_t *symtab_new(void);
 void symtab_free(symtab_t *st);
-void symtab_append(symtab_t *st, symtab_t *new_st);
-symtab_t *symtab_next(symtab_t *st);
-symtab_t *symtab_prev(symtab_t *st);
 
 binding_t *mk_binding(symbol_type_t);
 
@@ -94,6 +77,7 @@ binding_t *mk_binding(symbol_type_t);
 bool ht_compare_binding(vecnode *vn, void *key);
 
 void print_binding(const binding_t *);
+void print_table(const symtab_t *);
 // sym_data_type ast_data_type_to_binding_data_type(data_type t);
 // data_type sym_data_to_data_type(sym_data_type t);
 

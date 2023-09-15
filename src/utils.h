@@ -44,6 +44,12 @@ void vector_prepend(vector *vec, void *data);
 // Remove the tail element from a vector
 void vector_pop(vector *vec);
 
+// Remove the head element from a vector and return it
+vecnode *vector_pop_head(vector *vec);
+
+// Return a pointer to the vecnode at vec->head
+vecnode *vector_top(vector *vec);
+
 // Get length of vector
 int vector_length(vector *vec);
 

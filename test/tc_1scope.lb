@@ -1,0 +1,7 @@
+int a := 5;
+string b := "hello";
+bool c := true;
+
+a := 9;
+
+string b := "goodbye";

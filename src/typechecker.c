@@ -10,6 +10,7 @@
 #include "error.h"
 #include "symtab.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,12 +22,25 @@ typedef struct builtin_s {
 } builtin_t;
 
 // Globals
-static symtab_t *symbol_table = NULL;
-static bool created_table     = false;
+
+// Main stack of symbol tables
+static vector *stack = NULL;
+
+// Auxiliary stack of symbol tables used when needing to look through multiple scopes
+// and return to the "context" we started with
+static vector *aux = NULL;
+
+static symtab_t *curr     = NULL;
+static bool created_table = false;
 
 // Prototypes
-static bool is_duplicate(const char *ident);
+static bool is_duplicate(symtab_t *scope, const char *ident);
 static bool is_builtin(const char *ident, data_type *type);
+static void begin_scope(void);
+static void end_scope(void);
+static void pop_head(void);
+static void restore_head(void);
+static void cleanup_aux(void);
 
 static void type_error(const char *str, node *n) {
     printf("Type Error! Node type: %d\n", n->type);
@@ -41,16 +55,16 @@ static void type_error(const char *str, node *n) {
     exit(1);
 }
 
-static type_t query_symbol_table(const char *ident) {
+static type_t query_symbol_table(symtab_t *scope, const char *ident) {
     type_t retval;
     memset(&retval, 0, sizeof(type_t));
     retval.datatype = D_UNKNOWN;
     snprintf(retval.struct_type, strlen(retval.struct_type), "NONE");
 
     if (ident != NULL) {
-        if (symbol_table != NULL) {
+        if (scope != NULL) {
             // Search hashtable for symbols matching ident
-            hashtable *ht = symbol_table->table;
+            hashtable *ht = scope->table;
             binding_t *b  = ht_lookup(ht, (char *)ident, ht_compare_binding);
 
             if (b != NULL) {
@@ -150,10 +164,10 @@ static bool get_type(node *n, type_t *out) {
                     // If so, output its return type
                     out->datatype = builtin_type;
                 }
-                // Next, check if it's in the symbol table
-                else if (is_duplicate(n->data.call_expr.func_name)) {
+                // Next, check if it's declared in the current scope
+                else if (is_duplicate(curr, n->data.call_expr.func_name)) {
                     // If so, output its return type
-                    type_t tmp = query_symbol_table(n->data.call_expr.func_name);
+                    type_t tmp = query_symbol_table(curr, n->data.call_expr.func_name);
                     if (tmp.datatype != D_UNKNOWN) {
                         out->datatype = tmp.datatype;
                         if ((strcmp(tmp.struct_type, "NONE") != 0) &&
@@ -164,16 +178,63 @@ static bool get_type(node *n, type_t *out) {
                         }
                     }
                 }
-                // Otherwise, we don't know where this is from
+                // Otherwise, look within parent scopes
                 else {
-                    retval = false;
-                    type_error("Trying to call an undeclared function", n);
+                    // Check the previous scopes
+                    vector *tmp_stack = mk_vector();
+                    if (tmp_stack == NULL) {
+                        log_error("Could not allocate temporary stack");
+                    }
+
+                    /*
+                    vecnode *old_head = vector_pop_head(stack);
+                    symtab_t *prev_scope = (symtab_t *)old_head->data;
+                    vector_prepend(stack, prev_scope);
+
+                    vecnode *top = vector_top(stack);
+                    symtab_t *top_scope = (symtab_t *)top->data;
+                    symtab_t *curr_scope = top_scope;
+                    */
+                    pop_head();
+                    symtab_t *curr_scope = curr;
+                    printf("Looking in level %d\n", curr_scope->level);
+
+                    do {
+                        if (is_duplicate(curr_scope, n->data.call_expr.func_name)) {
+                            printf("Found function name in scope level %d\n", curr_scope->level);
+                            // If so, output its return type
+                            type_t tmp =
+                                query_symbol_table(curr_scope, n->data.call_expr.func_name);
+                            if (tmp.datatype != D_UNKNOWN) {
+                                out->datatype = tmp.datatype;
+                                if ((strcmp(tmp.struct_type, "NONE") != 0) &&
+                                    (strlen(tmp.struct_type) > 0)) {
+                                    // If there's a valid struct_type, set it as well
+                                    snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                                             tmp.struct_type);
+                                }
+                            }
+                            retval = true;
+                            break;
+                        } else {
+                        }
+
+                    } while (curr_scope != NULL);
+
+                    if (curr_scope == NULL) {
+                        // We didn't find the function
+                        char msg[MAX_ERROR_LEN] = {0};
+                        snprintf(msg, sizeof(msg), "Trying to call an undeclared function: %s",
+                                 n->data.call_expr.func_name);
+                        retval = false;
+                        type_error(msg, n);
+                    }
                 }
                 break;
             }
             case N_IDENT: {
                 // First, try the symbol table
-                type_t tmp = query_symbol_table(n->data.identifier.name);
+                type_t tmp = query_symbol_table(curr, n->data.identifier.name);
                 if (tmp.datatype != D_UNKNOWN) {
                     out->datatype = tmp.datatype;
                     if ((strcmp(tmp.struct_type, "NONE") != 0) && (strlen(tmp.struct_type) > 0)) {
@@ -242,6 +303,8 @@ static bool get_type(node *n, type_t *out) {
         log_error("Unable to access node for type retrieval");
     }
 
+    printf("Type was %s\n", type_to_str(out->datatype));
+
     return retval;
 }
 
@@ -300,6 +363,7 @@ static void typecheck_program(node *n) {
 static void typecheck_block_stmt(node *n) {
     printf("Typechecking block statement\n");
     if (n != NULL) {
+        printf("I am in scope %d\n", curr->level);
         vecnode *bn = n->data.block_stmt.statements->head;
         while (bn != NULL) {
             node *n = bn->data;
@@ -313,7 +377,11 @@ static void typecheck_block_stmt(node *n) {
 static void typecheck_var_decl(node *n) {
     printf("Typechecking var decl\n");
     if (n != NULL) {
-        if (!is_duplicate(n->data.var_decl.name)) {
+
+        // Do we have a duplicate in the current scope?
+        // If this is scope 0, then no problem. If this is a nested scope,
+        // then check only within this scope. (shadowing)
+        if (!is_duplicate(curr, n->data.var_decl.name)) {
 
             // There may not be an immediately assigned value
             if (n->data.var_decl.value != NULL) {
@@ -337,7 +405,7 @@ static void typecheck_var_decl(node *n) {
                 b->data.variable_type.is_array_type  = n->data.var_decl.is_array;
                 b->data.variable_type.num_dimensions = n->data.var_decl.num_dimensions;
 
-                ht_insert(symbol_table->table, b->name, b);
+                ht_insert(curr->table, b->name, b);
             }
         } else {
             char msg[MAX_ERROR_LEN] = {0};
@@ -351,7 +419,7 @@ static void typecheck_var_decl(node *n) {
 static void typecheck_func_decl(node *n) {
     printf("Typechecking function decl\n");
     if (n != NULL) {
-        if (!is_duplicate(n->data.function_decl.name)) {
+        if (!is_duplicate(curr, n->data.function_decl.name)) {
             binding_t *b = mk_binding(SYMBOL_TYPE_FUNCTION);
 
             if (b != NULL) {
@@ -370,8 +438,11 @@ static void typecheck_func_decl(node *n) {
 
                 b->data.function_type.num_args = vector_length(n->data.function_decl.formals);
 
-                ht_insert(symbol_table->table, b->name, b);
+                ht_insert(curr->table, b->name, b);
             }
+
+            // Enter a new scope here
+            begin_scope();
 
             if (vector_length(n->data.function_decl.formals) > 0) {
                 vector *vec = n->data.function_decl.formals;
@@ -386,6 +457,10 @@ static void typecheck_func_decl(node *n) {
             }
 
             typecheck(n->data.function_decl.body);
+
+            // Leave the scope here
+            end_scope();
+
         } else {
             type_error("Function already declared within this scope", n);
         }
@@ -395,7 +470,7 @@ static void typecheck_func_decl(node *n) {
 static void typecheck_formal(node *n) {
     printf("Typechecking formal\n");
     if (n != NULL) {
-        if (!is_duplicate(n->data.formal.name)) {
+        if (!is_duplicate(curr, n->data.formal.name)) {
             binding_t *b = mk_binding(SYMBOL_TYPE_VARIABLE);
 
             if (b != NULL) {
@@ -412,7 +487,7 @@ static void typecheck_formal(node *n) {
                 b->data.variable_type.is_array_type  = n->data.formal.is_array;
                 b->data.variable_type.num_dimensions = n->data.formal.num_dimensions;
 
-                ht_insert(symbol_table->table, b->name, b);
+                ht_insert(curr->table, b->name, b);
             }
         }
     }
@@ -507,10 +582,11 @@ static void typecheck_binop_expr(node *n) {
                     char msg[MAX_ERROR_LEN] = {'\0'};
 
                     snprintf(msg, sizeof(msg),
-                             "Type mismatch in binary operator between left-hand expression (type: "
-                             "%d) and "
-                             "right-hand expression (type: %d)",
-                             lhs_type.datatype, rhs_type.datatype);
+                             "Type mismatch in binary operator between left-hand expression %s"
+                             "(%d) and "
+                             "right-hand expression %s (%d)",
+                             type_to_str(lhs_type.datatype), lhs_type.datatype,
+                             type_to_str(rhs_type.datatype), rhs_type.datatype);
                     type_error(msg, n);
                 }
             }
@@ -542,9 +618,18 @@ static void typecheck_call_expr(node *n) {
         data_type builtin_type;
         if (is_builtin(n->data.call_expr.func_name, &builtin_type)) {
             // If yes, process the arguments
+            if (n->data.call_expr.args != NULL) {
+                vecnode *vn = n->data.call_expr.args->head;
+
+                while (vn != NULL) {
+                    typecheck(vn->data);
+
+                    vn = vn->next;
+                }
+            }
         }
-        // Check if the function name is in the symbol table
-        else if (is_duplicate(n->data.call_expr.func_name)) {
+        // Check if the function name is in the current scope
+        else if (is_duplicate(curr, n->data.call_expr.func_name)) {
             // If yes, process the arguments if they exist
             if (n->data.call_expr.args != NULL) {
                 vecnode *vn = n->data.call_expr.args->head;
@@ -557,10 +642,41 @@ static void typecheck_call_expr(node *n) {
             }
 
         } else {
-            // If no, error
-            char msg[MAX_ERROR_LEN] = {0};
-            snprintf(msg, sizeof(msg), "Undeclared function: %s", n->data.call_expr.func_name);
-            type_error(msg, n);
+            // Check the previous scopes
+            symtab_t *curr_scope = (symtab_t *)(((vecnode *)stack->head)->data);
+            printf("Looking in level %d\n", curr_scope->level);
+
+            do {
+                if (is_duplicate(curr_scope, n->data.call_expr.func_name)) {
+                    printf("Found function name in scope level %d\n", curr_scope->level);
+                    // Process the arguments if they exist
+                    if (n->data.call_expr.args != NULL) {
+                        vecnode *vn = n->data.call_expr.args->head;
+
+                        while (vn != NULL) {
+                            typecheck(vn->data);
+
+                            vn = vn->next;
+                        }
+                        break;
+                    }
+                } else {
+                    // curr_scope = symtab_prev(curr_scope);
+                    pop_head();
+                    curr_scope = (symtab_t *)(((vecnode *)stack->head)->data);
+                }
+
+            } while (curr_scope != NULL);
+
+            if (curr_scope == NULL) {
+                // We didn't find the function
+                char msg[MAX_ERROR_LEN] = {0};
+                snprintf(msg, sizeof(msg), "Undeclared function: %s", n->data.call_expr.func_name);
+                type_error(msg, n);
+            }
+
+            // Cleanup
+            cleanup_aux();
         }
     }
 }
@@ -570,10 +686,44 @@ static void typecheck_ident(node *n) {
     if (n != NULL) {
         // Identifiers should be variable names. If it exists in the symbol table, we know it has
         // previously been declared. If not, raise an error
-        if (!is_duplicate(n->data.identifier.name)) {
-            char msg[MAX_ERROR_LEN] = {0};
-            snprintf(msg, sizeof(msg), "Undeclared identifier: %s", n->data.identifier.name);
-            type_error(msg, n);
+        if (is_duplicate(curr, n->data.identifier.name)) {
+            //            char msg[MAX_ERROR_LEN] = {0};
+            //            snprintf(msg, sizeof(msg), "Undeclared identifier: %s",
+            //            n->data.identifier.name); type_error(msg, n);
+        } else {
+            // Look in previous scopes until we hit the nearest declaration
+            symtab_t *curr_scope = curr;
+            printf("Looking in level %d\n", curr_scope->level);
+
+            do {
+                if (is_duplicate(curr_scope, n->data.identifier.name)) {
+                    printf("Found function name in scope level %d\n", curr_scope->level);
+                    break;
+                } else {
+                    //                    curr_scope = symtab_prev(curr_scope);
+                    pop_head();
+
+                    vecnode *v = stack->head;
+                    if (v != NULL) {
+                        symtab_t *s = v->data;
+
+                        if (s != NULL) {
+                            curr_scope = s;
+                        }
+                    } else {
+                        printf("Nothing here!\n");
+                        break;
+                    }
+                }
+
+            } while (curr_scope != NULL);
+
+            if (curr_scope == NULL) {
+                // We didn't find the function
+                char msg[MAX_ERROR_LEN] = {0};
+                snprintf(msg, sizeof(msg), "Undeclared identifier: %s", n->data.identifier.name);
+                type_error(msg, n);
+            }
         }
     }
 }
@@ -584,12 +734,20 @@ static void typecheck_if_stmt(node *n) {
         // First, typecheck the test
         typecheck(n->data.if_stmt.test);
 
+        begin_scope();
+
         // Then, check the body
         typecheck(n->data.if_stmt.body);
 
+        end_scope();
+
         // Lastly, the else if it exists
         if (n->data.if_stmt.else_stmt != NULL) {
+            begin_scope();
+
             typecheck(n->data.if_stmt.else_stmt);
+
+            end_scope();
         }
     }
 }
@@ -640,7 +798,8 @@ static void typecheck_return_stmt(node *n) {
             // scope. The top-level scope for a return statement is a function.
 
             // Find the binding for our function
-            hashtable *ht = symbol_table->table;
+            symtab_t *st  = (symtab_t *)(((vecnode *)stack->head)->data);
+            hashtable *ht = st->table;
             for (int idx = 0; idx < MAX_SLOTS; idx++) {
                 if (vector_length(ht->slots[idx]) <= 0) {
                     continue;
@@ -696,6 +855,8 @@ static void typecheck_struct_decl(node *n) {
             struct_binding->data.structure_type.num_members =
                 vector_length(n->data.struct_decl.members);
 
+            vecnode *curr_node     = stack->head;
+            symtab_t *symbol_table = curr_node->data;
             ht_insert(symbol_table->table, struct_binding->name, struct_binding);
 
             // Add members to the symbol table, if they exist
@@ -717,7 +878,7 @@ static void typecheck_struct_decl(node *n) {
                                          sizeof(member_binding->data.member_type.struct_type), "%s",
                                          n->data.struct_decl.name);
 
-                                if (!is_duplicate(member_binding->name)) {
+                                if (!is_duplicate(curr, member_binding->name)) {
                                     ht_insert(symbol_table->table, member_binding->name,
                                               member_binding);
                                 } else {
@@ -751,14 +912,27 @@ static void typecheck_struct_access(node *n) {
 void typecheck(node *ast) {
     if (ast != NULL) {
         if (!created_table) {
-            symbol_table = symtab_new();
+            // The first symbol table is the global scope
+            stack = mk_vector();
+            aux   = mk_vector();
 
-            if (symbol_table == NULL) {
-                log_error("Unable to create symbol table");
+            if (stack == NULL) {
+                log_error("Unable to create symbol table vector");
             } else {
-                symbol_table->level = 0;
-                printf("Successfully allocated symbol table\n");
-                created_table = true;
+                symtab_t *st = symtab_new();
+                if (st != NULL) {
+                    st->level = 0;
+
+                    // Push scope 0 to the stack
+                    vector_prepend(stack, st);
+                    curr = stack->head->data;
+                    printf("Successfully allocated symbol table\n");
+                    created_table = true;
+                }
+            }
+
+            if (aux == NULL) {
+                log_error("Unable to create aux stack vector");
             }
         }
 
@@ -831,17 +1005,20 @@ void typecheck(node *ast) {
 
 // Prototype definitions
 
-static bool is_duplicate(const char *ident) {
+// Search for an identifier within the given scope's symbol table
+static bool is_duplicate(symtab_t *scope, const char *ident) {
     bool retval = false;
 
     if (ident == NULL) {
         log_error("Unable to access identifier before symbol table lookup");
     }
 
-    // Eventually a symbol table
-    if (symbol_table != NULL) {
+    // Examine the scope's table
+    if (scope != NULL) {
         // Search hashtable for symbols matching ident
-        hashtable *ht = symbol_table->table;
+        printf("Now checking symbol table level %d\n", scope->level);
+
+        hashtable *ht = scope->table;
         binding_t *b  = ht_lookup(ht, (char *)ident, ht_compare_binding);
 
         if (b != NULL) {
@@ -880,33 +1057,133 @@ static bool is_builtin(const char *ident, data_type *type) {
     return retval;
 }
 
-// Might not be needed
-void print_checked_ast(node *ast) { return; }
+static void begin_scope() {
+    symtab_t *new = symtab_new();
 
-void print_symbol_tables() {
-    hashtable *ht = symbol_table->table;
+    if (new != NULL) {
+        new->level = curr->level + 1;
+        vector_prepend(stack, new);
 
-    if (ht == NULL) {
-        log_error("Unable to access symbol table for printing!");
+        vecnode *vn = (vecnode *)vector_top(stack);
+        curr        = (symtab_t *)vn->data;
+
+        printf("Now entering scope level %d\n", curr->level);
+    } else {
+        log_error("Unable to create new symbol table scope");
+    }
+}
+
+static void end_scope() {
+    printf("Now leaving scope level %d\n", curr->level);
+
+    if (curr->level > 0) {
+        vector_pop_head(stack);
+        vecnode *vn = (vecnode *)vector_top(stack);
+        curr        = (symtab_t *)vn->data;
+    } else {
+        log_error("Cannot leave the global scope");
     }
 
-    // Iterate over hash table and print each key/value pair
-    printf("Symbol Table: Level %d\n", symbol_table->level);
-    printf("=========================\n");
-    for (int idx = 0; idx < MAX_SLOTS; idx++) {
-        if (vector_length(ht->slots[idx]) <= 0) {
-            continue;
-        } else {
-            vector *vec = ht->slots[idx];
+    printf("Now entering scope level %d\n", curr->level);
+}
 
-            vecnode *vn = vec->head;
+// Pop the head symbol table from the stack and add it to aux
+static void pop_head(void) {
+    vecnode *head = vector_pop_head(stack);
+    if (head != NULL) {
+        vector_prepend(aux, head);
+        if (stack->head != NULL) {
+            curr = stack->head->data;
+        }
+    }
+}
 
-            while (vn != NULL) {
-                binding_t *b = (binding_t *)vn->data;
-                print_binding(b);
+// Take the head from aux and push it back onto the stack
+static void restore_head(void) {
+    if (vector_length(aux) <= 0) {
+        printf("Cannot restore from empty aux\n");
+        return;
+    }
 
-                vn = vn->next;
+    vecnode *aux_head = vector_pop_head(aux);
+    if (aux_head != NULL) {
+        printf("Restoring stack head\n");
+        symtab_t *aux_symtab = aux_head->data;
+
+        if (aux_symtab != NULL) {
+            print_table(aux_symtab);
+
+            vector_prepend(stack, aux_symtab);
+
+            if (stack->head != NULL) {
+                vecnode *v = stack->head;
+                if (v != NULL) {
+                    symtab_t *s = v->data;
+                    if (s != NULL) {
+                        curr = s;
+                        printf("curr level is %d\n", curr->level);
+                    }
+                }
             }
         }
+    } else {
+        log_error("Aux head is null!\n");
+    }
+}
+
+// Push all elements in aux to stack
+static void cleanup_aux(void) {
+    printf("Cleaning up aux\n");
+    printf("aux len: %d\n", vector_length(aux));
+
+    while (aux->head != NULL) {
+        symtab_t *tab = (symtab_t *)((vecnode *)aux->head)->data;
+        if (tab == NULL) {
+            log_error("Unable to access table from aux->head");
+        }
+        print_table(tab);
+        restore_head();
+    }
+
+    curr = stack->head->data;
+}
+
+void print_symbol_tables() {
+    cleanup_aux();
+    vecnode *stack_head = stack->head;
+
+    while (stack_head != NULL) {
+        symtab_t *st  = stack_head->data;
+        hashtable *ht = st->table;
+
+        if (ht == NULL) {
+            log_error("Unable to access symbol table for printing!");
+        }
+
+        // Iterate over hash table and print each key/value pair
+        printf("Symbol Table: Level %d\n", st->level);
+        printf("==================================================================================="
+               "=====================================================================\n");
+        for (int idx = 0; idx < MAX_SLOTS; idx++) {
+            if (vector_length(ht->slots[idx]) <= 0) {
+                continue;
+            } else {
+                vector *vec = ht->slots[idx];
+
+                vecnode *vn = vec->head;
+
+                while (vn != NULL) {
+                    binding_t *b = (binding_t *)vn->data;
+                    print_binding(b);
+
+                    vn = vn->next;
+                }
+            }
+        }
+        printf("==================================================================================="
+               "=====================================================================\n");
+
+        pop_head();
+        stack_head = stack->head;
     }
 }

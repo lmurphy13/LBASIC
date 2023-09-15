@@ -1,0 +1,21 @@
+string a := "Hello world!";
+
+func subroutine(int a) -> int
+then
+    float pi := 3.14;
+
+    if (a == 0) then
+        string liam := "we're here!";
+        return a;
+    else then
+        liam := "now we're down here!";
+        return subroutine(a - 1);
+    end
+end
+
+subroutine(10);
+println(a);
+
+string b := a;
+
+pi := pi + 1.0;

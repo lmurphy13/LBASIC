@@ -61,36 +61,6 @@ bool ht_compare_binding(vecnode *vn, void *key) {
     return retval;
 }
 
-/*
-static char *b_data_type_to_str(sym_data_type t) {
-    switch (t) {
-        case SYM_DTYPE_INTEGER:
-            return "SYM_DTYPE_INTEGER";
-            break;
-        case SYM_DTYPE_FLOAT:
-            return "SYM_DTYPE_FLOAT";
-            break;
-        case SYM_DTYPE_STRING:
-            return "SYM_DTYPE_STRING";
-            break;
-        case SYM_DTYPE_BOOLEAN:
-            return "SYM_DTYPE_BOOLEAN";
-            break;
-        case SYM_DTYPE_VOID:
-            return "SYM_DTYPE_VOID";
-            break;
-        case SYM_DTYPE_STRUCT:
-            return "SYM_DTYPE_STRUCT";
-            break;
-        case SYM_DTYPE_UNKNOWN:
-            return "SYM_DTYPE_UNKNOWN";
-        default:
-            return "UNKNOWN";
-            break;
-    }
-}
-*/
-
 static char *sym_type_to_str(symbol_type_t t) {
     switch (t) {
         case SYMBOL_TYPE_FUNCTION:
@@ -112,60 +82,10 @@ static char *sym_type_to_str(symbol_type_t t) {
     }
 }
 
-/*
-data_type sym_data_to_data_type(sym_data_type t) {
-    switch (t) {
-        case SYM_DTYPE_INTEGER:
-            return D_INTEGER;
-            break;
-        case SYM_DTYPE_FLOAT:
-            return D_FLOAT;
-            break;
-        case SYM_DTYPE_STRING:
-            return D_STRING;
-            break;
-        case SYM_DTYPE_BOOLEAN:
-            return D_BOOLEAN;
-            break;
-        case SYM_DTYPE_VOID:
-            return D_VOID;
-            break;
-        case SYM_DTYPE_STRUCT:
-            return D_STRUCT;
-            break;
-        case SYM_DTYPE_UNKNOWN:
-        default:
-            return D_UNKNOWN;
-            break;
-    }
-}
-*/
-
-/*
-sym_data_type ast_data_type_to_binding_data_type(data_type t) {
-    switch (t) {
-        case D_INTEGER:
-            return SYM_DTYPE_INTEGER;
-        case D_FLOAT:
-            return SYM_DTYPE_FLOAT;
-        case D_STRING:
-            return SYM_DTYPE_STRING;
-        case D_BOOLEAN:
-            return SYM_DTYPE_BOOLEAN;
-        case D_VOID:
-            return SYM_DTYPE_VOID;
-        case D_STRUCT:
-            return SYM_DTYPE_STRUCT;
-        default:
-            return SYM_DTYPE_UNKNOWN;
-    }
-}
-*/
-
 void print_binding(const binding_t *b) {
     if (b != NULL) {
         printf("Name: %s | ", b->name);
-        printf("Type: %s | ", sym_type_to_str(b->symbol_type));
+        printf("Symbol Type: %s | ", sym_type_to_str(b->symbol_type));
 
         switch (b->symbol_type) {
             case SYMBOL_TYPE_FUNCTION:
@@ -177,6 +97,7 @@ void print_binding(const binding_t *b) {
                 printf("Num Args: %d\n", b->data.function_type.num_args);
                 break;
             case SYMBOL_TYPE_VARIABLE:
+                printf("Data Type: %s | ", type_to_str(b->data.variable_type.type));
                 printf("Struct Type: %s | ", b->data.variable_type.struct_type);
                 printf("IsStructType?: %d | ", b->data.variable_type.is_struct_type);
                 printf("IsArrayType?: %d | ", b->data.variable_type.is_array_type);
@@ -187,6 +108,7 @@ void print_binding(const binding_t *b) {
                 printf("Num Members: %d\n", b->data.structure_type.num_members);
                 break;
             case SYMBOL_TYPE_MEMBER:
+                printf("Data Type: %s | ", type_to_str(b->data.member_type.type));
                 printf("Struct Type: %s | ", b->data.member_type.struct_type);
                 printf("IsStructType?: %d | ", b->data.member_type.is_struct_type);
                 printf("IsArrayType?: %d | ", b->data.member_type.is_array_type);
@@ -200,71 +122,57 @@ void print_binding(const binding_t *b) {
     }
 }
 
+void print_table(const symtab_t *st) {
+    if (st != NULL) {
+        hashtable *ht = st->table;
+
+        if (ht == NULL) {
+            log_error("Unable to access symbol table for printing!");
+        }
+
+        // Iterate over hash table and print each key/value pair
+        printf("Symbol Table: Level %d\n", st->level);
+        printf("==================================================================================="
+               "=====================================================================\n");
+        for (int idx = 0; idx < MAX_SLOTS; idx++) {
+            if (vector_length(ht->slots[idx]) <= 0) {
+                continue;
+            } else {
+                vector *vec = ht->slots[idx];
+
+                vecnode *vn = vec->head;
+
+                while (vn != NULL) {
+                    binding_t *b = (binding_t *)vn->data;
+                    print_binding(b);
+
+                    vn = vn->next;
+                }
+            }
+        }
+        printf("==================================================================================="
+               "=====================================================================\n");
+    }
+}
+
 symtab_t *symtab_new() {
     symtab_t *new = (symtab_t *)malloc(sizeof(symtab_t) + 1);
     memset(new, 0, sizeof(symtab_t));
-    new->next = NULL;
-    new->prev = NULL;
 
     hashtable *ht = mk_hashtable();
-    new->table    = ht;
+
+    if (ht != NULL) {
+        new->table = ht;
+    } else {
+        log_error("Unable to allocate hash table for use in a symbol table");
+    }
 
     return new;
 }
 
 void symtab_free(symtab_t *st) {
-    // Seek to end
-    while (st->next != NULL) {
-        st = st->next;
-    }
-
-    // Walk back up the list
-    while (st->prev != NULL) {
-        st = st->prev;
-
-        ht_free(st->next->table);
-        free(st->next);
-    }
-
     if (st != NULL) {
+        ht_free(st->table);
         free(st);
-    }
-}
-
-void symtab_append(symtab_t *st, symtab_t *new_st) {
-    if (st != NULL) {
-        if (new_st != NULL) {
-            while (st->next != NULL) {
-                st = symtab_next(st);
-            }
-
-            if (st->next == NULL) {
-                new_st->prev = st;
-                new_st->next = NULL;
-
-                st->next = new_st;
-            }
-        } else {
-            log_error("Cannot access new_st");
-        }
-    } else {
-        log_error("Cannot access st");
-    }
-}
-
-symtab_t *symtab_next(symtab_t *st) {
-    if (st == NULL) {
-        return NULL;
-    } else {
-        return st->next;
-    }
-}
-
-symtab_t *symtab_prev(symtab_t *st) {
-    if (st == NULL) {
-        printf("null element\n");
-        return NULL;
-    } else {
-        return st->prev;
     }
 }

@@ -77,12 +77,26 @@ void run_tests(void) {
 
     print_string_vec(v);
 
-    printf("popping tail\n");
-    vector_pop(v);
+    printf("popping head\n");
+    vector_pop_head(v);
     print_string_vec(v);
 
-    printf("popping tail\n");
-    vector_pop(v);
+    printf("popping head\n");
+    vector_pop_head(v);
+    print_string_vec(v);
+
+    char *val7 = (char *)malloc(sizeof(char) * 5);
+    if (val7 != NULL) {
+        snprintf(val7, 5, "%s", "val7");
+    }
+
+    vector_prepend(v, val7);
+
+    print_string_vec(v);
+
+    vecnode *vn = vector_pop_head(v);
+    printf("Popped %s from head\n", (char *)vn->data);
+
     print_string_vec(v);
 
     printf("freeing vector\n");
