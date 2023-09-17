@@ -2,6 +2,7 @@
 ' Test: This test should exercise the typechecker by
 '       employing multiple scopes.
 
+' scope 0
 println("What is your name? ");
 string name := getstr();
 
@@ -11,24 +12,38 @@ println("How old are you? ");
 int age := getint();
 
 if (age > 10) then
+    ' scope 1
+    int scope1 := 1;
     println("You are older than 10 years");
 else then
+    ' scope 2
+    int scope2 := 2;
     if (age < 10) then
+        ' scope 3
+        int scope3 := 3;
         println("You are younger than 10 years");
     else then
+        ' scope 4
+        int scope4 := 4;
         println("You are 10 years old!");
     end
 end
 
+' scope 0
 struct person
 then
+    ' scope 5
     string name;
     int age;
     bool is_male;
+    int scope5;
 end
 
+' scope 0
 func create_person(string n, int a, bool m) -> struct person
 then
+    ' scope 6
+    int scope6 := 6;
     struct person retval;
 
     retval.name := n;
@@ -38,4 +53,5 @@ then
     return retval;
 end
 
+' scope 0
 struct person Liam := create_person("Liam", 24, true);

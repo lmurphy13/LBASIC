@@ -157,7 +157,12 @@ void print_table(const symtab_t *st) {
 
 symtab_t *symtab_new() {
     symtab_t *new = (symtab_t *)malloc(sizeof(symtab_t) + 1);
-    memset(new, 0, sizeof(symtab_t));
+
+    if (new != NULL) {
+        memset(new, 0, sizeof(symtab_t));
+    } else {
+        log_error("Unable to allocate symtab_t");
+    }
 
     hashtable *ht = mk_hashtable();
 

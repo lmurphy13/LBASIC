@@ -32,10 +32,12 @@ static vector *aux = NULL;
 
 static symtab_t *curr     = NULL;
 static bool created_table = false;
+static unsigned int level = 1;
 
 // Prototypes
 static bool is_duplicate(symtab_t *scope, const char *ident);
 static bool is_builtin(const char *ident, data_type *type);
+static void begin_new_scope(void);
 static void begin_scope(void);
 static void end_scope(void);
 static void pop_head(void);
@@ -181,20 +183,6 @@ static bool get_type(node *n, type_t *out) {
                 // Otherwise, look within parent scopes
                 else {
                     // Check the previous scopes
-                    vector *tmp_stack = mk_vector();
-                    if (tmp_stack == NULL) {
-                        log_error("Could not allocate temporary stack");
-                    }
-
-                    /*
-                    vecnode *old_head = vector_pop_head(stack);
-                    symtab_t *prev_scope = (symtab_t *)old_head->data;
-                    vector_prepend(stack, prev_scope);
-
-                    vecnode *top = vector_top(stack);
-                    symtab_t *top_scope = (symtab_t *)top->data;
-                    symtab_t *curr_scope = top_scope;
-                    */
                     pop_head();
                     symtab_t *curr_scope = curr;
                     printf("Looking in level %d\n", curr_scope->level);
@@ -217,6 +205,8 @@ static bool get_type(node *n, type_t *out) {
                             retval = true;
                             break;
                         } else {
+                            pop_head();
+                            curr_scope = curr;
                         }
 
                     } while (curr_scope != NULL);
@@ -743,7 +733,7 @@ static void typecheck_if_stmt(node *n) {
 
         // Lastly, the else if it exists
         if (n->data.if_stmt.else_stmt != NULL) {
-            begin_scope();
+            begin_new_scope();
 
             typecheck(n->data.if_stmt.else_stmt);
 
@@ -864,6 +854,7 @@ static void typecheck_struct_decl(node *n) {
                 if (n->data.struct_decl.members != NULL) {
                     vecnode *vn = n->data.struct_decl.members->head;
 
+                    begin_scope();
                     while (vn != NULL) {
                         node *m = (node *)vn->data;
 
@@ -879,8 +870,7 @@ static void typecheck_struct_decl(node *n) {
                                          n->data.struct_decl.name);
 
                                 if (!is_duplicate(curr, member_binding->name)) {
-                                    ht_insert(symbol_table->table, member_binding->name,
-                                              member_binding);
+                                    ht_insert(curr->table, member_binding->name, member_binding);
                                 } else {
                                     char msg[MAX_ERROR_LEN] = {0};
                                     snprintf(msg, sizeof(msg),
@@ -893,6 +883,7 @@ static void typecheck_struct_decl(node *n) {
 
                         vn = vn->next;
                     }
+                    end_scope();
                 }
             }
         }
@@ -902,13 +893,50 @@ static void typecheck_struct_decl(node *n) {
 static void typecheck_struct_access(node *n) {
     printf("Typechecking struct access\n");
     if (n != NULL) {
+        // First, check if the variable name exists in-scope
+        if (is_duplicate(curr, n->data.struct_access.name)) {
+            // This is fine. This means the variable exists
+        } else {
+            // Look in previous scopes until we hit the nearest declaration
+            symtab_t *curr_scope = curr;
+            printf("Looking in level %d\n", curr_scope->level);
+
+            do {
+                if (is_duplicate(curr_scope, n->data.struct_access.name)) {
+                    printf("Found variable name in scope level %d\n", curr_scope->level);
+                    break;
+                } else {
+                    //                    curr_scope = symtab_prev(curr_scope);
+                    pop_head();
+
+                    vecnode *v = stack->head;
+                    if (v != NULL) {
+                        symtab_t *s = v->data;
+
+                        if (s != NULL) {
+                            curr_scope = s;
+                        }
+                    } else {
+                        printf("Nothing here!\n");
+                        break;
+                    }
+                }
+
+            } while (curr_scope != NULL);
+
+            if (curr_scope == NULL) {
+                // We didn't find the variable
+                char msg[MAX_ERROR_LEN] = {0};
+                snprintf(msg, sizeof(msg), "Undeclared identifier: %s", n->data.struct_access.name);
+                type_error(msg, n);
+            }
+
+            // Next, check if the struct has this member (its type is in the symbol table, and will
+            // be checked elsewhere)
+        }
     }
 }
 
-/*
- * Pass 1: Build a symbol table
- * Pass 2: Verify types and scope
- */
 void typecheck(node *ast) {
     if (ast != NULL) {
         if (!created_table) {
@@ -923,7 +951,7 @@ void typecheck(node *ast) {
                 if (st != NULL) {
                     st->level = 0;
 
-                    // Push scope 0 to the stack
+                    // Push scope 0 onto the stack
                     vector_prepend(stack, st);
                     curr = stack->head->data;
                     printf("Successfully allocated symbol table\n");
@@ -989,7 +1017,7 @@ void typecheck(node *ast) {
             case N_GOTO_STMT:
             case N_ARRAY_INIT_EXPR:
             case N_ARRAY_ACCESS_EXPR:
-            case N_MEMBER_DECL:
+            case N_MEMBER_DECL: // taken care of within typecheck_struct_decl()
             case N_WHILE_STMT:
             case N_EMPTY_EXPR:
             case N_NEG_EXPR:
@@ -1057,32 +1085,40 @@ static bool is_builtin(const char *ident, data_type *type) {
     return retval;
 }
 
+static void begin_new_scope() {
+    symtab_t *new = symtab_new();
+
+    if (new != NULL) {
+
+        new->level = level++;
+        vector_prepend(stack, new);
+
+        vecnode *vn = (vecnode *)vector_top(stack);
+        curr        = (symtab_t *)vn->data;
+
+        printf("Created scope level %d\n", curr->level);
+    } else {
+        log_error("Unable to create new symbol table scope");
+    }
+}
+
 static void begin_scope() {
     // First, look if the level exists on aux
-    if (aux->head != NULL) {
-        vecnode *v                = aux->head;
-        symtab_t *aux_head_symtab = (symtab_t *)v->data;
-        if (aux_head_symtab->level == curr->level + 1) {
-            // Push it back onto the stack to re-enter it
-            restore_head();
-            printf("Now re-entering scope level %d\n", curr->level);
-        }
-    } else {
-        // Otherwise, create a new scope
-        symtab_t *new = symtab_new();
-
-        if (new != NULL) {
-            new->level = curr->level + 1;
-            vector_prepend(stack, new);
-
-            vecnode *vn = (vecnode *)vector_top(stack);
-            curr        = (symtab_t *)vn->data;
-
-            printf("Now entering scope level %d\n", curr->level);
+    /*
+        if (aux->head != NULL) {
+            vecnode *v                = aux->head;
+            symtab_t *aux_head_symtab = (symtab_t *)v->data;
+            if (aux_head_symtab->level == curr->level + 1) {
+                // Push it back onto the stack to re-enter it
+                restore_head();
+                printf("Now re-entering scope level %d\n", curr->level);
+            }
         } else {
-            log_error("Unable to create new symbol table scope");
+            // Otherwise, create a new scope
+            begin_new_scope();
         }
-    }
+    */
+    begin_new_scope();
 }
 
 static void end_scope() {

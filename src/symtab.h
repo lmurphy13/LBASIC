@@ -65,6 +65,7 @@ typedef struct binding_s {
 
 typedef struct symtab_s {
     unsigned int level;
+    bool seen;
     hashtable *table;
 } symtab_t;
 
