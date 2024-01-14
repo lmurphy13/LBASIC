@@ -136,6 +136,126 @@ static bool get_type(node *n, type_t *out) {
                 snprintf(out->struct_type, strlen(out->struct_type), "%s",
                          n->data.struct_decl.name);
                 break;
+            case N_STRUCT_ACCESS_EXPR: {
+                // Search through the stack
+                // First, check if the variable name exists in-scope
+                if (is_duplicate(curr, n->data.struct_access.name)) {
+                    // This is fine. This means the variable exists
+
+                    // Look in previous scopes until we hit the nearest declaration
+                    // matching the name, and verify it is a struct
+                    symtab_t *curr_scope = curr;
+                    symtab_t *rem_scope  = curr;
+
+                    printf("Looking in level %d\n", curr_scope->level);
+
+                    do {
+                        if (is_duplicate(curr_scope, n->data.struct_access.member_name)) {
+                            printf("Found struct member name in scope level %d\n",
+                                   curr_scope->level);
+                            type_t member_type =
+                                query_symbol_table(curr, n->data.struct_access.member_name);
+                            if (member_type.datatype != D_UNKNOWN) {
+                                out->datatype = member_type.datatype;
+                                if ((strcmp(member_type.struct_type, "NONE") != 0) &&
+                                    (strlen(member_type.struct_type) > 0)) {
+                                    // If there's a valid struct_type, set it as well
+                                    snprintf(out->struct_type, strlen(out->struct_type), "%s",
+                                             member_type.struct_type);
+                                }
+                            }
+                            break;
+                        } else {
+                            pop_head();
+
+                            vecnode *v = stack->head;
+                            if (v != NULL) {
+                                symtab_t *s = v->data;
+
+                                if (s != NULL) {
+                                    curr_scope = s;
+                                }
+                            } else {
+                                printf("Nothing here! LIAM \n");
+                                break;
+                            }
+                        }
+
+                    } while (curr_scope != NULL);
+
+                    if (curr_scope == NULL) {
+                        // We didn't find the variable
+                        char msg[MAX_ERROR_LEN] = {0};
+                        snprintf(msg, sizeof(msg), "Undeclared struct identifier: %s",
+                                 n->data.struct_access.name);
+                        type_error(msg, n);
+                    }
+
+                    // Reset the symbol table to what we had before
+                    vecnode *stack_head_vn = vector_top(stack);
+                    symtab_t *stack_head   = (symtab_t *)stack_head_vn->data;
+
+                    while (stack_head != rem_scope) {
+                        printf("sh: %p | ah: %p\n", stack_head, rem_scope);
+                        printf("stack level: %d\n", stack_head->level);
+
+                        if (stack_head->level == 0) {
+                            break;
+                        }
+                        restore_head();
+                    }
+
+                } else {
+                    // Look in previous scopes until we hit the nearest declaration
+                    // matching the name, and verify it is a struct
+                    symtab_t *curr_scope = curr;
+                    symtab_t *rem_scope  = curr;
+                    printf("Looking in level %d\n", curr_scope->level);
+
+                    do {
+                        if (is_duplicate(curr_scope, n->data.struct_access.name)) {
+                            printf("Found struct variable name in scope level %d\n",
+                                   curr_scope->level);
+
+                            // Next, check if the struct has this member (its type is in the symbol
+                            // table, and will be checked elsewhere)
+                            break;
+                        } else {
+                            pop_head();
+
+                            vecnode *v = stack->head;
+                            if (v != NULL) {
+                                symtab_t *s = v->data;
+
+                                if (s != NULL) {
+                                    curr_scope = s;
+                                }
+                            } else {
+                                printf("Nothing here! LIAM \n");
+                                break;
+                            }
+                        }
+
+                    } while (curr_scope != NULL);
+
+                    if (curr_scope == NULL) {
+                        // We didn't find the variable
+                        char msg[MAX_ERROR_LEN] = {0};
+                        snprintf(msg, sizeof(msg), "Undeclared struct identifier: %s",
+                                 n->data.struct_access.name);
+                        type_error(msg, n);
+                    }
+
+                    // Reset the symbol table to what we had before
+                    vecnode *stack_head_vn = vector_top(stack);
+                    symtab_t *stack_head   = (symtab_t *)stack_head_vn->data;
+
+                    while (stack_head != rem_scope) {
+                        restore_head();
+                    }
+                }
+                break;
+            }
             case N_FORMAL:
                 out->datatype = n->data.formal.type;
                 snprintf(out->struct_type, strlen(out->struct_type), "%s",
@@ -898,15 +1018,19 @@ static void typecheck_struct_access(node *n) {
             // This is fine. This means the variable exists
         } else {
             // Look in previous scopes until we hit the nearest declaration
+            // matching the name, and verify it is a struct
             symtab_t *curr_scope = curr;
+            symtab_t *rem_scope  = curr;
             printf("Looking in level %d\n", curr_scope->level);
 
             do {
                 if (is_duplicate(curr_scope, n->data.struct_access.name)) {
-                    printf("Found variable name in scope level %d\n", curr_scope->level);
+                    printf("Found struct variable name in scope level %d\n", curr_scope->level);
+
+                    // Next, check if the struct has this member (its type is in the symbol table,
+                    // and will be checked elsewhere)
                     break;
                 } else {
-                    //                    curr_scope = symtab_prev(curr_scope);
                     pop_head();
 
                     vecnode *v = stack->head;
@@ -917,7 +1041,7 @@ static void typecheck_struct_access(node *n) {
                             curr_scope = s;
                         }
                     } else {
-                        printf("Nothing here!\n");
+                        printf("Nothing here! LIAM \n");
                         break;
                     }
                 }
@@ -927,12 +1051,18 @@ static void typecheck_struct_access(node *n) {
             if (curr_scope == NULL) {
                 // We didn't find the variable
                 char msg[MAX_ERROR_LEN] = {0};
-                snprintf(msg, sizeof(msg), "Undeclared identifier: %s", n->data.struct_access.name);
+                snprintf(msg, sizeof(msg), "Undeclared struct identifier: %s",
+                         n->data.struct_access.name);
                 type_error(msg, n);
             }
 
-            // Next, check if the struct has this member (its type is in the symbol table, and will
-            // be checked elsewhere)
+            // Reset the symbol table to what we had before
+            vecnode *stack_head_vn = vector_top(stack);
+            symtab_t *stack_head   = (symtab_t *)stack_head_vn->data;
+
+            while (stack_head != rem_scope) {
+                restore_head();
+            }
         }
     }
 }
@@ -1017,7 +1147,6 @@ void typecheck(node *ast) {
             case N_GOTO_STMT:
             case N_ARRAY_INIT_EXPR:
             case N_ARRAY_ACCESS_EXPR:
-            case N_MEMBER_DECL: // taken care of within typecheck_struct_decl()
             case N_WHILE_STMT:
             case N_EMPTY_EXPR:
             case N_NEG_EXPR:
@@ -1102,24 +1231,7 @@ static void begin_new_scope() {
     }
 }
 
-static void begin_scope() {
-    // First, look if the level exists on aux
-    /*
-        if (aux->head != NULL) {
-            vecnode *v                = aux->head;
-            symtab_t *aux_head_symtab = (symtab_t *)v->data;
-            if (aux_head_symtab->level == curr->level + 1) {
-                // Push it back onto the stack to re-enter it
-                restore_head();
-                printf("Now re-entering scope level %d\n", curr->level);
-            }
-        } else {
-            // Otherwise, create a new scope
-            begin_new_scope();
-        }
-    */
-    begin_new_scope();
-}
+static void begin_scope() { begin_new_scope(); }
 
 static void end_scope() {
     printf("Now leaving scope level %d\n", curr->level);

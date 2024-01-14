@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
                 print_symbol_tables();
 #endif
             } else {
-                log_error("Invalid AST generated during parsing.");
+                log_error("Unreadable AST generated during parsing.");
             }
         } else {
             log_error("Provide valid file path.");
