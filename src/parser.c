@@ -503,8 +503,8 @@ static node *parse_and_expr() {
             if (e2 != NULL) {
                 retval = mk_node(N_BINOP_EXPR);
                 if (retval != NULL) {
-                    retval->data.bin_op_expr.lhs     = e1;
-                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.lhs = e1;
+                    retval->data.bin_op_expr.rhs = e2;
                     retval->data.bin_op_expr.operator= ttype;
                 }
             } else {
@@ -591,8 +591,8 @@ static node *parse_compare_expr() {
             if (e2 != NULL) {
                 retval = mk_node(N_BINOP_EXPR);
                 if (retval != NULL) {
-                    retval->data.bin_op_expr.lhs     = e1;
-                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.lhs = e1;
+                    retval->data.bin_op_expr.rhs = e2;
                     retval->data.bin_op_expr.operator= ttype;
                 }
             } else {
@@ -637,8 +637,8 @@ static node *parse_add_expr() {
             if (e2 != NULL) {
                 retval = mk_node(N_BINOP_EXPR);
                 if (retval != NULL) {
-                    retval->data.bin_op_expr.lhs     = e1;
-                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.lhs = e1;
+                    retval->data.bin_op_expr.rhs = e2;
                     retval->data.bin_op_expr.operator= ttype;
                 }
             } else {
@@ -684,8 +684,8 @@ static node *parse_mult_expr() {
             if (e2 != NULL) {
                 retval = mk_node(N_BINOP_EXPR);
                 if (retval != NULL) {
-                    retval->data.bin_op_expr.lhs     = e1;
-                    retval->data.bin_op_expr.rhs     = e2;
+                    retval->data.bin_op_expr.lhs = e1;
+                    retval->data.bin_op_expr.rhs = e2;
                     retval->data.bin_op_expr.operator= ttype;
                 }
             } else {

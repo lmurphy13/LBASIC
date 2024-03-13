@@ -3,6 +3,7 @@
 # Author: Liam M. Murphy
 
 CC = gcc
+CLANG_FORMAT = clang-format-14
 
 SRCDIR = src
 SOURCES = $(wildcard $(SRCDIR)/*.c)
@@ -30,8 +31,8 @@ realclean:
 	rm /usr/local/bin/lbasic
 
 format:
-	clang-format-11 -i src/*.c
-	clang-format-11 -i src/*.h
+	$(CLANG_FORMAT) -i src/*.c
+	$(CLANG_FORMAT) -i src/*.h
 
 install:
 	cp lbasic /usr/local/bin
