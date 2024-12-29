@@ -8,7 +8,7 @@
 #define AST_H
 
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
 #include <stdbool.h>
 
 #define INDENT_WIDTH 4
@@ -70,6 +70,13 @@ typedef enum data_type {
     D_STRUCT  = 6,
     D_UNKNOWN = 7
 } data_type;
+
+typedef struct type_s {
+    data_type datatype;
+    bool is_function;
+    bool is_array;
+    char struct_type[MAX_LITERAL];
+} type_t;
 
 // Node types
 typedef struct program_s {

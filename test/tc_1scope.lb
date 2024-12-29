@@ -2,6 +2,6 @@ int a := 5;
 string b := "hello";
 bool c := true;
 
-a := 9;
+a := a + 6;
 
 string b := "goodbye";

@@ -4,15 +4,15 @@
  * Author: Liam M. Murphy
  */
 
-#if defined(DEBUG)
+#include "test.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "symtab.h"
-#include "test.h"
-#include "utils.h"
+#include "vector.h"
+#include "hashtable.h"
 
 static void print_header() { printf("Running internal tests.......\n"); }
 
@@ -43,10 +43,17 @@ void run_tests(void) {
 
     vector *v = mk_vector();
 
-    char *val1 = "val1";
-    char *val2 = "val2";
-    char *val3 = "val3";
-    char *val4 = "val4";
+    char *val1 = (char *)malloc(sizeof(char) * 5);
+    snprintf(val1, 5, "va1");
+
+    char *val2 = (char *)malloc(sizeof(char) * 5);
+    snprintf(val2, 5, "va2");
+
+    char *val3 = (char *)malloc(sizeof(char) * 5);
+    snprintf(val3, 5, "va3");
+
+    char *val4 = (char *)malloc(sizeof(char) * 5);
+    snprintf(val4, 5, "va4");
 
     if (v != NULL) {
         vector_add(v, val1);
@@ -109,6 +116,32 @@ void run_tests(void) {
     hashtable *ht = mk_hashtable();
 
     if (ht != NULL) {
+        char *liam = calloc(5, sizeof(char));
+        snprintf(liam, 5, "liam");
+
+        char *bob = calloc(4, sizeof(char));
+        snprintf(bob, 4, "bob");
+
+        char *alice = calloc(6, sizeof(char));
+        snprintf(alice, 6, "alice");
+
+        ht_insert(ht, "liam", liam);
+        ht_insert(ht, "bob", bob);
+        ht_insert(ht, "alice", alice);
+
+        char *foo = calloc(4, sizeof(char));
+        snprintf(foo, 4, "foo");
+
+        char *bar = calloc(4, sizeof(char));
+        snprintf(bar, 4, "bar");
+
+        ht_insert(ht, "alice", foo);
+        ht_insert(ht, "alice", bar);
+
+        ht_print(ht);
+        ht_free(&ht);
+
+        /*
         binding_t *b1 = mk_binding(SYMBOL_TYPE_VARIABLE);
         binding_t *b2 = mk_binding(SYMBOL_TYPE_VARIABLE);
 
@@ -134,7 +167,6 @@ void run_tests(void) {
         if (lookup1 != NULL) {
             print_binding(lookup1);
         }
+        */
     }
 }
-
-#endif

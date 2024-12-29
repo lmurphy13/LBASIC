@@ -3,10 +3,11 @@
 # Author: Liam M. Murphy
 
 CC = gcc
-CLANG_FORMAT = clang-format-14
+CLANG_FORMAT = clang-format
 
 SRCDIR = src
 SOURCES = $(wildcard $(SRCDIR)/*.c)
+#SOURCES := $(filter-out $(SRCDIR)/test.c, $(SOURCES))
 
 # Catchall sources -> objects
 OBJECTS = $(SOURCES:.c=.o)

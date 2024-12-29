@@ -1,28 +1,28 @@
 /**
- * Utilities Module
- * File: utils.c
+ * Vector Utility Module
+ * File: vector.c
  * Author: Liam M. Murphy
  */
 
+#include "vector.h"
+
+#include "error.h"
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "error.h"
-#include "symtab.h"
-#include "utils.h"
-
 vector *mk_vector() {
     vector *retval = NULL;
 
-    retval = (vector *)malloc(sizeof(vector));
+    retval = (vector *)calloc(1, sizeof(vector));
 
     if (retval == NULL) {
         log_error("Unable to allocate new vector");
         return retval;
     }
 
-    memset(retval, 0, sizeof(*retval));
     retval->head  = NULL;
     retval->tail  = NULL;
     retval->count = 0;
@@ -37,6 +37,11 @@ void vector_free(vector **vec) {
 
             while (curr != NULL) {
                 vecnode *next = curr->next;
+
+                if (curr->data != NULL) {
+                    free(curr->data);
+                }
+
                 free(curr);
                 curr = next;
             }
@@ -50,8 +55,7 @@ void vector_free(vector **vec) {
 void vector_add(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
-            vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(*node));
+            vecnode *node = calloc(1, sizeof(vecnode));
 
             node->data = data;
             node->next = NULL;
@@ -66,7 +70,7 @@ void vector_add(vector *vec, void *data) {
 
             vec->count++;
 
-            printf("added new vector element\n");
+            //debug("added new vector element");
 
         } else {
             log_error("Cannot add NULL data to vector");
@@ -79,9 +83,7 @@ void vector_add(vector *vec, void *data) {
 void vector_prepend(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
-            vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(*node));
-
+            vecnode *node = calloc(1, sizeof(vecnode));
             node->data = data;
 
             if (vec->head == NULL) {
@@ -203,11 +205,7 @@ vecnode *get_nth_node(vector *vec, const int n) {
     if (vec != NULL) {
         const int length = vector_length(vec);
         if (n > length) {
-            char msg[128] = {'\0'};
-            snprintf(msg, sizeof(msg), "Cannot get node %d from a vector with length %d", n,
-                     length);
-
-            log_error(msg);
+            log_error("Cannot get node %d from a vector with length %d", n, length);
         } else {
             vecnode *vn = vec->head;
             int index   = 1;
@@ -229,138 +227,3 @@ vecnode *get_nth_node(vector *vec, const int n) {
 
     return retval;
 }
-
-// Allocate a new hash table
-hashtable *mk_hashtable() {
-    hashtable *retval = (hashtable *)malloc(sizeof(hashtable));
-
-    if (retval != NULL) {
-        memset(retval, 0, sizeof(*retval));
-    }
-
-    return retval;
-}
-
-// Free a hash table
-// void ht_free(hashtable *ht);
-
-// Private naive hash function.
-// If there are too many collisions, we will change this
-static unsigned int ht_hash(void *key) {
-    unsigned int accum = 0;
-
-    if (key == NULL) {
-        log_error("Unable to access key for hashing");
-    }
-
-    // Cast key as a char *
-    char *data = key;
-
-    // Size of key
-    const size_t keysize = strlen(data);
-#if defined(DEBUG)
-    printf("Key size: %ld\n", keysize);
-#endif
-
-    // Sum each byte
-    for (size_t idx = 0; idx < keysize; idx += 1) {
-        const unsigned int val = data[idx];
-        accum += val;
-    }
-
-    const unsigned int retval = accum % MAX_SLOTS;
-    return retval;
-}
-
-// Insert an element
-void ht_insert(hashtable *ht, void *key, void *data) {
-    if (ht != NULL) {
-        if (key != NULL) {
-            if (data != NULL) {
-                unsigned int index = ht_hash(key);
-                printf("INDEX INSERT: %u\n", index);
-
-                if (ht->slots[index] == NULL) {
-                    ht->slots[index] = mk_vector();
-                    if (ht->slots[index] != NULL) {
-                        vector_add(ht->slots[index], data);
-                        ht->num_values++;
-                    } else {
-                        char msg[MAX_ERROR_LEN] = {'\0'};
-                        snprintf(msg, sizeof(msg),
-                                 "Unable to create vector for hashtable insertion at index: %d",
-                                 index);
-                        log_error(msg);
-                    }
-                } else {
-                    // Hash index collision, so append to vector (buckets 'n chaining)
-                    vector_add(ht->slots[index], data);
-                    ht->num_values++;
-                }
-            } else {
-                log_error("Unable to access data for insertion");
-            }
-        } else {
-            log_error("Unable to access key for insertion");
-        }
-    } else {
-        log_error("Unable to access hashtable for insertion");
-    }
-}
-
-// Lookup an element
-void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *key)) {
-    void *retval = NULL;
-
-    if (ht != NULL) {
-        if (key != NULL) {
-            unsigned int index = ht_hash(key);
-            printf("INDEX LOOKUP: %u\n", index);
-
-            vector *slot_ptr = ht->slots[index];
-            if (slot_ptr != NULL) {
-                if (slot_ptr->count == 1) {
-                    printf("here!\n");
-                    vecnode *vn = slot_ptr->head;
-                    if (vn != NULL) {
-                        retval = vn->data;
-                    } else {
-                        log_error("Unable to access vecnode at vector head for lookup");
-                    }
-                } else {
-                    // Need to check each node in the vector for a match
-                    vecnode *vn = slot_ptr->head;
-                    if (vn != NULL) {
-                        while (vn != NULL) {
-                            // Use comparison callback to become generic
-                            if ((*ht_compare)(vn, key)) {
-                                retval = vn->data;
-                                break;
-                            }
-                            vn = vn->next;
-                        }
-                    }
-                }
-            } else {
-                printf("Vector does not exist at index %d\n", index);
-            }
-        } else {
-            log_error("Unable to access key for lookup");
-        }
-    } else {
-        log_error("Unable to access hashtable for lookup");
-    }
-
-    return retval;
-}
-
-// TODO: Be smarter here: iterate through table and free key/value pairs
-// This is definitely a memory leak
-void ht_free(hashtable *ht) {
-    if (ht != NULL) {
-        free(ht);
-    }
-}
-
-// Remove an element
-// void ht_remove(hashtable *ht, void *key);

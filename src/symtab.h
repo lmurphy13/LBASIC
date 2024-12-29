@@ -9,7 +9,8 @@
 
 #include "ast.h"
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
+#include "hashtable.h"
 
 #include <stdlib.h>
 
@@ -64,12 +65,17 @@ typedef struct binding_s {
 } binding_t;
 
 typedef struct symtab_s {
-    unsigned int level;
-    bool seen;
+    unsigned int scope;
+    //    bool seen;
     hashtable *table;
+    struct symtab_s *prev;
+    struct symtab_s *next;
 } symtab_t;
 
+/* Symbol table interface */
 symtab_t *symtab_new(void);
+void symtab_insert(symtab_t *st, binding_t *binding);
+binding_t *symtab_lookup(symtab_t *st, char *identifier);
 void symtab_free(symtab_t *st);
 
 binding_t *mk_binding(symbol_type_t);
@@ -78,7 +84,7 @@ binding_t *mk_binding(symbol_type_t);
 bool ht_compare_binding(vecnode *vn, void *key);
 
 void print_binding(const binding_t *);
-void print_table(const symtab_t *);
+void print_symbol_table(const symtab_t *);
 // sym_data_type ast_data_type_to_binding_data_type(data_type t);
 // data_type sym_data_to_data_type(sym_data_type t);
 

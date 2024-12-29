@@ -15,9 +15,7 @@
 #include "token.h"
 #include "typechecker.h"
 
-#if defined(DEBUG)
 #include "test.h"
-#endif
 
 void print_usage() {
     printf("LBASIC Compiler Usage\n");

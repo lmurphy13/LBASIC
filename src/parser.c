@@ -9,7 +9,7 @@
 #include "ast.h"
 #include "error.h"
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -275,10 +275,7 @@ static node *parse_statement(bool *more) {
                 break;
             } else if (strcmp(tmp->literal, ";") == 0) {
                 // Maybe we'll make this a no-op situation, but for now just raise an error
-                char str[MAX_ERROR_LEN] = {'\0'};
-                snprintf(str, sizeof(str), "Illegal statement: %s%s (line %d, col: %d)",
-                         lookahead.literal, tmp->literal, tmp->line, tmp->col);
-                log_error(str);
+                log_error("Illegal statement: %s%s (line %d, col: %d)", lookahead.literal, tmp->literal, tmp->line, tmp->col);
             } else if (strcmp(tmp->literal, ".") == 0) {
                 // Likely a struct access
                 retval = parse_expression();
@@ -925,6 +922,7 @@ static vector *parse_arg_list() {
     return retval;
 }
 
+// Known issue: if a function call, like a print statement, is on its own, the parser does not properly detect the lack of a semicolon (in this case, it is correctly parsed with or without the semicolon)
 // <call-expr> := <identifier> '(' ( <arg-list> )? ')'
 static node *parse_call_expr() {
     node *retval = mk_node(N_CALL_EXPR);
@@ -1244,11 +1242,8 @@ static node *parse_expression() {
             retval = parse_array_init_expr();
             break;
         default: {
-            char str[MAX_ERROR_LEN] = {'\0'};
-            snprintf(str, sizeof(str),
-                     "Unknown token at beginning of expression: %s (line %d, col: %d)\n%s",
+            log_error("Unknown token at beginning of expression: %s (line %d, col: %d)\n%s",
                      lookahead.literal, lookahead.line, lookahead.col, lookahead.line_str);
-            log_error(str);
         }
     }
 

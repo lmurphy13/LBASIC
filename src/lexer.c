@@ -13,7 +13,7 @@
 #include "error.h"
 #include "lexer.h"
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
 
 #define N_KEYWORDS 21
 #define MAX_KEYWORD_LEN 20

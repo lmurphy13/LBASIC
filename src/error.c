@@ -9,14 +9,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-void log_error(const char *msg) {
-    printf("ERROR: %s\n", msg);
-    exit(1);
+void log_error(const char *format, ...) {
+    printf("[ERROR]: ");
+
+    va_list args;
+    va_start(args, format);
+
+    vprintf(format, args);
+
+    va_end(args);
+
+    printf("\n");
+
+    exit(EXIT_GENERIC_ERROR);
 }
 
-void debug_msg(const char *msg) {
+void debug(const char *format, ...) {
 #if defined(DEBUG)
-    // Append two newlines to the end of msg
-    printf("%s\n\n", msg);
+    printf("[DEBUG]: ");
+
+    va_list args;
+    va_start(args, format);
+
+    vprintf(format, args);
+
+    va_end(args);
+
+    printf("\n");
 #endif
 }

@@ -1,18 +1,14 @@
 /**
- * Utilities Module Public Definitions
- * File: utils.h
+ * Vector Utility Public Definitions
+ * File: vector.h
  * Author: Liam M. Murphy
  */
 
-#ifndef UTILS_H
-#define UTILS_H
-
-#include <stdbool.h>
+#ifndef VECTOR_H
+#define VECTOR_H
 
 #define MAX_LINE 4096
-#define MAX_SLOTS 1024
 
-/* Vectors */
 typedef struct vecnode {
     void *data;
     struct vecnode *next;
@@ -23,11 +19,6 @@ typedef struct vector {
     vecnode *tail;
     int count;
 } vector;
-
-typedef struct hashtable {
-    vector *slots[MAX_SLOTS];
-    int num_values; // The sum of all elements within the table
-} hashtable;
 
 // Allocate a new vector
 vector *mk_vector(void);
@@ -65,20 +56,5 @@ typedef struct line_s {
     char text[MAX_LINE];
 } line_t;
 
-/* Hash Table */
-// Allocate a new hash table
-hashtable *mk_hashtable(void);
 
-// Free a hash table
-void ht_free(hashtable *ht);
-
-// Insert an element
-void ht_insert(hashtable *ht, void *key, void *data);
-
-// Lookup an element
-void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *key));
-
-// Remove an element
-void ht_remove(hashtable *ht, void *key);
-
-#endif // UTILS_H
+#endif
