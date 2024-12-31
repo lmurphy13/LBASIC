@@ -19,7 +19,7 @@ typedef struct hashtable {
 
 /* Hash Table */
 // Allocate a new hash table
-hashtable *mk_hashtable(void);
+hashtable *ht_new(void);
 
 // Free a hash table
 void ht_free(hashtable **ht);

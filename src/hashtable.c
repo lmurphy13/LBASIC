@@ -8,7 +8,7 @@
 #include "error.h"
 
 // Allocate a new hash table
-hashtable *mk_hashtable() {
+hashtable *ht_new() {
     hashtable *retval = NULL;
 
     retval = (hashtable *)calloc(1, sizeof(hashtable));
@@ -16,8 +16,17 @@ hashtable *mk_hashtable() {
     return retval;
 }
 
-// Free a hash table
-// void ht_free(hashtable *ht);
+void ht_free(hashtable **ht) {
+    if (ht != NULL && *ht != NULL) {
+        for (int slot = 0; slot < MAX_SLOTS; slot++) {
+            if ((*ht)->slots[slot] != NULL) {
+                vector_free(&(*ht)->slots[slot]);
+            }
+        }
+        free(*ht);
+        *ht = NULL;
+    }
+}
 
 // FNV-1a hash algorithm from https://craftinginterpreters.com/hash-tables.html
 static uint32_t ht_hash_FNV_1a(void *key) {
@@ -52,7 +61,8 @@ void ht_insert(hashtable *ht, void *key, void *data) {
                         vector_add(ht->slots[index], data);
                         ht->num_values++;
                     } else {
-                        log_error("Unable to create vector for hashtable insertion at index: %d", index);
+                        log_error("Unable to create vector for hashtable insertion at index: %d",
+                                  index);
                     }
                 } else {
                     // Hash index collision, so append to vector (buckets 'n chaining)
@@ -77,12 +87,12 @@ void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *
     if (ht != NULL) {
         if (key != NULL) {
             const unsigned int index = ht_hash_FNV_1a(key) % MAX_SLOTS;
-            printf("INDEX LOOKUP: %u\n", index);
+            debug("INDEX LOOKUP: %u", index);
 
             vector *slot_ptr = ht->slots[index];
             if (slot_ptr != NULL) {
                 if (slot_ptr->count == 1) {
-                    printf("here!\n");
+                    // printf("here!\n");
                     vecnode *vn = slot_ptr->head;
                     if (vn != NULL) {
                         retval = vn->data;
@@ -134,19 +144,6 @@ void ht_print(hashtable *ht) {
                 printf("NULL\n");
             }
         }
-    }
-}
-
-// Must set ht to NULL after calling
-void ht_free(hashtable **ht) {
-    if (ht != NULL && *ht != NULL) {
-        for (int slot = 0; slot < MAX_SLOTS; slot++) {
-            if ((*ht)->slots[slot] != NULL) {
-                vector_free(&(*ht)->slots[slot]);
-            }
-        }
-        free(*ht);
-        *ht = NULL;
     }
 }
 

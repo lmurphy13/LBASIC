@@ -8,9 +8,9 @@
 #define SYMTAB_H
 
 #include "ast.h"
+#include "hashtable.h"
 #include "token.h"
 #include "vector.h"
-#include "hashtable.h"
 
 #include <stdlib.h>
 
@@ -30,6 +30,7 @@ typedef struct b_function_s {
     bool is_struct_type;
     unsigned int num_dimensions;
     unsigned int num_args;
+    vector *formals; // vector of formal_t, one for each formal argument
 } b_function_t;
 
 typedef struct b_variable_s {
@@ -66,6 +67,7 @@ typedef struct binding_s {
 
 typedef struct symtab_s {
     unsigned int scope;
+    char name[MAX_LITERAL];
     //    bool seen;
     hashtable *table;
     struct symtab_s *prev;

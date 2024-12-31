@@ -17,6 +17,8 @@
 
 #define N_KEYWORDS 21
 #define MAX_KEYWORD_LEN 20
+#define REQUIRED_FILE_EXT_LC ".lb"
+#define REQUIRED_FILE_EXT_UC ".LB"
 
 // Prototypes
 static char *input_file(const char *path);
@@ -59,13 +61,13 @@ void split_into_lines(const char *path) {
         fclose(fp);
     }
 
-    printf("Lines:\n");
+    debug("Lines:");
 
     vecnode *ln = line_map->head;
     int i       = 1;
     while (ln != NULL) {
         line_t *line = (line_t *)ln->data;
-        printf("%3d. %s", i, line->text);
+        debug("%3d. %s", i, line->text);
         i++;
 
         ln = ln->next;
@@ -78,7 +80,7 @@ t_list *lex(const char *path) {
 
     if (prog_buff != NULL) {
         split_into_lines(path);
-        printf("=================================\n");
+        debug("=================================\n");
 
         token_list = t_list_new();
 
@@ -98,6 +100,17 @@ t_list *lex(const char *path) {
 
 // Takes a file path and returns a buffer containing the contents of the file at path
 static char *input_file(const char *path) {
+    char extension[4] = {'\0'};
+
+    // If path is "testfile.lb", we are pointing to the "."
+    strncpy(extension, &path[strlen(path) - 3], 3);
+    extension[4] = '\0';
+
+    if ((strcmp(extension, REQUIRED_FILE_EXT_LC) != 0) &&
+        (strcmp(extension, REQUIRED_FILE_EXT_UC) != 0)) {
+        log_error("File name must end with '.lb' or '.LB'");
+    }
+
     FILE *fp     = fopen(path, "r");
     char *buffer = NULL;
 
@@ -105,7 +118,7 @@ static char *input_file(const char *path) {
         // Get file size
         fseek(fp, 0, SEEK_END);
         const size_t file_size = ftell(fp);
-        printf("file size: %ld\n", file_size);
+        debug("File size: %ld bytes", file_size);
 
         // Seek back to the beginning of the file
         rewind(fp);

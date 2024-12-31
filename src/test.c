@@ -10,9 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "hashtable.h"
 #include "symtab.h"
 #include "vector.h"
-#include "hashtable.h"
 
 static void print_header() { printf("Running internal tests.......\n"); }
 
@@ -113,7 +113,7 @@ void run_tests(void) {
 
     printf("Running hashtable tests................\n");
 
-    hashtable *ht = mk_hashtable();
+    hashtable *ht = ht_new();
 
     if (ht != NULL) {
         char *liam = calloc(5, sizeof(char));

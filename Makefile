@@ -12,6 +12,7 @@ SOURCES = $(wildcard $(SRCDIR)/*.c)
 # Catchall sources -> objects
 OBJECTS = $(SOURCES:.c=.o)
 
+#CFLAGS = -g -O0
 CFLAGS = -g -O0 -DDEBUG
 
 # Enable all warnings, except for -Wrestrict and -Wformat-overflow.

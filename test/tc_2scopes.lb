@@ -1,21 +1,42 @@
-string a := "Hello world!";
+int a := 5;
+string b := "hello";
+bool c := true;
+float d := 3.14;
 
-func subroutine(int a) -> int
+'a := 4 - (0 * 3.1);
+a := a * 2;
+
+'string b := "goodbye";
+
+func fib(int n) -> int
 then
-    float pi := 3.14;
 
-    if (a == 0) then
-        string liam := "we're here!";
-        return a;
-    else then
-        liam := "now we're down here!";
-        return subroutine(a - 1);
-    end
+'    n := nil;
+'    println(n);
+'    return nil;
 end
 
-subroutine(10);
-println(a);
+func someFunction(int x, int y, bool z) -> void
+then
+    a := a + x;
+    y := y - a;
 
-string b := a;
+    'if ((x + y) > 0) then
+    '    z := true;
+    'end
 
-pi := pi + 1.0;
+    bool ret := z;
+
+    'println(ret);
+
+    return ret;
+end
+
+'func fib(int x) -> float
+'then
+'    if ((x == 0) or (x == 1)) then
+'        return x;
+'    else then
+'        return fib(x - 1) + fib(x - 2);
+'    end
+'end

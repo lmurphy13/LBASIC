@@ -56,5 +56,4 @@ typedef struct line_s {
     char text[MAX_LINE];
 } line_t;
 
-
 #endif

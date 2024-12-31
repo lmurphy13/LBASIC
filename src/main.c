@@ -71,9 +71,6 @@ int main(int argc, char *argv[]) {
 
                 // Semantic analysis
                 typecheck(program);
-#if defined(DEBUG)
-                print_symbol_tables();
-#endif
             } else {
                 log_error("Unreadable AST generated during parsing.");
             }

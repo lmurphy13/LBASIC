@@ -12,6 +12,5 @@
 
 // Prototypes
 void typecheck(node *ast);
-void print_symbol_tables(void);
 
 #endif // TYPECHECKER_H

@@ -70,7 +70,7 @@ void vector_add(vector *vec, void *data) {
 
             vec->count++;
 
-            //debug("added new vector element");
+            // debug("added new vector element");
 
         } else {
             log_error("Cannot add NULL data to vector");
@@ -84,7 +84,7 @@ void vector_prepend(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
             vecnode *node = calloc(1, sizeof(vecnode));
-            node->data = data;
+            node->data    = data;
 
             if (vec->head == NULL) {
                 vec->head = node;

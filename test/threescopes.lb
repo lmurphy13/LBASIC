@@ -1,0 +1,21 @@
+0   string a := "Hello world!";
+0   
+0   func subroutine(int a) -> int
+    then
+1       float pi := 3.14;
+1
+1       if (a == 0) then
+2            string liam := "we're here!";
+2            return a;
+1       else then
+3            liam := "now we're down here!";
+3            return subroutine(a - 1);
+1        end
+1    end
+
+0   subroutine(10);
+0   println(a);
+
+0   string b := a;
+
+0   pi := pi + 1.0;

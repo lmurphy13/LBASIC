@@ -192,14 +192,14 @@ node *parse(t_list *tokens) {
 static vector *parse_statements() {
     vector *retval = mk_vector();
     bool more      = true;
-    printf("parsing stmts\n");
+    debug("parsing stmts");
 
     if (retval != NULL) {
         do {
             node *new_node = parse_statement(&more);
             if (new_node != NULL) {
                 print_lookahead_debug("adding statement node");
-                printf("NODE TYPE: %d\n", new_node->type);
+                debug("NODE TYPE: %d\n", new_node->type);
                 vector_add(retval, new_node);
 
                 // If we reach the end of the file, break out
@@ -231,7 +231,7 @@ static vector *parse_statements() {
 //              | ( <expression> )
 static node *parse_statement(bool *more) {
     node *retval = NULL;
-    printf("type: %d\n", lookahead.type);
+    debug("type: %d", lookahead.type);
 
     switch (lookahead.type) {
         case T_THEN:
@@ -252,7 +252,7 @@ static node *parse_statement(bool *more) {
         case T_IDENT: {
             print_lookahead_debug("ident");
             token *tmp = peek();
-            printf("tmp literal: %s\n", tmp->literal);
+            debug("tmp literal: %s", tmp->literal);
 
             if (strcmp(tmp->literal, ":=") == 0) {
                 retval = parse_expression();
@@ -275,7 +275,8 @@ static node *parse_statement(bool *more) {
                 break;
             } else if (strcmp(tmp->literal, ";") == 0) {
                 // Maybe we'll make this a no-op situation, but for now just raise an error
-                log_error("Illegal statement: %s%s (line %d, col: %d)", lookahead.literal, tmp->literal, tmp->line, tmp->col);
+                log_error("Illegal statement: %s%s (line %d, col: %d)", lookahead.literal,
+                          tmp->literal, tmp->line, tmp->col);
             } else if (strcmp(tmp->literal, ".") == 0) {
                 // Likely a struct access
                 retval = parse_expression();
@@ -922,8 +923,9 @@ static vector *parse_arg_list() {
     return retval;
 }
 
-// Known issue: if a function call, like a print statement, is on its own, the parser does not properly detect the lack of a semicolon (in this case, it is correctly parsed with or without the semicolon)
-// <call-expr> := <identifier> '(' ( <arg-list> )? ')'
+// Known issue: if a function call, like a print statement, is on its own, the parser does not
+// properly detect the lack of a semicolon (in this case, it is correctly parsed with or without the
+// semicolon) <call-expr> := <identifier> '(' ( <arg-list> )? ')'
 static node *parse_call_expr() {
     node *retval = mk_node(N_CALL_EXPR);
 
@@ -1231,6 +1233,7 @@ static node *parse_expression() {
         case T_LPAREN:
         case T_BANG:
         case T_MINUS:
+        case T_NIL:
             // Entry point into arithmetic expressions and booleans
             retval = parse_and_expr();
             break;
@@ -1243,7 +1246,7 @@ static node *parse_expression() {
             break;
         default: {
             log_error("Unknown token at beginning of expression: %s (line %d, col: %d)\n%s",
-                     lookahead.literal, lookahead.line, lookahead.col, lookahead.line_str);
+                      lookahead.literal, lookahead.line, lookahead.col, lookahead.line_str);
         }
     }
 
