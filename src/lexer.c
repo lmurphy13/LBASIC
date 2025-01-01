@@ -338,9 +338,8 @@ static void tokenize(char *prog_buff) {
                             unget_char();
                             unget_char();
                             c = get_char(prog_buff);
-                            printf(
-                                "ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
-                                line_num, col_num, c, char_num);
+                            log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)",
+                                      line_num, col_num, c, char_num);
                             exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                         }
                         break;
@@ -485,8 +484,8 @@ static void tokenize(char *prog_buff) {
                 col_num++;
 
                 if (!is_digit(c)) {
-                    printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
-                           line_num, col_num, c, char_num);
+                    log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)", line_num,
+                              col_num, c, char_num);
                     exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                 }
 
@@ -508,8 +507,8 @@ static void tokenize(char *prog_buff) {
         }
 
         else {
-            printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n", line_num,
-                   col_num, c, char_num);
+            log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)", line_num, col_num,
+                      c, char_num);
             exit(LEXER_ERROR_UNKNOWN_CHARACTER);
         }
 

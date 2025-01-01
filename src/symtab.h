@@ -17,10 +17,11 @@
 typedef enum symbol_type_s {
     SYMBOL_TYPE_FUNCTION  = 0,
     SYMBOL_TYPE_VARIABLE  = 1,
-    SYMBOL_TYPE_STRUCTURE = 2,
-    SYMBOL_TYPE_MEMBER    = 3,
-    SYMBOL_TYPE_UNKNOWN   = 4,
-    NUM_SYMBOL_TYPES      = 5
+    SYMBOL_TYPE_FORMAL    = 2,
+    SYMBOL_TYPE_STRUCTURE = 3,
+    SYMBOL_TYPE_MEMBER    = 4,
+    SYMBOL_TYPE_UNKNOWN   = 5,
+    NUM_SYMBOL_TYPES      = 6
 } symbol_type_t;
 
 typedef struct b_function_s {
@@ -33,6 +34,7 @@ typedef struct b_function_s {
     vector *formals; // vector of formal_t, one for each formal argument
 } b_function_t;
 
+// Can be used for either variables or formal args.
 typedef struct b_variable_s {
     data_type type;
     char struct_type[MAX_LITERAL];
@@ -66,7 +68,7 @@ typedef struct binding_s {
 } binding_t;
 
 typedef struct symtab_s {
-    unsigned int scope;
+    unsigned int level;
     char name[MAX_LITERAL];
     //    bool seen;
     hashtable *table;
@@ -77,7 +79,7 @@ typedef struct symtab_s {
 /* Symbol table interface */
 symtab_t *symtab_new(void);
 void symtab_insert(symtab_t *st, binding_t *binding);
-binding_t *symtab_lookup(symtab_t *st, char *identifier);
+binding_t *symtab_lookup(symtab_t *st, char *identifier, bool single_scope);
 void symtab_free(symtab_t *st);
 
 binding_t *mk_binding(symbol_type_t);

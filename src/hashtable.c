@@ -34,7 +34,7 @@ static uint32_t ht_hash_FNV_1a(void *key) {
 
     const size_t length = strlen(charkey);
 
-    debug("Length: %d", length);
+    // debug("Length: %d", length);
 
     uint32_t hash = 2166136261U;
     for (int i = 0; i < length; i++) {
@@ -42,7 +42,7 @@ static uint32_t ht_hash_FNV_1a(void *key) {
         hash *= 16777619;
     }
 
-    debug("Hash: %lu", hash);
+    // debug("Hash: %lu", hash);
 
     return hash;
 }
@@ -53,7 +53,7 @@ void ht_insert(hashtable *ht, void *key, void *data) {
         if (key != NULL) {
             if (data != NULL) {
                 const unsigned int index = ht_hash_FNV_1a(key) % MAX_SLOTS;
-                printf("INDEX INSERT: %u (key=%s)\n", index, (char *)key);
+                // printf("INDEX INSERT: %u (key=%s)\n", index, (char *)key);
 
                 if (ht->slots[index] == NULL) {
                     ht->slots[index] = mk_vector();
@@ -87,7 +87,7 @@ void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *
     if (ht != NULL) {
         if (key != NULL) {
             const unsigned int index = ht_hash_FNV_1a(key) % MAX_SLOTS;
-            debug("INDEX LOOKUP: %u", index);
+            // debug("INDEX LOOKUP: %u", index);
 
             vector *slot_ptr = ht->slots[index];
             if (slot_ptr != NULL) {
@@ -114,7 +114,7 @@ void *ht_lookup(hashtable *ht, void *key, bool (*ht_compare)(vecnode *vn, void *
                     }
                 }
             } else {
-                printf("Vector does not exist at index %d\n", index);
+                // debug("Vector does not exist at index %d\n", index);
             }
         } else {
             log_error("Unable to access key for lookup");

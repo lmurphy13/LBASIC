@@ -27,7 +27,7 @@ symtab_t *symtab_new(void) {
     symtab_t *retval = (symtab_t *)calloc(1, sizeof(symtab_t));
 
     if (retval != NULL) {
-        retval->scope = 0;
+        retval->level = 0;
         retval->table = ht_new();
         retval->prev  = NULL;
         retval->next  = NULL;
@@ -43,25 +43,33 @@ symtab_t *symtab_new(void) {
 void symtab_insert(symtab_t *st, binding_t *binding) {
     if (st != NULL) {
         ht_insert(st->table, binding->name, binding);
+
+        debug("Added '%s' (symbol type %d) to scope level %d", binding->name, binding->symbol_type,
+              st->level);
     } else {
         log_error("Symbol table is NULL");
     }
 }
 
-binding_t *symtab_lookup(symtab_t *scope, char *identifier) {
+binding_t *symtab_lookup(symtab_t *scope, char *identifier, bool single_scope) {
     binding_t *retval = NULL;
 
     if (scope != NULL) {
+        debug("Looking within scope level %d (name='%s')", scope->level, scope->name);
         retval = ht_lookup(scope->table, (char *)identifier, ht_compare_binding);
 
         // Nothing found
         if (NULL == retval) {
-            if (scope->prev == NULL) {
-                // If we are already in the global scope, we didn't find anything
-                return NULL;
-            } else {
-                // If the identifier isn't found in the current scope, look in its parent
-                retval = symtab_lookup(scope->prev, identifier);
+            // If single_scope is true, we are limiting our search to the current scope only
+            if (!single_scope) {
+                // Otherwise, potentially search parent scopes
+                if (scope->prev == NULL) {
+                    // If we are already in the global scope, we didn't find anything
+                    return NULL;
+                } else {
+                    // If the identifier isn't found in the current scope, look in its parent
+                    retval = symtab_lookup(scope->prev, identifier, single_scope);
+                }
             }
         }
     } else {
@@ -136,6 +144,15 @@ void print_binding(const binding_t *binding) {
                        binding->data.variable_type.is_struct_type,
                        binding->data.variable_type.struct_type);
                 break;
+            case SYMBOL_TYPE_FORMAL:
+                printf("%s\tFORMAL\t%s\tis_array: %d (dimensions=%d)\tis_struct: %d "
+                       "(struct_type='%s')\n",
+                       binding->name, type_to_str(binding->data.variable_type.type),
+                       binding->data.variable_type.is_array_type,
+                       binding->data.variable_type.num_dimensions,
+                       binding->data.variable_type.is_struct_type,
+                       binding->data.variable_type.struct_type);
+                break;
             case SYMBOL_TYPE_STRUCTURE:
                 debug("none yet");
                 break;
@@ -146,18 +163,20 @@ void print_binding(const binding_t *binding) {
             default:
                 log_error("Unknown binding type (type=%d)", binding->symbol_type);
         }
+        printf("-----------------------------------------------------------------------------------"
+               "-----------------\n");
     }
 }
 
 void print_symbol_table(const symtab_t *st) {
-    if (st->scope != 0) {
+    if (st->level != 0) {
         log_error("%s() must be called on scope 0", __FUNCTION__);
     }
 
     printf("NAME\tSYMBOL TYPE\tDATA TYPE\tETC.\n");
     printf("======================================================================================="
-           "=\n");
-    printf("Scope: %d (name='%s')\n", st->scope, st->name);
+           "=============\n");
+    printf("Scope: %d (name='%s')\n", st->level, st->name);
     for (int row = 0; row < MAX_SLOTS; row++) {
         if (NULL != st->table->slots[row]) {
             if (st->table->slots[row]->count > 1) {
@@ -169,13 +188,14 @@ void print_symbol_table(const symtab_t *st) {
         }
     }
     printf("======================================================================================="
-           "=\n");
+           "=============\n\n\n");
 
     symtab_t *tab = st->next;
     while (NULL != tab) {
         printf("==================================================================================="
-               "=====\n");
-        printf("Scope: %d (name='%s')\n", tab->scope, tab->name);
+               "===="
+               "=============\n");
+        printf("Scope: %d (name='%s')\n", tab->level, tab->name);
         for (int row = 0; row < MAX_SLOTS; row++) {
             if (NULL != tab->table->slots[row]) {
                 if (tab->table->slots[row]->count > 1) {
@@ -187,7 +207,8 @@ void print_symbol_table(const symtab_t *st) {
             }
         }
         printf("==================================================================================="
-               "=====\n");
+               "===="
+               "=============\n\n\n");
 
         tab = tab->next;
     }

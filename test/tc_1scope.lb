@@ -4,4 +4,6 @@ bool c := true;
 
 a := a + 6;
 
-string b := "goodbye";
+bool d := (a > 0);
+
+'string b := "goodbye";
