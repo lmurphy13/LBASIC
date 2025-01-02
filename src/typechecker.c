@@ -369,9 +369,8 @@ static type_t get_type(node *n) {
         case N_NEG_EXPR:
             do_typecheck(n);
             type = get_type(n->data.neg_expr.expr);
+            break;
         case N_NOT_EXPR:
-            // Intentional fallthrough since CallExpr, NegExpr, and NotExpr all have expressions,
-            // so continue visiting until a "leaf" node is found.
             do_typecheck(n);
             type = get_type(n->data.not_expr.expr);
             break;
