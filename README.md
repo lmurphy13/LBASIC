@@ -4,7 +4,7 @@ A simple, compiled language with syntax inspired by C and BASIC
 
 ### Dependencies:
 - Some reasonably current version of GCC (v10 or greater, perhaps)
-- clang-format-11
+- clang-format
 
 ### Progress:
 - [x] Lexer

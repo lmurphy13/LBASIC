@@ -55,7 +55,8 @@ binding_t *symtab_lookup(symtab_t *scope, char *identifier, bool single_scope) {
     binding_t *retval = NULL;
 
     if (scope != NULL) {
-        debug("Looking within scope level %d (name='%s')", scope->level, scope->name);
+        debug("Looking for '%s' within scope level %d (name='%s')", identifier, scope->level,
+              scope->name);
         retval = ht_lookup(scope->table, (char *)identifier, ht_compare_binding);
 
         // Nothing found

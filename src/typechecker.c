@@ -263,7 +263,8 @@ static type_t get_type(node *n) {
         log_error("Unable to access node for type checking");
     }
 
-    type_t type = {0};
+    type_t type = {
+        .datatype = D_UNKNOWN, .is_array = false, .is_function = false, .struct_type = ""};
 
     switch (n->type) {
         case N_IDENT:
@@ -364,6 +365,15 @@ static type_t get_type(node *n) {
             break;
         case N_CALL_EXPR:
             do_typecheck(n);
+            break;
+        case N_NEG_EXPR:
+            do_typecheck(n);
+            type = get_type(n->data.neg_expr.expr);
+        case N_NOT_EXPR:
+            // Intentional fallthrough since CallExpr, NegExpr, and NotExpr all have expressions,
+            // so continue visiting until a "leaf" node is found.
+            do_typecheck(n);
+            type = get_type(n->data.not_expr.expr);
             break;
         default:
             print_node(n, 0);
@@ -808,6 +818,12 @@ static void typecheck_return_stmt(node *ast) {
 
     // Since function definitions are contained within the parent scope, check the parent scope for
     // our function's return type
+    if (NULL == curr_scope->prev) {
+        // If the parent scope is NULL, this means we are already in the global scope,
+        // so we are likely a stray return outside of any function
+        type_error("'return' found outside of a function body.", ast);
+    }
+
     binding_t *func_binding = symtab_lookup(curr_scope->prev, curr_scope->name, false);
     if (NULL == func_binding) {
         // This means we are in a return statement for a function that does not exist.
@@ -890,8 +906,26 @@ static void typecheck_while_stmt(node *ast) {
     leave_curr_scope();
 }
 
-static void typecheck_empty_expr(node *ast) { assert(false && "Not yet implemented"); }
+static void typecheck_empty_expr(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
 
-static void typecheck_neg_expr(node *ast) { assert(false && "Not yet implemented"); }
+    // Nothing to check
+}
 
-static void typecheck_not_expr(node *ast) { assert(false && "Not yet implemented"); }
+static void typecheck_neg_expr(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
+
+    do_typecheck(ast->data.neg_expr.expr);
+}
+
+static void typecheck_not_expr(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
+
+    do_typecheck(ast->data.not_expr.expr);
+}
