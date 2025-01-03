@@ -1,0 +1,7 @@
+;
+
+bool a := true;
+int b := 4;
+b := -4;
+a := !a;
+

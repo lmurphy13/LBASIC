@@ -13,10 +13,12 @@
 #include "error.h"
 #include "lexer.h"
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
 
 #define N_KEYWORDS 21
 #define MAX_KEYWORD_LEN 20
+#define REQUIRED_FILE_EXT_LC ".lb"
+#define REQUIRED_FILE_EXT_UC ".LB"
 
 // Prototypes
 static char *input_file(const char *path);
@@ -50,7 +52,7 @@ void split_into_lines(const char *path) {
         char line_buff[MAX_LINE] = {'\0'};
         while (fgets(line_buff, MAX_LINE, fp) != NULL) {
             line_t *newline = (line_t *)malloc(sizeof(line_t));
-            memset(newline, 0, sizeof(newline));
+            memset(newline, 0, sizeof(*newline));
 
             snprintf(newline->text, sizeof(newline->text), "%s", line_buff);
             vector_add(line_map, newline);
@@ -59,13 +61,13 @@ void split_into_lines(const char *path) {
         fclose(fp);
     }
 
-    printf("Lines:\n");
+    debug("Lines:");
 
     vecnode *ln = line_map->head;
     int i       = 1;
     while (ln != NULL) {
         line_t *line = (line_t *)ln->data;
-        printf("%3d. %s", i, line->text);
+        debug("%3d. %s", i, line->text);
         i++;
 
         ln = ln->next;
@@ -78,7 +80,7 @@ t_list *lex(const char *path) {
 
     if (prog_buff != NULL) {
         split_into_lines(path);
-        printf("=================================\n");
+        debug("=================================\n");
 
         token_list = t_list_new();
 
@@ -98,6 +100,17 @@ t_list *lex(const char *path) {
 
 // Takes a file path and returns a buffer containing the contents of the file at path
 static char *input_file(const char *path) {
+    char extension[4] = {'\0'};
+
+    // If path is "testfile.lb", we are pointing to the "."
+    strncpy(extension, &path[strlen(path) - 3], 3);
+    extension[4] = '\0';
+
+    if ((strcmp(extension, REQUIRED_FILE_EXT_LC) != 0) &&
+        (strcmp(extension, REQUIRED_FILE_EXT_UC) != 0)) {
+        log_error("File name must end with '.lb' or '.LB'");
+    }
+
     FILE *fp     = fopen(path, "r");
     char *buffer = NULL;
 
@@ -105,7 +118,7 @@ static char *input_file(const char *path) {
         // Get file size
         fseek(fp, 0, SEEK_END);
         const size_t file_size = ftell(fp);
-        printf("file size: %d\n", file_size);
+        debug("File size: %ld bytes", file_size);
 
         // Seek back to the beginning of the file
         rewind(fp);
@@ -170,57 +183,57 @@ static bool check_singles(char c) {
     bool retval = true;
 
     switch (c) {
-    case '(':
-        emit_token(token_list, T_LPAREN, "(");
-        break;
-    case ')':
-        emit_token(token_list, T_RPAREN, ")");
-        break;
-    case '[':
-        emit_token(token_list, T_LBRACKET, "[");
-        break;
-    case ']':
-        emit_token(token_list, T_RBRACKET, "]");
-        break;
-    case '{':
-        emit_token(token_list, T_LBRACE, "{");
-        break;
-    case '}':
-        emit_token(token_list, T_RBRACE, "}");
-        break;
-    case ';':
-        emit_token(token_list, T_SEMICOLON, ";");
-        break;
-    case '+':
-        emit_token(token_list, T_PLUS, "+");
-        break;
-    case '*':
-        emit_token(token_list, T_MUL, "*");
-        break;
-    case '/':
-        emit_token(token_list, T_DIV, "/");
-        break;
-    case '%':
-        emit_token(token_list, T_MOD, "%");
-        break;
-    case ',':
-        emit_token(token_list, T_COMMA, ",");
-        break;
-    case '.':
-        emit_token(token_list, T_DOT, ".");
-        break;
-    // Intentional fallthrough
-    case '<':
-    case '>':
-    case '=':
-    case '!':
-    case ':':
-    case '-':
-    case '\'':
-    case '"':
-        return true;
-    default:
-        retval = false;
+        case '(':
+            emit_token(token_list, T_LPAREN, "(");
+            break;
+        case ')':
+            emit_token(token_list, T_RPAREN, ")");
+            break;
+        case '[':
+            emit_token(token_list, T_LBRACKET, "[");
+            break;
+        case ']':
+            emit_token(token_list, T_RBRACKET, "]");
+            break;
+        case '{':
+            emit_token(token_list, T_LBRACE, "{");
+            break;
+        case '}':
+            emit_token(token_list, T_RBRACE, "}");
+            break;
+        case ';':
+            emit_token(token_list, T_SEMICOLON, ";");
+            break;
+        case '+':
+            emit_token(token_list, T_PLUS, "+");
+            break;
+        case '*':
+            emit_token(token_list, T_MUL, "*");
+            break;
+        case '/':
+            emit_token(token_list, T_DIV, "/");
+            break;
+        case '%':
+            emit_token(token_list, T_MOD, "%");
+            break;
+        case ',':
+            emit_token(token_list, T_COMMA, ",");
+            break;
+        case '.':
+            emit_token(token_list, T_DOT, ".");
+            break;
+        // Intentional fallthrough
+        case '<':
+        case '>':
+        case '=':
+        case '!':
+        case ':':
+        case '-':
+        case '\'':
+        case '"':
+            return true;
+        default:
+            retval = false;
     }
 
     return retval;
@@ -250,8 +263,7 @@ static char get_char(char *prog_buff) {
 static void unget_char() { char_num--; }
 
 static void tokenize(char *prog_buff) {
-    static int state = 0;
-    char c           = 0;
+    char c = 0;
     char lexeme[MAX_LITERAL];
     token_type tmp;
 
@@ -317,71 +329,71 @@ static void tokenize(char *prog_buff) {
 
             else {
                 switch (c) {
-                case '=':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_EQ, "==");
-                    } else {
-                        unget_char();
-                        unget_char();
+                    case '=':
                         c = get_char(prog_buff);
-                        printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
-                               line_num, col_num, c, char_num);
-                        exit(LEXER_ERROR_UNKNOWN_CHARACTER);
-                    }
-                    break;
-                case '<':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_LE, "<=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_LT, "<");
-                    }
-                    break;
-                case '>':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_GE, ">=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_GT, ">");
-                    }
-                    break;
-                case '!':
-                    c = get_char(prog_buff);
-                    if (c == '=') {
-                        col_num++;
-                        emit_token(token_list, T_NE, "!=");
-                    } else {
-                        unget_char();
-                        emit_token(token_list, T_BANG, "!");
-                    }
-                    break;
-                case '-':
-                    c = get_char(prog_buff);
-                    // Are we a number?
-                    if (is_digit(c)) {
-                        // Append '-' to lexeme
-                        col_num++;
-                        sprintf(lexeme, "%s%c", lexeme, '-');
-                        goto lex_num;
-                        // Yes, using a goto is bad, but it's the easiest way to
-                        // directly parse a negative number with atoi or atof if we
-                        // encode the - within the token
-                    } else {
-                        if (c == '>') {
+                        if (c == '=') {
                             col_num++;
-                            emit_token(token_list, T_OFTYPE, "->");
+                            emit_token(token_list, T_EQ, "==");
                         } else {
                             unget_char();
-                            emit_token(token_list, T_MINUS, "-");
+                            unget_char();
+                            c = get_char(prog_buff);
+                            log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)",
+                                      line_num, col_num, c, char_num);
+                            exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                         }
-                    }
-                    break;
+                        break;
+                    case '<':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_LE, "<=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_LT, "<");
+                        }
+                        break;
+                    case '>':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_GE, ">=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_GT, ">");
+                        }
+                        break;
+                    case '!':
+                        c = get_char(prog_buff);
+                        if (c == '=') {
+                            col_num++;
+                            emit_token(token_list, T_NE, "!=");
+                        } else {
+                            unget_char();
+                            emit_token(token_list, T_BANG, "!");
+                        }
+                        break;
+                    case '-':
+                        c = get_char(prog_buff);
+                        // Are we a number?
+                        if (is_digit(c)) {
+                            // Append '-' to lexeme
+                            col_num++;
+                            sprintf(lexeme, "%s%c", lexeme, '-');
+                            goto lex_num;
+                            // Yes, using a goto is bad, but it's the easiest way to
+                            // directly parse a negative number with atoi or atof if we
+                            // encode the - within the token
+                        } else {
+                            if (c == '>') {
+                                col_num++;
+                                emit_token(token_list, T_OFTYPE, "->");
+                            } else {
+                                unget_char();
+                                emit_token(token_list, T_MINUS, "-");
+                            }
+                        }
+                        break;
                 }
             }
 
@@ -472,8 +484,8 @@ static void tokenize(char *prog_buff) {
                 col_num++;
 
                 if (!is_digit(c)) {
-                    printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n",
-                           line_num, col_num, c, char_num);
+                    log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)", line_num,
+                              col_num, c, char_num);
                     exit(LEXER_ERROR_UNKNOWN_CHARACTER);
                 }
 
@@ -495,8 +507,8 @@ static void tokenize(char *prog_buff) {
         }
 
         else {
-            printf("ERROR: Unknown character on line %d, col %d: \"%c\" (index: %d)\n", line_num,
-                   col_num, c, char_num);
+            log_error("Unknown character on line %d, col %d: \"%c\" (index: %d)", line_num, col_num,
+                      c, char_num);
             exit(LEXER_ERROR_UNKNOWN_CHARACTER);
         }
 

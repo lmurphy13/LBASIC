@@ -20,7 +20,7 @@ t_list *t_list_new(void) {
     token *tok = (token *)malloc(sizeof(token));
     memset(tok->literal, 0, MAX_LITERAL);
     memset(tok->line_str, 0, MAX_LINE);
-    strncpy(tok->literal, "HEAD", strlen("HEAD"));
+    strncpy(tok->literal, "HEAD", sizeof(tok->literal));
 
     tok->type = T_HEAD;
     tok->line = 0;

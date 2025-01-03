@@ -1,0 +1,29 @@
+' Test Name: Type Check Function
+' Test Category: Type Checking
+
+func main(string[] args) -> int
+then
+
+    func inner() -> void
+    then
+        println("Hello world");
+    end
+
+    string greeting := "My name is Liam. What is your name?";
+    string answer;
+    answer := getstr();
+    bool some_question := false;
+
+    if (getstr() == "Jim") then
+        println("Hello Jim");
+    else then
+        println("Hello " + answer);
+    end
+
+    ' This should raise an error due to inner() being called with an argument, while its definition
+    ' does not have any formal arguments
+    inner("blah");
+    
+    return 0;
+end
+

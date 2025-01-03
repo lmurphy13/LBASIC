@@ -1,0 +1,51 @@
+int a := nil;
+string b := "hello";
+bool c := true;
+float d := 3.14;
+
+'a := 4 - (0 * 3.1);
+a := a * 2;
+
+'string b := "goodbye";
+
+'func fib(int n) -> int
+'then 
+'    return 0;
+'    n := nil;
+'    println(n);
+'    return nil;
+'end
+
+func someFunction(int x, int y, bool z) -> void
+then
+    a := a + x;
+    y := y - a;
+    bool happy := true;
+
+
+    if ((x + y) > 0) then
+        z := true;
+    else then
+        z := (c == z);
+        float f := 32.0;
+'        f := f / g;
+        z := happy;
+    end
+
+    bool ret := z;
+
+    'println(ret);
+
+    return;
+end
+
+func fib(int x) -> int
+then
+    if ((x == 0) or (x == 1)) then
+        int i_am_here := x;
+        return i_am_here;
+    else then
+        int i_am_here2 := fib(x - 1) + fib(x - 2);
+        return i_am_here2;
+    end
+end

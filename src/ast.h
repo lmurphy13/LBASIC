@@ -8,8 +8,10 @@
 #define AST_H
 
 #include "token.h"
-#include "utils.h"
+#include "vector.h"
 #include <stdbool.h>
+
+#define INDENT_WIDTH 4
 
 // Node types
 typedef enum n_type {
@@ -50,25 +52,31 @@ typedef enum n_type {
     N_IDENT              = 34,
     N_IDENT_LIST         = 35,
     N_CONSTANT           = 36,
-    N_LITERAL            = 37,
-    N_INTEGER_LITERAL    = 38,
-    N_FLOAT_LITERAL      = 39,
-    N_STRING_LITERAL     = 40,
-    N_BOOL_LITERAL       = 41,
-    N_NIL                = 42,
-    NUM_TYPES            = 43
+    N_INTEGER_LITERAL    = 37,
+    N_FLOAT_LITERAL      = 38,
+    N_STRING_LITERAL     = 39,
+    N_BOOL_LITERAL       = 40,
+    N_NIL                = 41,
+    NUM_TYPES            = 42
 } n_type;
 
 typedef enum data_type {
     D_INTEGER = 0,
-    D_FLOAT,
-    D_STRING,
-    D_BOOLEAN,
-    D_VOID,
-    D_NIL,
-    D_STRUCT,
-    D_UNKNOWN
+    D_FLOAT   = 1,
+    D_STRING  = 2,
+    D_BOOLEAN = 3,
+    D_VOID    = 4,
+    D_NIL     = 5,
+    D_STRUCT  = 6,
+    D_UNKNOWN = 7
 } data_type;
+
+typedef struct type_s {
+    data_type datatype;
+    bool is_function;
+    bool is_array;
+    char struct_type[MAX_LITERAL];
+} type_t;
 
 // Node types
 typedef struct program_s {
@@ -83,16 +91,6 @@ typedef struct block_stmt_s {
 typedef struct identifier_s {
     char name[MAX_LITERAL];
 } identifier_t;
-
-typedef struct literal_s {
-    data_type type;
-    union {
-        int intval;
-        float floatval;
-        bool boolval;
-        char stringval[MAX_LITERAL];
-    } value;
-} literal_t;
 
 typedef struct neg_expr_s {
     struct node *expr;
@@ -140,6 +138,7 @@ typedef struct formal_s {
     char name[MAX_LITERAL];
 } formal_t;
 
+// Todo, expand member decls to include arrays or other structs
 typedef struct member_decl_s {
     data_type type;
     char name[MAX_LITERAL];
@@ -225,8 +224,8 @@ typedef struct string_literal_s {
 
 typedef struct bool_literal_s {
     data_type type;
-    char str_val[6]; // enough space to fit "false" plus null terminator
-    char value;      // 0 or 1
+    char str_val[MAX_LITERAL + 1];
+    char value; // 0 or 1
 } bool_literal_t;
 
 typedef struct nil_s {
@@ -243,7 +242,6 @@ typedef struct node {
         var_decl_t var_decl;
         function_decl_t function_decl;
         struct_decl_t struct_decl;
-        literal_t literal;
         block_stmt_t block_stmt;
         while_stmt_t while_stmt;
         if_stmt_t if_stmt;
@@ -269,5 +267,12 @@ typedef struct node {
 
 // Prototypes
 node *mk_node(n_type type);
+
+data_type keyword_to_type(token_type t);
+char *binop_to_str(token_type t);
+char *type_to_str(data_type t);
+
+void print_ast(node *ast);
+void print_node(node *n, int indent);
 
 #endif // AST_H

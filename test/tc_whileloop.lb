@@ -1,0 +1,33 @@
+
+bool running := true;
+
+func run() -> void
+then
+    if (running == true) then
+        println("Program is running!");
+        return;
+    end
+end
+
+func main() -> void
+then
+    int iterations := 1000;
+
+
+    while (iterations > 0) then
+        run();
+
+        iterations := iterations - 1;
+    end
+
+    running := false;
+
+    print("Running: ");
+    if (running == false) then
+        println("False");
+    else then
+        println("True");
+    end
+end
+
+main();

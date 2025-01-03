@@ -1,15 +1,14 @@
 /**
- * Utilities Module Public Definitions
- * File: utils.h
+ * Vector Utility Public Definitions
+ * File: vector.h
  * Author: Liam M. Murphy
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef VECTOR_H
+#define VECTOR_H
 
 #define MAX_LINE 4096
 
-/* Vectors */
 typedef struct vecnode {
     void *data;
     struct vecnode *next;
@@ -36,6 +35,12 @@ void vector_prepend(vector *vec, void *data);
 // Remove the tail element from a vector
 void vector_pop(vector *vec);
 
+// Remove the head element from a vector and return it
+vecnode *vector_pop_head(vector *vec);
+
+// Return a pointer to the vecnode at vec->head
+vecnode *vector_top(vector *vec);
+
 // Get length of vector
 int vector_length(vector *vec);
 
@@ -51,4 +56,4 @@ typedef struct line_s {
     char text[MAX_LINE];
 } line_t;
 
-#endif // UTILS_H
+#endif

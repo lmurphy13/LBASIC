@@ -13,10 +13,9 @@
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
+#include "typechecker.h"
 
-#if defined(DEBUG)
 #include "test.h"
-#endif
 
 void print_usage() {
     printf("LBASIC Compiler Usage\n");
@@ -58,7 +57,7 @@ int main(int argc, char *argv[]) {
 
         if (token_list != NULL) {
 #if defined(DEBUG)
-            print_list(token_list);
+//            print_list(token_list);
 #endif
             // Syntactic analysis
             node *program = parse(token_list);
@@ -69,13 +68,14 @@ int main(int argc, char *argv[]) {
 #endif
                 // Cleanup token_list
                 t_list_free(token_list);
+
+                // Semantic analysis
+                typecheck(program);
             } else {
-                log_error("Invalid AST generated during parsing.");
-                exit(COMPILER_ERROR_BAD_AST);
+                log_error("Unreadable AST generated during parsing.");
             }
         } else {
             log_error("Provide valid file path.");
-            exit(COMPILER_ERROR_UNKNOWN_PATH);
         }
     } else {
         print_usage();

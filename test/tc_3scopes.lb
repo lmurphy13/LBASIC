@@ -1,0 +1,30 @@
+string a := "Hello world!";
+'bool a := false;
+
+func subroutine(int a) -> int
+then
+    float pi := 3.14;
+    string liam := "";
+
+    if ((a == 0) or (a < 2))  then
+        liam := "we're here!";
+        println(liam);
+        printint(a);
+        return a;
+    else then
+        liam := "now we're down here!";
+        println(liam);
+        
+        int result := subroutine(a - 1);
+        printint(result);
+        return result;
+    end
+end
+
+subroutine(10);
+print(a);
+
+string b := a;
+
+float pi := 3.14;
+pi := pi + 1.0;

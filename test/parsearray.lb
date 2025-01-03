@@ -28,4 +28,4 @@ if (grid[0][1] == 3) then
 end
 
 ' this will cause an error
-grid[i[]] := 4;
+'grid[i[]] := 4;

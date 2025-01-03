@@ -16,7 +16,7 @@ then
     end
 end
 
-func main(int argc, string argv) -> int
+func main(int argc, string[] argv) -> int
 then
     int x;
 
@@ -27,7 +27,7 @@ then
             string foo := "bar";
             string bar := "baz";
 
-            bar := bar + foo;
+'            bar := bar + foo;
         end
     end
 

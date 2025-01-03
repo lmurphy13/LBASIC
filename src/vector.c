@@ -1,27 +1,28 @@
 /**
- * Utilities Module
- * File: utils.c
+ * Vector Utility Module
+ * File: vector.c
  * Author: Liam M. Murphy
  */
 
+#include "vector.h"
+
+#include "error.h"
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "error.h"
-#include "utils.h"
-
 vector *mk_vector() {
     vector *retval = NULL;
 
-    retval = (vector *)malloc(sizeof(vector));
+    retval = (vector *)calloc(1, sizeof(vector));
 
     if (retval == NULL) {
         log_error("Unable to allocate new vector");
         return retval;
     }
 
-    memset(retval, 0, sizeof(retval));
     retval->head  = NULL;
     retval->tail  = NULL;
     retval->count = 0;
@@ -36,6 +37,11 @@ void vector_free(vector **vec) {
 
             while (curr != NULL) {
                 vecnode *next = curr->next;
+
+                if (curr->data != NULL) {
+                    free(curr->data);
+                }
+
                 free(curr);
                 curr = next;
             }
@@ -49,8 +55,7 @@ void vector_free(vector **vec) {
 void vector_add(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
-            vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(node));
+            vecnode *node = calloc(1, sizeof(vecnode));
 
             node->data = data;
             node->next = NULL;
@@ -65,25 +70,21 @@ void vector_add(vector *vec, void *data) {
 
             vec->count++;
 
-            printf("added new vector element\n");
+            // debug("added new vector element");
 
         } else {
             log_error("Cannot add NULL data to vector");
-            exit(1);
         }
     } else {
         log_error("Cannot add element to NULL vector!");
-        exit(1);
     }
 }
 
 void vector_prepend(vector *vec, void *data) {
     if (vec != NULL) {
         if (data != NULL) {
-            vecnode *node = malloc(sizeof(vecnode));
-            memset(node, 0, sizeof(node));
-
-            node->data = data;
+            vecnode *node = calloc(1, sizeof(vecnode));
+            node->data    = data;
 
             if (vec->head == NULL) {
                 vec->head = node;
@@ -115,7 +116,7 @@ void vector_pop(vector *vec) {
         } else if (vector_length(vec) == 1) {
             if (vec->head != NULL) {
                 free(vec->head);
-                vec->head == NULL;
+                vec->head = NULL;
                 vec->count--;
             }
         } else if (vector_length(vec) > 1) {
@@ -144,10 +145,58 @@ void vector_pop(vector *vec) {
     }
 }
 
-int vector_length(vector *vec) {
+/* Pop the head from a vector and return a pointer to it */
+vecnode *vector_pop_head(vector *vec) {
+    vecnode *retval = NULL;
+
     if (vec != NULL) {
-        return vec->count;
+        if (vector_length(vec) == 0) {
+            // log_error("Cannot pop from empty vector");
+            printf("Cannot pop from empty stack\n");
+        } else if (vector_length(vec) == 1) {
+            if (vec->head != NULL) {
+                retval    = vec->head;
+                vec->head = NULL;
+                vec->count--;
+            }
+        } else if (vector_length(vec) > 1) {
+            // Save a pointer to the current head
+            vecnode *curr_head = vec->head;
+            retval             = vec->head;
+
+            // Reassign the head pointer to the next node
+            if (curr_head->next != NULL) {
+                vec->head = curr_head->next;
+                vec->count--;
+            } else {
+                log_error("Cannot assign new head node to a NULL element");
+            }
+        }
     }
+
+    return retval;
+}
+
+vecnode *vector_top(vector *vec) {
+    vecnode *retval = NULL;
+
+    if (vec != NULL) {
+        if (vec->head != NULL) {
+            retval = vec->head;
+        }
+    }
+
+    return retval;
+}
+
+int vector_length(vector *vec) {
+    int retval = 0;
+
+    if (vec != NULL) {
+        retval = vec->count;
+    }
+
+    return retval;
 }
 
 vecnode *get_nth_node(vector *vec, const int n) {
@@ -156,11 +205,7 @@ vecnode *get_nth_node(vector *vec, const int n) {
     if (vec != NULL) {
         const int length = vector_length(vec);
         if (n > length) {
-            char msg[128] = {'\0'};
-            snprintf(msg, sizeof(msg), "Cannot get node %d from a vector with length %d", n,
-                     length);
-
-            log_error(msg);
+            log_error("Cannot get node %d from a vector with length %d", n, length);
         } else {
             vecnode *vn = vec->head;
             int index   = 1;
