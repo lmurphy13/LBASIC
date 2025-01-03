@@ -138,6 +138,7 @@ typedef struct formal_s {
     char name[MAX_LITERAL];
 } formal_t;
 
+// Todo, expand member decls to include arrays or other structs
 typedef struct member_decl_s {
     data_type type;
     char name[MAX_LITERAL];

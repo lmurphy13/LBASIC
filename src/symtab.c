@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_CHILD_OBJ_STR 4096
+#define MAX_CHILD_OBJ_LIST_STR 16384
+
 // Compare bindings by name
 bool ht_compare_binding(vecnode *vn, void *key) {
     bool retval = false;
@@ -55,8 +58,8 @@ binding_t *symtab_lookup(symtab_t *scope, char *identifier, bool single_scope) {
     binding_t *retval = NULL;
 
     if (scope != NULL) {
-        debug("Looking for '%s' within scope level %d (name='%s')", identifier, scope->level,
-              scope->name);
+        debug("%s(): Looking for '%s' within scope level %d (name='%s')", __FUNCTION__, identifier,
+              scope->level, scope->name);
         retval = ht_lookup(scope->table, (char *)identifier, ht_compare_binding);
 
         // Nothing found
@@ -100,9 +103,9 @@ static void formals_to_str(vector *formals, char *str) {
         while (NULL != vn) {
             node *f = (node *)vn->data;
             if (NULL != f) {
-                char formal_str[4096] = {'\0'};
+                char formal_str[MAX_CHILD_OBJ_STR] = {'\0'};
                 // Build string
-                snprintf(formal_str, 4096,
+                snprintf(formal_str, MAX_CHILD_OBJ_STR,
                          "\t\tName: %s\tType: %s\tis_array: %d (dimensions=%d)\tis_struct: %d "
                          "(struct_type='%s')\n",
                          f->data.formal.name, type_to_str(f->data.formal.type),
@@ -119,12 +122,35 @@ static void formals_to_str(vector *formals, char *str) {
     }
 }
 
+static void members_to_str(vector *members, char *str) {
+    if (NULL != members) {
+        size_t offset = 0;
+
+        vecnode *vn = members->head;
+        while (NULL != vn) {
+            node *m = (node *)vn->data;
+            if (NULL != m) {
+                char member_str[MAX_CHILD_OBJ_STR] = {'\0'};
+                // Build string
+                snprintf(member_str, MAX_CHILD_OBJ_STR, "\t\tName: %s\tType: %s\n",
+                         m->data.member_decl.name, type_to_str(m->data.member_decl.type));
+
+                // Copy into str
+                strncpy(str + offset, member_str, strlen(member_str));
+                offset += strlen(member_str);
+
+                vn = vn->next;
+            }
+        }
+    }
+}
+
 // NAME     SYMBOL TYPE     DATA TYPE       ETC
 void print_binding(const binding_t *binding) {
     if (NULL != binding) {
         switch (binding->symbol_type) {
             case SYMBOL_TYPE_FUNCTION:
-                char formals_str[8192] = {'\0'};
+                char formals_str[MAX_CHILD_OBJ_LIST_STR] = {'\0'};
                 formals_to_str(binding->data.function_type.formals, formals_str);
 
                 printf("%s\tFUNCTION\t%s\tis_array: %d (dimensions=%d)\tis_struct: %d "
@@ -155,10 +181,17 @@ void print_binding(const binding_t *binding) {
                        binding->data.variable_type.struct_type);
                 break;
             case SYMBOL_TYPE_STRUCTURE:
-                debug("none yet");
+                char members_str[MAX_CHILD_OBJ_LIST_STR] = {'\0'};
+                members_to_str(binding->data.structure_type.members, members_str);
+
+                printf("%s\tSTRUCTURE\tstruct_type='%s'\n\tMembers (num_members=%d):\n%s",
+                       binding->name, binding->data.structure_type.struct_type,
+                       binding->data.structure_type.num_members, members_str);
                 break;
             case SYMBOL_TYPE_MEMBER:
-                debug("none yet");
+                printf("%s\tMEMBER\t%s (parent_struct: '%s')\n", binding->name,
+                       type_to_str(binding->data.member_type.type),
+                       binding->data.member_type.parent_struct);
                 break;
             case SYMBOL_TYPE_UNKNOWN:
             default:

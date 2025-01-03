@@ -48,6 +48,7 @@ static void typecheck_literal(node *ast);
 static void typecheck_return_stmt(node *ast);
 static void typecheck_nil(node *ast);
 static void typecheck_struct_decl(node *ast);
+static void typecheck_member_decl(node *ast);
 static void typecheck_struct_access(node *ast);
 static void typecheck_label_decl(node *ast);
 static void typecheck_goto_stmt(node *ast);
@@ -220,6 +221,9 @@ static void do_typecheck(node *ast) {
         case N_STRUCT_DECL:
             typecheck_struct_decl(ast);
             break;
+        case N_MEMBER_DECL:
+            typecheck_member_decl(ast);
+            break;
         case N_STRUCT_ACCESS_EXPR:
             typecheck_struct_access(ast);
             break;
@@ -260,8 +264,10 @@ static bool is_numerical_type(type_t type) {
 // Use for leaf nodes
 static type_t get_type(node *n) {
     if (NULL == n) {
-        log_error("Unable to access node for type checking");
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
     }
+
+    debug("Calling get_type() on node type %d", n->type);
 
     type_t type = {
         .datatype = D_UNKNOWN, .is_array = false, .is_function = false, .struct_type = ""};
@@ -275,13 +281,20 @@ static type_t get_type(node *n) {
                     case SYMBOL_TYPE_FUNCTION:
                         type.datatype    = ident_binding->data.function_type.return_type;
                         type.is_function = true;
+                        snprintf(type.struct_type, MAX_LITERAL,
+                                 ident_binding->data.function_type.struct_type);
                         break;
                     case SYMBOL_TYPE_VARIABLE:
                         type.datatype = ident_binding->data.variable_type.type;
                         type.is_array = ident_binding->data.variable_type.is_array_type;
+                        snprintf(type.struct_type, MAX_LITERAL,
+                                 ident_binding->data.variable_type.struct_type);
                         break;
                     case SYMBOL_TYPE_FORMAL:
-                        debug("HERE");
+                        type.datatype = ident_binding->data.variable_type.type;
+                        type.is_array = ident_binding->data.variable_type.is_array_type;
+                        snprintf(type.struct_type, MAX_LITERAL,
+                                 ident_binding->data.variable_type.struct_type);
                         break;
                     case SYMBOL_TYPE_STRUCTURE:
                         log_error("SYMBOL_TYPE_STRUCTURE not implemented yet: %s",
@@ -364,7 +377,14 @@ static type_t get_type(node *n) {
             }
             break;
         case N_CALL_EXPR:
-            do_typecheck(n);
+            binding_t *call_binding = symtab_lookup(curr_scope, n->data.call_expr.func_name, false);
+            if (NULL != call_binding) {
+                type.datatype    = call_binding->data.function_type.return_type;
+                type.is_function = true;
+                type.is_array    = call_binding->data.function_type.is_array_type;
+                snprintf(type.struct_type, MAX_LITERAL,
+                         call_binding->data.function_type.struct_type);
+            }
             break;
         case N_NEG_EXPR:
             do_typecheck(n);
@@ -373,6 +393,32 @@ static type_t get_type(node *n) {
         case N_NOT_EXPR:
             do_typecheck(n);
             type = get_type(n->data.not_expr.expr);
+            break;
+        case N_STRUCT_ACCESS_EXPR:
+            binding_t *variable_binding =
+                symtab_lookup(curr_scope, n->data.struct_access.name, false);
+            if (NULL != variable_binding) {
+                // Now, find the structure declaration
+                binding_t *struct_binding = symtab_lookup(
+                    curr_scope, variable_binding->data.variable_type.struct_type, false);
+                if (NULL != struct_binding) {
+                    // Get the member
+                    vecnode *vn = struct_binding->data.structure_type.members->head;
+                    while (NULL != vn) {
+                        node *mn = (node *)vn->data;
+                        if (NULL != mn) {
+                            if (0 == strcmp(n->data.struct_access.member_name,
+                                            mn->data.member_decl.name)) {
+                                // We found a member with that name
+                                type.datatype = mn->data.member_decl.type;
+                                break;
+                            }
+
+                            vn = vn->next;
+                        }
+                    }
+                }
+            }
             break;
         default:
             print_node(n, 0);
@@ -453,16 +499,20 @@ static void typecheck_var_decl(node *ast) {
         type_error(err_msg, ast);
     }
 
-    // Check the initializer
-    do_typecheck(ast->data.var_decl.value);
-    type_t init_type = get_type(ast->data.var_decl.value);
-    if ((init_type.datatype != D_NIL) && (ast->data.var_decl.type != init_type.datatype)) {
-        char err_msg[MAX_ERROR_LEN] = {0};
-        snprintf(err_msg, MAX_ERROR_LEN,
-                 "Type mismatch between variable type and initialization value. Expected '%s'. Got "
-                 "'%s'.",
-                 type_to_str(ast->data.var_decl.type), type_to_str(init_type.datatype));
-        type_error(err_msg, ast);
+    // Check the RHS of the initialization
+    if (NULL != ast->data.var_decl.value) {
+        type_t init_type = get_type(ast->data.var_decl.value);
+        if ((init_type.datatype != D_NIL) && (ast->data.var_decl.type != init_type.datatype)) {
+            char err_msg[MAX_ERROR_LEN] = {0};
+            snprintf(
+                err_msg, MAX_ERROR_LEN,
+                "Type mismatch between variable type and initialization value. Expected '%s'. Got "
+                "'%s'.",
+                type_to_str(ast->data.var_decl.type), type_to_str(init_type.datatype));
+            type_error(err_msg, ast);
+        }
+    } else {
+        debug("VarDecl of '%s' right-hand side is empty", ast->data.var_decl.name);
     }
 
     // Create new binding
@@ -530,7 +580,6 @@ static void typecheck_func_decl(node *ast) {
         vecnode *vn = ast->data.function_decl.formals->head;
         while (NULL != vn) {
             node *n = vn->data;
-            print_node(n, 1);
 
             do_typecheck(n);
 
@@ -637,8 +686,6 @@ static void typecheck_formal(node *ast) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
     }
-
-    debug("Checking formal");
 
     // Check if we've already seen this formal within the current scope
     binding_t *formal_binding = symtab_lookup(curr_scope, ast->data.formal.name, true);
@@ -873,9 +920,141 @@ static void typecheck_nil(node *ast) {
     // This might be removed in the future.
 }
 
-static void typecheck_struct_decl(node *ast) { assert(false && "Not yet implemented"); }
+static void typecheck_struct_decl(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
 
-static void typecheck_struct_access(node *ast) { assert(false && "Not yet implemented"); }
+    // Check if the struct is already defined.
+    binding_t *struct_binding = symtab_lookup(curr_scope, ast->data.struct_decl.name, false);
+    if (NULL != struct_binding) {
+        char err_msg[MAX_ERROR_LEN] = {0};
+        snprintf(err_msg, MAX_ERROR_LEN, "Redefinition of '%s'. Structure is previously declared",
+                 ast->data.struct_decl.name);
+        type_error(err_msg, ast);
+    }
+
+    // Create new binding and add it to the current scope
+    binding_t *new_binding = mk_binding(SYMBOL_TYPE_STRUCTURE);
+    if (NULL == new_binding) {
+        log_error("%s(): Unable to create new binding_t", __FUNCTION__);
+    }
+
+    snprintf(new_binding->data.structure_type.struct_type, MAX_LITERAL, ast->data.struct_decl.name);
+    snprintf(new_binding->name, MAX_LITERAL, ast->data.struct_decl.name);
+    new_binding->data.structure_type.num_members = vector_length(ast->data.struct_decl.members);
+    new_binding->data.structure_type.members     = ast->data.struct_decl.members;
+    new_binding->data.structure_type.type        = D_STRUCT;
+
+    symtab_insert(curr_scope, new_binding);
+
+    // Now, create a new scope and enter the function body. The new scope is named after the struct
+    // type so that we can make sure there aren't duplicate members within the declaration.
+    enter_new_scope(new_binding->data.structure_type.struct_type);
+
+    if (new_binding->data.structure_type.num_members > 0) {
+        // Add the formals to the new scope
+        vecnode *vn = ast->data.struct_decl.members->head;
+        while (NULL != vn) {
+            node *n = vn->data;
+
+            do_typecheck(n);
+
+            vn = vn->next;
+        }
+    }
+
+    leave_curr_scope();
+}
+
+static void typecheck_member_decl(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
+
+    // Check if we've already seen this formal within the current scope
+    binding_t *member_binding = symtab_lookup(curr_scope, ast->data.member_decl.name, true);
+    if (NULL != member_binding) {
+        // Is the existing binding a member?
+        if (member_binding->symbol_type == SYMBOL_TYPE_MEMBER) {
+            char err_msg[MAX_ERROR_LEN] = {0};
+            snprintf(err_msg, MAX_ERROR_LEN,
+                     "Redefinition of '%s'. Structure member is previously declared",
+                     ast->data.member_decl.name);
+            type_error(err_msg, ast);
+        } else {
+            print_binding(member_binding);
+        }
+    } else {
+        // Add it
+        binding_t *new_binding = mk_binding(SYMBOL_TYPE_MEMBER);
+        if (NULL == new_binding) {
+            log_error("%s(): Unable to create new binding_t", __FUNCTION__);
+        }
+
+        // Get the structure binding using the scope name (which should be the name of the structure
+        // decl)
+        binding_t *struct_binding = symtab_lookup(curr_scope, curr_scope->name, false);
+        if (NULL != struct_binding) {
+            // Populate binding data
+            snprintf(new_binding->name, MAX_LITERAL, ast->data.member_decl.name);
+            snprintf(new_binding->data.member_type.parent_struct, MAX_LITERAL,
+                     struct_binding->name);
+            new_binding->data.member_type.type = ast->data.member_decl.type;
+
+            // Insert binding into symbol table
+            symtab_insert(curr_scope, new_binding);
+            print_symbol_table(symbol_table);
+        } else {
+            log_error("%s(): Cannot access parent structure binding for member '%s'. This means a "
+                      "structure member has been declared outside of a structure.",
+                      ast->data.member_decl.name);
+        }
+    }
+}
+
+static void typecheck_struct_access(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for typechecking", __FUNCTION__);
+    }
+
+    // Does the variable exist
+    binding_t *variable_binding = symtab_lookup(curr_scope, ast->data.struct_access.name, false);
+    if (NULL != variable_binding) {
+        // Now, find the structure declaration
+        binding_t *struct_binding =
+            symtab_lookup(curr_scope, variable_binding->data.variable_type.struct_type, false);
+        if (NULL != struct_binding) {
+            // Does the member exit for this structure
+            bool found_member = false;
+            vecnode *vn       = struct_binding->data.structure_type.members->head;
+
+            while (NULL != vn) {
+                node *mn = (node *)vn->data;
+                if (NULL != mn) {
+                    if (0 ==
+                        strcmp(ast->data.struct_access.member_name, mn->data.member_decl.name)) {
+                        // We found a member with that name
+                        found_member = true;
+                        break;
+                    }
+
+                    vn = vn->next;
+                }
+            }
+
+            if (!found_member) {
+                char err_msg[MAX_ERROR_LEN] = {0};
+                snprintf(err_msg, MAX_ERROR_LEN,
+                         "Access error. Member '%s' of '%s' does not exist within definition of "
+                         "structure '%s'",
+                         ast->data.struct_access.member_name, ast->data.struct_access.name,
+                         struct_binding->data.structure_type.struct_type);
+                type_error(err_msg, ast);
+            }
+        }
+    }
+}
 
 static void typecheck_label_decl(node *ast) { assert(false && "Not yet implemented"); }
 

@@ -46,6 +46,6 @@ then
         return i_am_here;
     else then
         int i_am_here2 := fib(x - 1) + fib(x - 2);
-        return nil;
+        return i_am_here2;
     end
 end

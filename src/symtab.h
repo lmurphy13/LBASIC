@@ -44,16 +44,19 @@ typedef struct b_variable_s {
 } b_variable_t;
 
 typedef struct b_structure_s {
+    data_type type; // Always D_STRUCT
     char struct_type[MAX_LITERAL];
     unsigned int num_members;
+    vector *members; // vector of member_decl_t, one for each member
 } b_structure_t;
 
 typedef struct b_member_s {
     data_type type;
-    char struct_type[MAX_LITERAL];
-    bool is_array_type;
-    bool is_struct_type;
-    unsigned int num_dimensions;
+    char parent_struct[MAX_LITERAL]; // The structure type that contains this member
+    char struct_type[MAX_LITERAL];   // Not yet implemented within AST
+    bool is_array_type;              // Not yet implemented within AST
+    bool is_struct_type;             // Not yet implemented within AST
+    unsigned int num_dimensions;     // Not yet implemented within AST
 } b_member_t;
 
 typedef struct binding_s {

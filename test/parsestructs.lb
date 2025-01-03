@@ -23,14 +23,15 @@ then
 
     if (joe.age > liam.age) then
         println("Joe is older!");
-        return joe.age;
-    else then
-        return liam.age;
+'        return joe.age;
+'    else then
+'        return liam.age;
     end
 end
 
-func whatever(int bla, struct person p) -> float[][][]
+func whatever(int bla, struct person p) -> float
 then
     println("blah");
-    return -15;
+'    return -15;
+    return 14.1;
 end

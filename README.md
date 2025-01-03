@@ -3,8 +3,8 @@
 A simple, compiled language with syntax inspired by C and BASIC
 
 ### Dependencies:
-- Some reasonably current version of GCC (v10 or greater, perhaps)
-- clang-format
+- gcc (v14 or greater)
+- clang-format (v19 or greater)
 
 ### Progress:
 - [x] Lexer
@@ -23,5 +23,5 @@ Just run `make`.
 ### To Install:
 Run `make install` to install the `lbasic` binary into `/usr/local/bin` (requires root access).
 
-### To run source code formatter (clang-format-11):
+### To run source code formatter (clang-format):
 Run `make format`.
