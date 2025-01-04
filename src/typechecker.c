@@ -501,6 +501,8 @@ static void typecheck_var_decl(node *ast) {
 
     // Check the RHS of the initialization
     if (NULL != ast->data.var_decl.value) {
+        do_typecheck(ast->data.var_decl.value);
+
         type_t init_type = get_type(ast->data.var_decl.value);
         if ((init_type.datatype != D_NIL) && (ast->data.var_decl.type != init_type.datatype)) {
             char err_msg[MAX_ERROR_LEN] = {0};

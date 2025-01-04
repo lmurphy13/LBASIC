@@ -13,6 +13,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
+#include "translate.h"
 #include "typechecker.h"
 
 #include "test.h"
@@ -71,6 +72,11 @@ int main(int argc, char *argv[]) {
 
                 // Semantic analysis
                 typecheck(program);
+
+                // Translate to IR
+                vector *ir = translate(program);
+
+                //codegen(ir, argv[1]);
             } else {
                 log_error("Unreadable AST generated during parsing.");
             }

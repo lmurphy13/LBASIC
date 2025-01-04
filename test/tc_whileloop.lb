@@ -1,5 +1,9 @@
-
 bool running := true;
+
+func add(int num1, int num2) -> int
+then
+    return num1 + num2;
+end
 
 func run() -> void
 then
@@ -28,6 +32,9 @@ then
     else then
         println("True");
     end
+
+    int result := add(4, 5);
+    printint(result);
 end
 
 main();
