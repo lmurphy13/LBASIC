@@ -61,6 +61,7 @@ typedef struct b_member_s {
 
 typedef struct binding_s {
     char name[MAX_LITERAL];
+    char temp[MAX_LITERAL]; // name of temporary register or label within IR
     symbol_type_t symbol_type;
     union {
         b_function_t function_type;

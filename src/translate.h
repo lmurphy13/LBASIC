@@ -1,108 +1,49 @@
+#if defined(HAS_TRANSLATOR)
+
 #ifndef TRANSLATE_H
 #define TRANSLATE_H
 
 #include "ast.h"
+#include "symtab.h"
 #include "vector.h"
 
 // 64 bytes + 1 null byte
-#define MAX_OPERAND 65
+#define MAX_ARGUMENT 65
+#define MAX_COMMENT 65
 
 typedef enum ir_type {
-    IR_PUSH,
-    IR_POP,
-    IR_LOAD,
-    IR_STORE,
+    IR_PUSH,  // Push to the stack
+    IR_POP,   // Pop from the stack
+    IR_LOAD,  // Load a value into a temporary
+    IR_STORE, // Store a value in memory
     IR_ADD,
     IR_SUB,
     IR_MUL,
     IR_DIV,
-    IR_CALL,
-    IR_JUMP,
-    IR_CMP,
-    IR_MOVE,
-    IR_LABEL,
-    IR_RETURN,
+    IR_CALL,   // Call a function
+    IR_JUMP,   // Jump to a label
+    IR_CMP,    // Compare two values
+    IR_LABEL,  // Create a label
+    IR_RETURN, // Return from a function
     NUM_IR_TYPES
 } ir_type;
 
-typedef struct ir_push_s {
-
-} ir_push_t;
-
-typedef struct ir_pop_s {
-
-} ir_pop_t;
-
-typedef struct ir_load_s {
-
-} ir_load_t;
-
-typedef struct ir_store_s {
-
-} ir_store_t;
-
-typedef struct ir_add_s {
-
-} ir_add_t;
-
-typedef struct ir_sub_s {
-
-} ir_sub_t;
-
-typedef struct ir_mul_s {
-
-} ir_mul_t;
-
-typedef struct ir_div_s {
-
-} ir_div_t;
-
-typedef struct ir_call_s {
-
-} ir_call_t;
-
-typedef struct ir_jump_s {
-
-} ir_jump_t;
-
-typedef struct ir_cmp_s {
-
-} ir_cmp_t;
-
-typedef struct ir_move_s {
-
-} ir_move_t;
-
-typedef struct ir_label_s {
-
-} ir_label_t;
-
-typedef struct ir_return_s {
-
-} ir_return_t;
-
+// Three address code
 typedef struct ir_node {
     ir_type type;
-    char operand[MAX_OPERAND];
-    union {
-        ir_push_t push;
-        ir_pop_t pop;
-        ir_load_t load;
-        ir_store_t store;
-        ir_add_t add;
-        ir_sub_t sub;
-        ir_mul_t mul;
-        ir_div_t div;
-        ir_call_t call;
-        ir_jump_t jump;
-        ir_cmp_t cmp;
-        ir_move_t move;
-        ir_label_t label;
-        ir_return_t ret;
-    } data;
+    unsigned int num_args;
+    char arg1[MAX_ARGUMENT];
+    char arg2[MAX_ARGUMENT];
+    char arg3[MAX_ARGUMENT];
+    binding_t *arg1_binding;
+    binding_t *arg2_binding;
+    binding_t *arg3_binding;
+    char comment[MAX_COMMENT];
 } ir_node;
 
 // Prototypes
 vector *translate(node *ast);
 
 #endif // TRANSLATE_H
+
+#endif // HAS_TRANSLATOR

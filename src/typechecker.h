@@ -8,9 +8,11 @@
 #define TYPECHECKER_H
 
 #include "ast.h"
+#include "symtab.h"
 #include "token.h"
 
 // Prototypes
 void typecheck(node *ast);
+symtab_t *get_symbol_table(void);
 
 #endif // TYPECHECKER_H

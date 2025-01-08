@@ -8,7 +8,6 @@
 
 #include "ast.h"
 #include "error.h"
-#include "symtab.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -169,6 +168,8 @@ void typecheck(node *ast) {
         do_typecheck(ast);
     }
 }
+
+symtab_t *get_symbol_table(void) { return curr_scope; }
 
 static void do_typecheck(node *ast) {
     if (NULL == ast) {
