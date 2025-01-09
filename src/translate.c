@@ -563,43 +563,39 @@ static void translate_var_decl(node *ast) {
     // Reset scope to current
     symbol_table = get_symbol_table();
 
+    ir_node *load_node      = NULL;
+    binding_t *decl_binding = symtab_lookup(symbol_table, ast->data.var_decl.name, false);
+    if (NULL == decl_binding) {
+        log_error("Cannot access variable declaration binding");
+    }
+
     // Get RHS
     // do_translate(ast->data.var_decl.value);
     switch (ast->data.var_decl.value->type) {
         case N_INTEGER_LITERAL:
             char int_val[MAX_ARGUMENT] = {0};
-            binding_t *int_binding = symtab_lookup(symbol_table, ast->data.var_decl.name, false);
-            if (NULL != int_binding) {
-                get_temp(tmp1);
-                snprintf(int_val, MAX_ARGUMENT, "$%d",
-                         ast->data.var_decl.value->data.integer_literal.value);
-                snprintf(int_binding->temp, MAX_ARGUMENT, tmp1);
-                ir_node *load_node      = LOAD(tmp1, int_val, ast->data.var_decl.name);
-                load_node->arg1_binding = int_binding;
-            }
+            get_temp(tmp1);
+            snprintf(int_val, MAX_ARGUMENT, "$%d",
+                     ast->data.var_decl.value->data.integer_literal.value);
+            snprintf(decl_binding->temp, MAX_ARGUMENT, tmp1);
+            load_node               = LOAD(tmp1, int_val, ast->data.var_decl.name);
+            load_node->arg1_binding = decl_binding;
             break;
         case N_STRING_LITERAL:
-            binding_t *str_binding = symtab_lookup(symbol_table, ast->data.var_decl.name, false);
-            if (NULL != str_binding) {
-                get_label(label);
-                snprintf(str_binding->temp, MAX_ARGUMENT, label);
-                ir_node *load_node =
-                    STORE(label, ast->data.var_decl.value->data.string_literal.value,
-                          ast->data.var_decl.name);
-                load_node->arg1_binding = str_binding;
-            }
+            get_label(label);
+            snprintf(decl_binding->temp, MAX_ARGUMENT, label);
+            ir_node *store_node = STORE(label, ast->data.var_decl.value->data.string_literal.value,
+                                        ast->data.var_decl.name);
+            store_node->arg1_binding = decl_binding;
             break;
         case N_BOOL_LITERAL:
             char bool_val[MAX_ARGUMENT] = {0};
-            binding_t *bool_binding = symtab_lookup(symbol_table, ast->data.var_decl.name, false);
-            if (NULL != bool_binding) {
-                get_temp(tmp1);
-                snprintf(bool_val, MAX_ARGUMENT, "$%d",
-                         ast->data.var_decl.value->data.bool_literal.value);
-                snprintf(bool_binding->temp, MAX_ARGUMENT, tmp1);
-                ir_node *load_node      = LOAD(tmp1, bool_val, ast->data.var_decl.name);
-                load_node->arg1_binding = bool_binding;
-            }
+            get_temp(tmp1);
+            snprintf(bool_val, MAX_ARGUMENT, "$%d",
+                     ast->data.var_decl.value->data.bool_literal.value);
+            snprintf(decl_binding->temp, MAX_ARGUMENT, tmp1);
+            load_node               = LOAD(tmp1, bool_val, ast->data.var_decl.name);
+            load_node->arg1_binding = decl_binding;
             break;
         case N_IDENT:
             binding_t *ident_binding =
@@ -607,8 +603,9 @@ static void translate_var_decl(node *ast) {
             if (NULL != ident_binding) {
                 get_temp(tmp1);
                 snprintf(ident_binding->temp, MAX_ARGUMENT, tmp1);
-                ir_node *load_node      = LOAD(tmp1, ident_binding->name, ast->data.var_decl.name);
+                load_node               = LOAD(tmp1, ident_binding->name, ast->data.var_decl.name);
                 load_node->arg2_binding = ident_binding;
+                load_node->arg1_binding = decl_binding;
             }
             break;
         case N_BINOP_EXPR:
@@ -619,11 +616,37 @@ static void translate_var_decl(node *ast) {
                 // sprintf(tmp1, "t%d", temp_count-1);   // Previously written temp
                 //  Get most recent temporary
                 ir_node *last = (ir_node *)ir_list->tail->data;
-                snprintf(tmp2, MAX_ARGUMENT, last->arg1);
                 get_temp(tmp1);
-                ir_node *load_node = LOAD(tmp1, tmp2, ast->data.var_decl.name);
-                snprintf(var_binding->temp, MAX_ARGUMENT, tmp1);
-                load_node->arg1_binding = var_binding;
+
+                // Is it a boolean expression?
+                if ((last->rel_operator >= T_LT) && (last->rel_operator <= T_OR)) {
+                    // Get exit label
+                    get_label(label);
+
+                    // Emit if true label
+                    LABEL(last->label_if_true, "true");
+
+                    // Do assigment
+                    LOAD(tmp1, "$1", ast->data.var_decl.name);
+
+                    // Jump to exit
+                    JUMP(label, NULL);
+
+                    // Emit if false label
+                    LABEL(last->label_if_false, "false");
+
+                    // Do assignment
+                    LOAD(tmp1, "$0", ast->data.var_decl.name);
+
+                    // Emit exit
+                    LABEL(label, "exit");
+                } else {
+                    snprintf(tmp2, MAX_ARGUMENT, last->arg1);
+
+                    load_node = LOAD(tmp1, tmp2, ast->data.var_decl.name);
+                    snprintf(var_binding->temp, MAX_ARGUMENT, tmp1);
+                    load_node->arg1_binding = var_binding;
+                }
             }
 
             break;
@@ -743,52 +766,48 @@ static void translate_assign_expr(node *ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
 
-    // node *lhs = ast->data.assign_expr.lhs;
-    // node *rhs = ast->data.assign_expr.rhs;
-    // char tmp1[MAX_ARGUMENT]  = {0};
-    // char tmp2[MAX_ARGUMENT]  = {0};
-    // binding_t *lhs_binding   = NULL;
-    // binding_t *rhs_binding   = NULL;
+    node *lhs               = ast->data.assign_expr.lhs;
+    node *rhs               = ast->data.assign_expr.rhs;
+    char tmp1[MAX_ARGUMENT] = {0};
+    char tmp2[MAX_ARGUMENT] = {0};
+    binding_t *lhs_binding  = NULL;
+    binding_t *rhs_binding  = NULL;
+    ir_node *load_node      = NULL;
 
     // // Reset scope to current
     // // symbol_table = get_symbol_table();
 
-    // do_translate(lhs);
-    // do_translate(rhs);
+    do_translate(lhs);
+    do_translate(rhs);
 
-    // if (lhs->type == N_IDENT) {
-    //     lhs_binding = symtab_lookup(symbol_table, lhs->data.identifier.name, false);
-    //     snprintf(tmp1, MAX_ARGUMENT, lhs_binding->temp);
-    // // } else if (lhs->type == N_INTEGER_LITERAL) {
-    // //     snprintf(tmp1, MAX_ARGUMENT, "$%d", lhs->data.integer_literal.value);
-    // // } else if (lhs->type == N_FLOAT_LITERAL) {
-    // //     snprintf(tmp1, MAX_ARGUMENT, "$%f", lhs->data.float_literal.value);
-    // //     log_error("%s(): No float support yet", __FUNCTION__);
-    // } else {
-    //     log_error("%s(): LHS type %d not supported yet", __FUNCTION__, lhs->type);
-    // }
+    if (lhs->type == N_IDENT) {
+        lhs_binding = symtab_lookup(symbol_table, lhs->data.identifier.name, false);
+        snprintf(tmp1, MAX_ARGUMENT, lhs_binding->temp);
+    } else {
+        log_error("%s(): LHS type %d not supported yet", __FUNCTION__, lhs->type);
+    }
 
-    // if (rhs->type == N_IDENT) {
-    //     rhs_binding = symtab_lookup(symbol_table, rhs->data.identifier.name, false);
-    //     snprintf(tmp2, MAX_ARGUMENT, rhs_binding->temp);
-    // } else if (rhs->type == N_INTEGER_LITERAL) {
-    //     snprintf(tmp2, MAX_ARGUMENT, "$%d", rhs->data.integer_literal.value);
-    // } else if (rhs->type == N_FLOAT_LITERAL) {
-    //     snprintf(tmp2, MAX_ARGUMENT, "$%f", rhs->data.float_literal.value);
-    //     log_error("%s(): No float support yet", __FUNCTION__);
-    // } else if (rhs->type == N_BINOP_EXPR) {
-    //     //  Get most recent temporary, which should be the resulf of the binop expression
-    //     ir_node *last = (ir_node *)ir_list->tail->data;
-    //     snprintf(tmp2, MAX_ARGUMENT, last->arg1);
-    //     get_temp(tmp1);
-    //     ir_node *load_node = LOAD(tmp1, tmp2, ast->data.var_decl.name);
-    //     snprintf(lhs_binding->temp, MAX_ARGUMENT, tmp1);
-    //     load_node->arg1_binding = lhs_binding;
-    // } else {
-    //     log_error("%s(): RHS type %d not supported yet", __FUNCTION__, rhs->type);
-    // }
-
-    // LOAD(tmp1, tmp2, NULL);
+    if (rhs->type == N_IDENT) {
+        rhs_binding = symtab_lookup(symbol_table, rhs->data.identifier.name, false);
+        snprintf(tmp2, MAX_ARGUMENT, rhs_binding->temp);
+        load_node = LOAD(tmp1, tmp2, lhs_binding->name);
+    } else if (rhs->type == N_INTEGER_LITERAL) {
+        snprintf(tmp2, MAX_ARGUMENT, "$%d", rhs->data.integer_literal.value);
+        load_node = LOAD(tmp1, tmp2, lhs_binding->name);
+    } else if (rhs->type == N_FLOAT_LITERAL) {
+        snprintf(tmp2, MAX_ARGUMENT, "$%f", rhs->data.float_literal.value);
+        log_error("%s(): No float support yet", __FUNCTION__);
+    } else if (rhs->type == N_BINOP_EXPR) {
+        //  Get most recent temporary, which should be the resulf of the binop expression
+        ir_node *last = (ir_node *)ir_list->tail->data;
+        snprintf(tmp2, MAX_ARGUMENT, last->arg1);
+        // get_temp(tmp1);
+        load_node = LOAD(tmp1, tmp2, lhs_binding->name);
+        snprintf(lhs_binding->temp, MAX_ARGUMENT, tmp1);
+        load_node->arg1_binding = lhs_binding;
+    } else {
+        log_error("%s(): RHS type %d not supported yet", __FUNCTION__, rhs->type);
+    }
 }
 
 static void translate_if_stmt(node *ast) {
@@ -818,7 +837,7 @@ static void translate_if_stmt(node *ast) {
         // Don't need to jump to exit, since we can fall-through to exit_label
     }
 
-    LABEL(exit_label, NULL);
+    LABEL(exit_label, "exit");
     print_ir(ir_list);
 }
 
@@ -828,7 +847,13 @@ static void translate_literal(node *ast) {
     print_node(ast, 0);
 }
 
-static void translate_return_stmt(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_return_stmt(node *ast) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for translation", __FUNCTION__);
+    }
+
+    RETURN(NULL);
+}
 
 static void translate_nil(node *ast) { assert(false && "Not implemented yet"); }
 
