@@ -81,11 +81,6 @@ int main(int argc, char *argv[]) {
                 // Semantic analysis
                 typecheck(program);
 
-#if defined(HAS_TRANSLATOR)
-                // Translate to IR
-                vector *ir = translate(program);
-                (void)ir;
-#endif
 #if defined(HAS_CODEGEN)
                 codegen(program);
 #endif

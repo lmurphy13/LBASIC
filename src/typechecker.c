@@ -5,6 +5,7 @@
  */
 
 #include "typechecker.h"
+#include "translate.h"
 
 #include "ast.h"
 #include "error.h"
@@ -455,9 +456,11 @@ static bool match_types(node *a, node *b, type_t *type_a, type_t *type_b) {
     return result;
 }
 
+// Translate program to IR while typechecking, so we can use the scoped symbol table concurrently.
 static void typecheck_program(node *ast) {
     printf("Typechecking program\n");
     if (ast != NULL) {
+        translate_init(ast);
         // Typecheck children
         if (ast->data.program.statements->head != NULL) {
             vecnode *vn = ast->data.program.statements->head;
@@ -466,6 +469,7 @@ static void typecheck_program(node *ast) {
 
                 if (NULL != n) {
                     do_typecheck(n);
+                    do_translate(n);
                     vn = vn->next;
                 }
             }
@@ -482,7 +486,6 @@ static void typecheck_block_stmt(node *ast) {
     while (NULL != vn) {
         node *n = vn->data;
         do_typecheck(n);
-
         vn = vn->next;
     }
 }

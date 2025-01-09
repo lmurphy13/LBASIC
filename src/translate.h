@@ -22,7 +22,7 @@ typedef enum ir_type {
     IR_DIV,
     IR_CALL,   // Call a function
     IR_JUMP,   // Jump to a label
-    IR_CMP,    // Compare two values
+    IR_CJUMP,  // Conditional jump
     IR_LABEL,  // Create a label
     IR_RETURN, // Return from a function
     NUM_IR_TYPES
@@ -35,6 +35,9 @@ typedef struct ir_node {
     char arg1[MAX_ARGUMENT];
     char arg2[MAX_ARGUMENT];
     char arg3[MAX_ARGUMENT];
+    char label_if_true[MAX_ARGUMENT];  // CJUMP
+    char label_if_false[MAX_ARGUMENT]; // CJUMP
+    token_type rel_operator;           // CJUMP
     binding_t *arg1_binding;
     binding_t *arg2_binding;
     binding_t *arg3_binding;
@@ -42,7 +45,8 @@ typedef struct ir_node {
 } ir_node;
 
 // Prototypes
-vector *translate(node *ast);
+vector *translate_init(node *ast);
+void do_translate(node *ast);
 
 #endif // TRANSLATE_H
 
