@@ -20,30 +20,30 @@ static symtab_t *symbol_table = NULL;
 static unsigned int label_count = 0;
 static unsigned int temp_count  = 0;
 
-static void translate_program(node *ast);
-static void translate_block_stmt(node *ast);
-static void translate_var_decl(node *ast);
-static void translate_call_expr(node *ast);
-static void translate_func_decl(node *ast);
-static void translate_formal(node *ast);
-static void translate_ident(node *ast);
-static void translate_binop_expr(node *ast);
-static void translate_assign_expr(node *ast);
-static void translate_if_stmt(node *ast);
-static void translate_literal(node *ast);
-static void translate_return_stmt(node *ast);
-static void translate_nil(node *ast);
-static void translate_struct_decl(node *ast);
-static void translate_member_decl(node *ast);
-static void translate_struct_access(node *ast);
-static void translate_label_decl(node *ast);
-static void translate_goto_stmt(node *ast);
-static void translate_array_init_expr(node *ast);
-static void translate_array_access_expr(node *ast);
-static void translate_while_stmt(node *ast);
-static void translate_empty_expr(node *ast);
-static void translate_neg_expr(node *ast);
-static void translate_not_expr(node *ast);
+static void translate_program(node *ast, symtab_t *symtab);
+static void translate_block_stmt(node *ast, symtab_t *symtab);
+static void translate_var_decl(node *ast, symtab_t *symtab);
+static void translate_call_expr(node *ast, symtab_t *symtab);
+static void translate_func_decl(node *ast, symtab_t *symtab);
+static void translate_formal(node *ast, symtab_t *symtab);
+static void translate_ident(node *ast, symtab_t *symtab);
+static void translate_binop_expr(node *ast, symtab_t *symtab);
+static void translate_assign_expr(node *ast, symtab_t *symtab);
+static void translate_if_stmt(node *ast, symtab_t *symtab);
+static void translate_literal(node *ast, symtab_t *symtab);
+static void translate_return_stmt(node *ast, symtab_t *symtab);
+static void translate_nil(node *ast, symtab_t *symtab);
+static void translate_struct_decl(node *ast, symtab_t *symtab);
+static void translate_member_decl(node *ast, symtab_t *symtab);
+static void translate_struct_access(node *ast, symtab_t *symtab);
+static void translate_label_decl(node *ast, symtab_t *symtab);
+static void translate_goto_stmt(node *ast, symtab_t *symtab);
+static void translate_array_init_expr(node *ast, symtab_t *symtab);
+static void translate_array_access_expr(node *ast, symtab_t *symtab);
+static void translate_while_stmt(node *ast, symtab_t *symtab);
+static void translate_empty_expr(node *ast, symtab_t *symtab);
+static void translate_neg_expr(node *ast, symtab_t *symtab);
+static void translate_not_expr(node *ast, symtab_t *symtab);
 
 static ir_node *mk_ir_node(ir_type type);
 static void print_ir(vector *ir);
@@ -369,7 +369,7 @@ static ir_node *CJUMP(char *arg2, char *arg3, char *if_true, char *if_false,
     return node;
 }
 
-static ir_node *LABEL(char *arg, char *comment) {
+ir_node *LABEL(char *arg, char *comment) {
     if (NULL == arg) {
         log_error("%s(): Unable to access arg", __FUNCTION__);
     }
@@ -421,86 +421,86 @@ vector *translate_init(node *ast) {
     return ir_list;
 }
 
-void do_translate(node *ast) {
+void do_translate(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("Unable to access node for translation");
     }
 
     switch (ast->type) {
         case N_PROGRAM:
-            translate_program(ast);
+            translate_program(ast, symtab);
             break;
         case N_BLOCK_STMT:
-            translate_block_stmt(ast);
+            translate_block_stmt(ast, symtab);
             break;
         case N_VAR_DECL:
-            translate_var_decl(ast);
+            translate_var_decl(ast, symtab);
             break;
         case N_FUNC_DECL:
-            translate_func_decl(ast);
+            translate_func_decl(ast, symtab);
             break;
         case N_CALL_EXPR:
-            translate_call_expr(ast);
+            translate_call_expr(ast, symtab);
             break;
         case N_FORMAL:
-            translate_formal(ast);
+            translate_formal(ast, symtab);
             break;
         case N_IDENT:
-            translate_ident(ast);
+            translate_ident(ast, symtab);
             break;
         case N_BINOP_EXPR:
-            translate_binop_expr(ast);
+            translate_binop_expr(ast, symtab);
             break;
         case N_ASSIGN_EXPR:
-            translate_assign_expr(ast);
+            translate_assign_expr(ast, symtab);
             break;
         case N_IF_STMT:
-            translate_if_stmt(ast);
+            translate_if_stmt(ast, symtab);
             break;
         case N_INTEGER_LITERAL:
         case N_FLOAT_LITERAL:
         case N_STRING_LITERAL:
         case N_BOOL_LITERAL:
-            translate_literal(ast);
+            translate_literal(ast, symtab);
             break;
         case N_RETURN_STMT:
-            translate_return_stmt(ast);
+            translate_return_stmt(ast, symtab);
             break;
         case N_NIL:
-            translate_nil(ast);
+            translate_nil(ast, symtab);
             break;
         case N_STRUCT_DECL:
-            translate_struct_decl(ast);
+            translate_struct_decl(ast, symtab);
             break;
         case N_MEMBER_DECL:
-            translate_member_decl(ast);
+            translate_member_decl(ast, symtab);
             break;
         case N_STRUCT_ACCESS_EXPR:
-            translate_struct_access(ast);
+            translate_struct_access(ast, symtab);
             break;
         case N_LABEL_DECL:
-            translate_label_decl(ast);
+            translate_label_decl(ast, symtab);
             break;
         case N_GOTO_STMT:
-            translate_goto_stmt(ast);
+            translate_goto_stmt(ast, symtab);
             break;
         case N_ARRAY_INIT_EXPR:
-            translate_array_init_expr(ast);
+            translate_array_init_expr(ast, symtab);
             break;
         case N_ARRAY_ACCESS_EXPR:
-            translate_array_access_expr(ast);
+            translate_array_access_expr(ast, symtab);
             break;
         case N_WHILE_STMT:
-            translate_while_stmt(ast);
+            translate_while_stmt(ast, symtab);
             break;
         case N_EMPTY_EXPR:
-            translate_empty_expr(ast);
+            translate_empty_expr(ast, symtab);
             break;
         case N_NEG_EXPR:
-            translate_neg_expr(ast);
+            translate_neg_expr(ast, symtab);
             break;
         case N_NOT_EXPR:
-            translate_not_expr(ast);
+            translate_not_expr(ast, symtab);
             break;
         default:
             log_error("Unknown node type", ast);
@@ -508,7 +508,7 @@ void do_translate(node *ast) {
     }
 }
 
-static void translate_program(node *ast) {
+static void translate_program(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -521,13 +521,15 @@ static void translate_program(node *ast) {
     while (NULL != vn) {
         node *n = vn->data;
         if (NULL != n) {
-            do_translate(n);
+            do_translate(n, symtab);
             vn = vn->next;
         }
     }
+
+    print_ir(ir_list);
 }
 
-static void translate_block_stmt(node *ast) {
+static void translate_block_stmt(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -542,7 +544,7 @@ static void translate_block_stmt(node *ast) {
     while (NULL != vn) {
         node *n = vn->data;
         if (NULL != n) {
-            do_translate(n);
+            do_translate(n, symtab);
             vn = vn->next;
         }
     }
@@ -551,7 +553,7 @@ static void translate_block_stmt(node *ast) {
 }
 
 // TYPE var := Node;
-static void translate_var_decl(node *ast) {
+static void translate_var_decl(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -612,7 +614,7 @@ static void translate_var_decl(node *ast) {
             binding_t *var_binding = symtab_lookup(symbol_table, ast->data.var_decl.name, false);
             if (NULL != var_binding) {
                 // Result is in a temporary
-                do_translate(ast->data.var_decl.value);
+                do_translate(ast->data.var_decl.value, symtab);
                 // sprintf(tmp1, "t%d", temp_count-1);   // Previously written temp
                 //  Get most recent temporary
                 ir_node *last = (ir_node *)ir_list->tail->data;
@@ -659,19 +661,75 @@ static void translate_var_decl(node *ast) {
     print_ir(ir_list);
 }
 
-static void translate_call_expr(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_call_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_func_decl(node *ast) { assert(false && "Not implemented yet"); }
-
-static void translate_formal(node *ast) { assert(false && "Not implemented yet"); }
-
-static void translate_ident(node *ast) {
+static void translate_func_decl(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
+
+    // Do nothing
+
+   // LABEL(ast->data.function_decl.name, "function entry");
+
+    // symbol_table = get_symbol_table();
+
+    // binding_t *func_binding = symtab_lookup(symbol_table, ast->data.function_decl.name, false);
+
+    // LABEL(ast->data.function_decl.name, "function entry");
+
+    // if (func_binding->data.function_type.num_args > 0) {
+
+    //     symbol_table = get_symbol_table();
+    //     debug("name: %s", symbol_table->name);
+    //     debug("level: %d", symbol_table->level);
+
+    //     vecnode *vn = ast->data.function_decl.formals->head;
+    //     while (NULL != vn) {
+    //         node *n = vn->data;
+
+    //         do_translate(n);
+
+    //         vn = vn->next;
+    //     }
+    // }
+
+
+    // if (NULL != ast->data.function_decl.body) {
+    //     do_translate(ast->data.function_decl.body);
+    // }
+
+    // print_ir(ir_list);
 }
 
-static void translate_binop_expr(node *ast) {
+static void translate_formal(node *ast, symtab_t *symtab) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for translation", __FUNCTION__);
+    }
+
+    char tmp1[MAX_ARGUMENT] = {0};
+
+    debug("here in %s()", __FUNCTION__);
+
+    symbol_table = get_symbol_table();
+
+    binding_t *formal_binding = symtab_lookup(symbol_table, ast->data.formal.name, true);
+    if (NULL != formal_binding) {
+        get_temp(tmp1);
+        snprintf(formal_binding->temp, MAX_ARGUMENT, tmp1);
+        ir_node *load_node               = LOAD(tmp1, formal_binding->name, ast->data.formal.name);
+        load_node->arg1_binding = formal_binding;
+    }
+}
+
+static void translate_ident(node *ast, symtab_t *symtab) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for translation", __FUNCTION__);
+    }
+    // Do nothing
+}
+
+static void translate_binop_expr(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -687,17 +745,22 @@ static void translate_binop_expr(node *ast) {
     // Reset scope to current
     symbol_table = get_symbol_table();
 
-    do_translate(lhs);
-    do_translate(rhs);
+    do_translate(lhs, symtab);
+    do_translate(rhs, symtab);
 
     if (lhs->type == N_IDENT) {
         lhs_binding = symtab_lookup(symbol_table, lhs->data.identifier.name, false);
-        snprintf(tmp2, MAX_ARGUMENT, lhs_binding->temp);
+        if (NULL != lhs_binding) {
+            snprintf(tmp2, MAX_ARGUMENT, lhs_binding->temp);
+        }
     } else if (lhs->type == N_INTEGER_LITERAL) {
         snprintf(tmp2, MAX_ARGUMENT, "$%d", lhs->data.integer_literal.value);
     } else if (lhs->type == N_FLOAT_LITERAL) {
         snprintf(tmp2, MAX_ARGUMENT, "$%f", lhs->data.float_literal.value);
         log_error("%s(): No float support yet", __FUNCTION__);
+    } else if (lhs->type == N_BINOP_EXPR) {
+        //do_translate(lhs);
+        debug("here lhs");
     } else {
         log_error("%s(): LHS type %d not supported yet", __FUNCTION__, lhs->type);
     }
@@ -710,6 +773,9 @@ static void translate_binop_expr(node *ast) {
     } else if (rhs->type == N_FLOAT_LITERAL) {
         snprintf(tmp3, MAX_ARGUMENT, "$%f", rhs->data.float_literal.value);
         log_error("%s(): No float support yet", __FUNCTION__);
+    } else if (rhs->type == N_BINOP_EXPR) {
+        //do_translate(lhs);
+        debug("here rhs");
     } else {
         log_error("%s(): RHS type %d not supported yet", __FUNCTION__, rhs->type);
     }
@@ -761,7 +827,7 @@ static void translate_binop_expr(node *ast) {
     print_ir(ir_list);
 }
 
-static void translate_assign_expr(node *ast) {
+static void translate_assign_expr(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -777,8 +843,8 @@ static void translate_assign_expr(node *ast) {
     // // Reset scope to current
     // // symbol_table = get_symbol_table();
 
-    do_translate(lhs);
-    do_translate(rhs);
+    do_translate(lhs, symtab);
+    do_translate(rhs, symtab);
 
     if (lhs->type == N_IDENT) {
         lhs_binding = symtab_lookup(symbol_table, lhs->data.identifier.name, false);
@@ -810,7 +876,7 @@ static void translate_assign_expr(node *ast) {
     }
 }
 
-static void translate_if_stmt(node *ast) {
+static void translate_if_stmt(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -818,22 +884,22 @@ static void translate_if_stmt(node *ast) {
     char exit_label[MAX_ARGUMENT] = {0};
 
     // Translate test
-    do_translate(ast->data.if_stmt.test);
+    do_translate(ast->data.if_stmt.test, symtab);
 
     // Get last CJUMP
     ir_node *cjump = (ir_node *)ir_list->tail->data;
-    LABEL(cjump->label_if_true, NULL);
+    LABEL(cjump->label_if_true, "if true");
 
     get_label(exit_label);
 
     // Translate If body
-    do_translate(ast->data.if_stmt.body);
+    do_translate(ast->data.if_stmt.body, symtab);
     JUMP(exit_label, NULL);
 
     // Translate Else body
+    LABEL(cjump->label_if_false, "if false");
     if (NULL != ast->data.if_stmt.else_stmt) {
-        LABEL(cjump->label_if_false, NULL);
-        do_translate(ast->data.if_stmt.else_stmt);
+        do_translate(ast->data.if_stmt.else_stmt, symtab);
         // Don't need to jump to exit, since we can fall-through to exit_label
     }
 
@@ -841,13 +907,13 @@ static void translate_if_stmt(node *ast) {
     print_ir(ir_list);
 }
 
-static void translate_literal(node *ast) {
+static void translate_literal(node *ast, symtab_t *symtab) {
     // Do nothing
     debug("Looking at literal");
     print_node(ast, 0);
 }
 
-static void translate_return_stmt(node *ast) {
+static void translate_return_stmt(node *ast, symtab_t *symtab) {
     if (NULL == ast) {
         log_error("%s(): Unable to access node for translation", __FUNCTION__);
     }
@@ -855,29 +921,58 @@ static void translate_return_stmt(node *ast) {
     RETURN(NULL);
 }
 
-static void translate_nil(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_nil(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_struct_decl(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_struct_decl(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_member_decl(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_member_decl(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_struct_access(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_struct_access(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_label_decl(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_label_decl(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_goto_stmt(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_goto_stmt(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_array_init_expr(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_array_init_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_array_access_expr(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_array_access_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
-static void translate_while_stmt(node *ast) { assert(false && "Not implemented yet"); }
+static void translate_while_stmt(node *ast, symtab_t *symtab) {
+    if (NULL == ast) {
+        log_error("%s(): Unable to access node for translation", __FUNCTION__);
+    }
 
-static void translate_empty_expr(node *ast) { assert(false && "Not implemented yet"); }
+    char loop_label[MAX_ARGUMENT] = {0};
+    char exit_label[MAX_ARGUMENT] = {0};
 
-static void translate_neg_expr(node *ast) { assert(false && "Not implemented yet"); }
+    get_label(loop_label);
+    LABEL(loop_label, "while loop entry");
 
-static void translate_not_expr(node *ast) { assert(false && "Not implemented yet"); }
+    // Translate test
+    do_translate(ast->data.while_stmt.test, symtab);
+
+    // Get last CJUMP
+    ir_node *cjump = (ir_node *)ir_list->tail->data;
+    LABEL(cjump->label_if_true, "loop if true");
+
+    //get_label(exit_label);
+
+    if (NULL != ast->data.while_stmt.body) {
+        // Translate while body
+        do_translate(ast->data.while_stmt.body, symtab);
+        JUMP(loop_label, "return to loop entry");
+    }
+
+    LABEL(cjump->label_if_false, "loop if false");
+
+    print_ir(ir_list);
+}
+
+static void translate_empty_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
+
+static void translate_neg_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
+
+static void translate_not_expr(node *ast, symtab_t *symtab) { assert(false && "Not implemented yet"); }
 
 static void print_ir(vector *ir) {
     printf("IR List:\n");
@@ -912,13 +1007,13 @@ static void print_ir(vector *ir) {
                     printf("ADD    %s = %s + %s    %s\n", arg1, arg2, arg3, comment);
                     break;
                 case IR_SUB: //  TMP = (VAL | TMP) + (VAL | TMP)
-                    printf("SUB    %s = %s + %s    %s\n", arg1, arg2, arg3, comment);
+                    printf("SUB    %s = %s - %s    %s\n", arg1, arg2, arg3, comment);
                     break;
                 case IR_MUL: //  TMP = (VAL | TMP) + (VAL | TMP)
-                    printf("MUL    %s = %s + %s    %s\n", arg1, arg2, arg3, comment);
+                    printf("MUL    %s = %s * %s    %s\n", arg1, arg2, arg3, comment);
                     break;
                 case IR_DIV: //  TMP = (VAL | TMP) + (VAL | TMP)
-                    printf("DIV    %s = %s + %s    %s\n", arg1, arg2, arg3, comment);
+                    printf("DIV    %s = %s / %s    %s\n", arg1, arg2, arg3, comment);
                     break;
                 case IR_CALL: // FUNC
                     printf("CALL   %s              %s", arg1, comment);
@@ -927,7 +1022,7 @@ static void print_ir(vector *ir) {
                     printf("JUMP   %s              %s\n", arg1, comment);
                     break;
                 case IR_CJUMP:
-                    printf("CJUMP  %s  Op: %d  %s  IfTrue: %s  IfFalse: %s\n", arg2,
+                    printf("CJUMP  %s  Op: %d  %s  JUMP IfTrue: %s  JUMP IfFalse: %s\n", arg2,
                            node->rel_operator, arg3, label_if_true, label_if_false);
                     break;
                 case IR_LABEL: // LBL

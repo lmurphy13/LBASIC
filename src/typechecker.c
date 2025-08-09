@@ -469,7 +469,7 @@ static void typecheck_program(node *ast) {
 
                 if (NULL != n) {
                     do_typecheck(n);
-                    do_translate(n);
+                    do_translate(n, curr_scope);
                     vn = vn->next;
                 }
             }
@@ -486,6 +486,7 @@ static void typecheck_block_stmt(node *ast) {
     while (NULL != vn) {
         node *n = vn->data;
         do_typecheck(n);
+        do_translate(n, curr_scope);
         vn = vn->next;
     }
 }
@@ -578,6 +579,8 @@ static void typecheck_func_decl(node *ast) {
     symtab_insert(curr_scope, new_binding);
     print_symbol_table(symbol_table);
 
+    LABEL(ast->data.function_decl.name, "enter function");
+
     // Now, create a new scope and enter the function body
     enter_new_scope(new_binding->name);
 
@@ -588,6 +591,7 @@ static void typecheck_func_decl(node *ast) {
             node *n = vn->data;
 
             do_typecheck(n);
+            do_translate(n, curr_scope);
 
             vn = vn->next;
         }

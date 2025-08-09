@@ -1,0 +1,24 @@
+int c := 100;
+
+while (c > 0) then
+    if (c == 10) then
+        c := 1;
+    end
+
+    c := c - 1;
+end
+
+int i := 0;
+int j := 0;
+
+while (i < 10) then
+    ' Outer loop
+
+    while (j < 10) then
+        ' Inner loop
+
+        j := j + 1;
+    end
+
+    i := i + 1;
+end

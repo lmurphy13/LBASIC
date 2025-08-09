@@ -46,7 +46,8 @@ typedef struct ir_node {
 
 // Prototypes
 vector *translate_init(node *ast);
-void do_translate(node *ast);
+void do_translate(node *ast, symtab_t *symtab);
+ir_node *LABEL(char *arg, char *comment);
 
 #endif // TRANSLATE_H
 

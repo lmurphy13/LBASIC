@@ -74,7 +74,6 @@ typedef struct binding_s {
 typedef struct symtab_s {
     unsigned int level;
     char name[MAX_LITERAL];
-    //    bool seen;
     hashtable *table;
     struct symtab_s *prev;
     struct symtab_s *next;

@@ -1,0 +1,14 @@
+func fib(int n) -> int
+then
+    if (n == 0 or n == 1) then
+        return n;
+    'else then
+        'return fib(n - 1) + fib(n - 2);
+    end
+end
+
+func foo(int x, int y, int z) -> int
+then
+    int ret := (x + y) + z;
+    return ret;
+end
